@@ -1,7 +1,6 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { UtensilsCrossed } from 'lucide-react'
 import { signInWithGoogle, signInWithFacebook } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui'
@@ -31,11 +30,9 @@ export default function AuthPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-brand-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <UtensilsCrossed size={28} className="text-white" />
-          </div>
-          <h1 className="font-display text-3xl font-black text-[var(--c-text)]">Kade</h1>
-          <p className="text-[var(--c-muted)] text-sm mt-1">Sign in to rate and review restaurants</p>
+          <img src="/logo.svg" alt="Digitolio" className="w-16 h-16 mx-auto mb-4 drop-shadow-lg" />
+          <h1 className="font-display text-3xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6035] bg-clip-text text-transparent">Digitolio</h1>
+          <p className="text-[var(--c-muted)] text-sm mt-1">Sign in to rate and review food places</p>
         </div>
 
         {/* Auth card */}

@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { MapPin, Phone } from 'lucide-react'
+import { MapPin, UtensilsCrossed } from 'lucide-react'
 import { StarRating, PriceBadge, Badge } from '@/components/ui'
 import clsx from 'clsx'
 
@@ -19,8 +19,9 @@ export default function RestaurantCard({ restaurant, className }) {
           <img src={cover_image} alt={name} fill
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100">
-            <span className="text-5xl">🍽️</span>
+          <div className="w-full h-full flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg,#FF2D55 0%,#FF6035 100%)' }}>
+            <UtensilsCrossed size={36} className="text-white/60" strokeWidth={1.5} />
           </div>
         )}
         {price_range && (

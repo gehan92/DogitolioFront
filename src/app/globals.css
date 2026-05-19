@@ -1,25 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-display: 'Fraunces', serif;
-  --font-body:    'Plus Jakarta Sans', sans-serif;
-  --c-brand:    #e8702a;
-  --c-brand-dk: #c5501a;
-  --c-brand-lt: #fff0e6;
-  --c-bg:       #faf9f7;
+  --c-brand:    #ff2d55;
+  --c-brand-dk: #e0103a;
+  --c-brand-lt: #fff0f3;
+  --c-bg:       #ffffff;
   --c-surface:  #ffffff;
-  --c-surface2: #f5f3ef;
-  --c-border:   #e8e4dc;
-  --c-border2:  #d4cfc5;
-  --c-text:     #1c1a17;
-  --c-muted:    #6b6660;
-  --c-dim:      #9e9890;
-  --c-green:    #2d8a5f;
-  --c-red:      #c84b4b;
-  --c-amber:    #b87a1a;
+  --c-surface2: #f5f5f5;
+  --c-border:   #e8e8e8;
+  --c-border2:  #d4d4d4;
+  --c-text:     #0a0a0a;
+  --c-muted:    #737373;
+  --c-dim:      #a3a3a3;
+  --c-green:    #16a34a;
+  --c-red:      #dc2626;
+  --c-amber:    #d97706;
 }
 
 * { box-sizing: border-box; }
@@ -29,14 +26,14 @@ body { background-color: var(--c-bg); color: var(--c-text); font-family: var(--f
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--c-border2); border-radius: 3px; }
 :focus-visible { outline: 2px solid var(--c-brand); outline-offset: 2px; border-radius: 4px; }
-h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.15; }
+h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.1; letter-spacing: -0.02em; }
 .delay-100 { animation-delay: .1s; }
 .delay-200 { animation-delay: .2s; }
 .delay-300 { animation-delay: .3s; }
 .delay-400 { animation-delay: .4s; }
 
-.card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05); transition: box-shadow .2s, transform .2s; }
-.card:hover { box-shadow: 0 4px 8px rgba(0,0,0,.07), 0 16px 40px rgba(0,0,0,.09); transform: translateY(-2px); }
+.card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04); transition: box-shadow .25s, transform .25s, border-color .25s; }
+.card:hover { box-shadow: 0 4px 8px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.08); transform: translateY(-3px); border-color: rgba(255,45,85,.2); }
 
 .skeleton { background: linear-gradient(90deg, var(--c-surface2) 25%, var(--c-border) 50%, var(--c-surface2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -45,5 +42,7 @@ h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.15; }
 .price-budget  { background:#dcfce7; color:#166534; }
 .price-mid     { background:#fef9c3; color:#854d0e; }
 .price-premium { background:#fce7f3; color:#9d174d; }
+
+.gradient-text { background: linear-gradient(135deg, #FF2D55 0%, #FF6035 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .react-pdf__Page__canvas { display: block; max-width: 100%; height: auto !important; }

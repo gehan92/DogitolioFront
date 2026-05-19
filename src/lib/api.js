@@ -1,3 +1,5 @@
+import { DUMMY_RESTAURANTS, DUMMY_REVIEWS, filterRestaurants, paginateDummy } from './dummyData'
+
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 async function apiFetch(path, options = {}, token = null) {
@@ -13,10 +15,22 @@ async function apiFetch(path, options = {}, token = null) {
 // ── RESTAURANTS
 export const api = {
   restaurants: {
-    list:   (params = {}) => apiFetch('/restaurants?' + new URLSearchParams(params)),
-    get:    (id)          => apiFetch(`/restaurants/${id}`),
-    search: (params = {}) => apiFetch('/restaurants/search?' + new URLSearchParams(params)),
-    reviews:(id, params)  => apiFetch(`/restaurants/${id}/reviews?` + new URLSearchParams(params)),
+    list: async (params = {}) => {
+      try { return await apiFetch('/restaurants?' + new URLSearchParams(params)) }
+      catch { return filterRestaurants(params) }
+    },
+    get: async (id) => {
+      try { return await apiFetch(`/restaurants/${id}`) }
+      catch { return DUMMY_RESTAURANTS.find(r => r.id === String(id)) || null }
+    },
+    search: async (params = {}) => {
+      try { return await apiFetch('/restaurants/search?' + new URLSearchParams(params)) }
+      catch { return filterRestaurants(params) }
+    },
+    reviews: async (id, params) => {
+      try { return await apiFetch(`/restaurants/${id}/reviews?` + new URLSearchParams(params)) }
+      catch { return { data: DUMMY_REVIEWS.filter(r => r.restaurant_id === String(id)) } }
+    },
 
     // Admin
     create: (data, token) => apiFetch('/restaurants', { method:'POST', body: JSON.stringify(data) }, token),
