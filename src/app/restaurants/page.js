@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
@@ -8,7 +8,7 @@ import { Button, SkeletonCard, EmptyState } from '@/components/ui'
 import { UtensilsCrossed, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 
-export default function RestaurantsPage() {
+function RestaurantsContent() {
   const params   = useSearchParams()
   const router   = useRouter()
 
@@ -156,5 +156,13 @@ export default function RestaurantsPage() {
         <div className="h-20 md:h-0" />
       </main>
     </>
+  )
+}
+
+export default function RestaurantsPage() {
+  return (
+    <Suspense>
+      <RestaurantsContent />
+    </Suspense>
   )
 }

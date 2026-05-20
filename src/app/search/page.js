@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
@@ -8,7 +8,7 @@ import { SkeletonCard, EmptyState } from '@/components/ui'
 import { Search } from 'lucide-react'
 import { api } from '@/lib/api'
 
-export default function SearchPage() {
+function SearchContent() {
   const params = useSearchParams()
   const router = useRouter()
   const query  = params.get('q') || ''
@@ -96,5 +96,13 @@ export default function SearchPage() {
         <div className="h-20 md:h-0" />
       </main>
     </>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchContent />
+    </Suspense>
   )
 }
