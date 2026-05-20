@@ -14,16 +14,21 @@ export default function RestaurantCard({ restaurant, className }) {
   return (
     <Link href={`/restaurants/${id}`} className={clsx('card block overflow-hidden group', className)}>
       {/* Cover image */}
-      <div className="relative h-44 overflow-hidden bg-surface-secondary">
+      <div className="relative h-52 overflow-hidden bg-gray-100">
         {cover_image ? (
-          <img src={cover_image} alt={name} fill
+          <img src={cover_image} alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center"
+          <div className="w-full h-full relative flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg,#FF2D55 0%,#FF6035 100%)' }}>
-            <UtensilsCrossed size={36} className="text-white/60" strokeWidth={1.5} />
+            {/* subtle pattern */}
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 20%, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+            <UtensilsCrossed size={44} className="text-white/60" strokeWidth={1.2} />
           </div>
         )}
+        {/* gradient overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
         {price_range && (
           <div className="absolute top-3 right-3">
             <PriceBadge range={price_range} />

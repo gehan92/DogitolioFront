@@ -18,6 +18,18 @@ export async function signInWithFacebook() {
   })
 }
 
+export async function signInWithEmail(email, password) {
+  return supabase.auth.signInWithPassword({ email, password })
+}
+
+export async function signUpWithEmail(email, password, name) {
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name } },
+  })
+}
+
 export async function signOut() {
   return supabase.auth.signOut()
 }

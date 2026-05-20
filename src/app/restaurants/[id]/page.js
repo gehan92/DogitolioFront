@@ -7,7 +7,9 @@ import {
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
   ChevronRight, ThumbsUp,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
+const MenuViewer = dynamic(() => import('@/components/restaurant/MenuViewer'), { ssr: false })
 import { PriceBadge, Spinner } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -117,7 +119,7 @@ function MenuSection({ items }) {
             </div>
             {item.price && (
               <span className="text-[15px] font-black shrink-0" style={{ color: '#FF2D55' }}>
-                Rs {Number(item.price).toLocaleString()}
+                Rs. {Number(item.price).toLocaleString()}
               </span>
             )}
           </div>
@@ -196,7 +198,7 @@ export default function RestaurantPage() {
 
   const { name, description, address, town, district, province, phone, website,
           cuisine_types, price_range, cover_image, open_hours,
-          menu_items, restaurant_ratings } = restaurant
+          menu_items, menu_url, restaurant_ratings } = restaurant
 
   const avgRating   = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || reviews.length
@@ -276,7 +278,10 @@ export default function RestaurantPage() {
         {/* ── Menu tab */}
         {tab === 'menu' && (
           <div className="animate-fade-in">
-            <MenuSection items={menu_items} />
+            {menu_url
+              ? <MenuViewer pdfUrl={menu_url} restaurantName={name} />
+              : <MenuSection items={menu_items} />
+            }
           </div>
         )}
 

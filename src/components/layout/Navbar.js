@@ -39,9 +39,9 @@ export default function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
               <img
-                src="/logo.svg"
+                src="/digtolio_logo.jpg"
                 alt="Digitolio"
-                className="w-8 h-8 transition-transform duration-200 group-hover:scale-105"
+                className="w-8 h-8 rounded-xl transition-transform duration-200 group-hover:scale-105"
               />
               <span
                 className="text-[17px] font-extrabold tracking-tight leading-none"
