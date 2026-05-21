@@ -1,7 +1,14 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-// Browser-side Supabase client
-export const supabase = createClientComponentClient()
+// Browser-side Supabase client (lazy singleton to avoid SSR module-level errors)
+let _supabase = null
+export function getSupabase() {
+  if (!_supabase) _supabase = createClientComponentClient()
+  return _supabase
+}
+export const supabase = typeof window !== 'undefined'
+  ? createClientComponentClient()
+  : { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }), signOut: async () => {} } }
 
 // Auth helpers
 export async function signInWithGoogle() {
