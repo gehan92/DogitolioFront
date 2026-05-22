@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
       else setLoading(false)
-    })
+    }).catch(() => setLoading(false))
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -39,13 +39,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url, role, is_banned')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
-    setLoading(false)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, role, is_banned')
+        .eq('id', userId)
+        .single()
+      setProfile(data ?? null)
+    } catch (_) {
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function ensureProfile(user) {
