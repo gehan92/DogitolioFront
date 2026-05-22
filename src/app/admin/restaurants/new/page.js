@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeft, UtensilsCrossed, ImagePlus, X } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 
 const PROVINCES = [
   'Western', 'Central', 'Southern', 'Northern', 'Eastern',
@@ -30,8 +31,11 @@ export default function NewRestaurantPage() {
     price_range: '', cuisine_types: [],
     brand_color: '#FF2D55', google_maps_embed: '',
   })
+  const [coverFile,    setCoverFile]    = useState(null)
+  const [coverPreview, setCoverPreview] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+  const fileInputRef = useRef()
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) router.replace('/')
@@ -39,6 +43,19 @@ export default function NewRestaurantPage() {
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  function handleCoverChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+  }
+
+  function removeCover() {
+    setCoverFile(null)
+    setCoverPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function toggleCuisine(cuisine) {
@@ -58,7 +75,20 @@ export default function NewRestaurantPage() {
     }
     setSaving(true); setError('')
     try {
-      const data = await api.restaurants.create(form, token)
+      let cover_image = null
+      if (coverFile) {
+        const ext = coverFile.name.split('.').pop()
+        const path = `covers/${Date.now()}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('restaurant-menus')
+          .upload(path, coverFile, { upsert: true })
+        if (uploadErr) throw new Error('Image upload failed: ' + uploadErr.message)
+        const { data: { publicUrl } } = supabase.storage
+          .from('restaurant-menus')
+          .getPublicUrl(path)
+        cover_image = publicUrl
+      }
+      const data = await api.restaurants.create({ ...form, cover_image }, token)
       router.push(`/restaurants/${data.id}`)
     } catch (err) {
       setError(err.message)
@@ -133,6 +163,31 @@ export default function NewRestaurantPage() {
                 placeholder="https://example.com"
                 className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white" />
             </div>
+          </div>
+
+          {/* Cover Image */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-[var(--c-text)] text-sm uppercase tracking-wide text-[#FF2D55]">Cover Image</h2>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleCoverChange} className="hidden" />
+            {coverPreview ? (
+              <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-[var(--c-border)]">
+                <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+                <button type="button" onClick={removeCover}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                className="w-full h-40 rounded-2xl border-2 border-dashed border-[var(--c-border)] flex flex-col items-center justify-center gap-2 hover:border-[#FF2D55]/50 hover:bg-red-50/30 transition-all group">
+                <ImagePlus size={28} className="text-[var(--c-dim)] group-hover:text-[#FF2D55] transition-colors" />
+                <span className="text-sm font-medium text-[var(--c-muted)] group-hover:text-[#FF2D55]">Click to upload cover photo</span>
+                <span className="text-xs text-[var(--c-dim)]">JPG, PNG or WebP — shown on the restaurant card and page</span>
+              </button>
+            )}
+            {!coverPreview && (
+              <p className="text-xs text-[var(--c-dim)]">Recommended: 1200×600px landscape image</p>
+            )}
           </div>
 
           {/* Location */}
