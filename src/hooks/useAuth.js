@@ -11,8 +11,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Safety: never let loading stay true more than 5 seconds
-    const timeout = setTimeout(() => setLoading(false), 5000)
+    // Safety: only force-stop loading if getSession itself never responds (no user case)
+    const timeout = setTimeout(() => setLoading(false), 8000)
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {

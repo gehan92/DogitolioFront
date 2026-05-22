@@ -12,7 +12,7 @@ import clsx from 'clsx'
 const TABS = ['Overview', 'Restaurants', 'Reviews', 'Users', 'Menu Items', 'Site Content', 'History']
 
 export default function AdminPage() {
-  const { user, isAdmin, loading: authLoading, token } = useAuth()
+  const { user, profile, isAdmin, loading: authLoading, token } = useAuth()
   const router = useRouter()
 
   const [tab,         setTab]         = useState('Overview')
@@ -54,10 +54,11 @@ export default function AdminPage() {
   const [auditLogs,    setAuditLogs]    = useState([])
   const [auditLoading, setAuditLoading] = useState(false)
 
-  // Redirect non-admins
+  // Redirect non-admins — wait for both auth AND profile to finish loading
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) router.replace('/')
-  }, [user, isAdmin, authLoading])
+    if (!authLoading && user && profile && !isAdmin) router.replace('/')
+    if (!authLoading && !user) router.replace('/')
+  }, [user, profile, isAdmin, authLoading])
 
   useEffect(() => {
     if (!token || !isAdmin) return
