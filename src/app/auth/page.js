@@ -1,11 +1,19 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthInner />
+    </Suspense>
+  )
+}
+
+function AuthInner() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
