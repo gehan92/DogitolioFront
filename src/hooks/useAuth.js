@@ -60,17 +60,23 @@ export function AuthProvider({ children }) {
   async function ensureProfile(user) {
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, name')
       .eq('id', user.id)
       .single()
+
+    const derivedName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
 
     if (!existing) {
       await supabase.from('profiles').insert({
         id:         user.id,
-        name:       user.user_metadata?.full_name || user.email?.split('@')[0],
+        name:       derivedName,
         avatar_url: user.user_metadata?.avatar_url || null,
         provider:   user.app_metadata?.provider || 'email',
       })
+      await fetchProfile(user.id)
+    } else if (!existing.name) {
+      // Fix missing name on existing profiles
+      await supabase.from('profiles').update({ name: derivedName }).eq('id', user.id)
       await fetchProfile(user.id)
     }
   }
