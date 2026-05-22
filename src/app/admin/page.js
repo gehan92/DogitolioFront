@@ -2,14 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload, Plus, Check, X, Trash2, Shield } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload, Plus, Check, X, Trash2, Shield, Image, FileText, ChevronDown, Pencil, Tag } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import clsx from 'clsx'
 
-const TABS = ['Overview', 'Restaurants', 'Reviews', 'Users']
+const TABS = ['Overview', 'Restaurants', 'Reviews', 'Users', 'Menu Items', 'Site Content']
 
 export default function AdminPage() {
   const { user, isAdmin, loading: authLoading, token } = useAuth()
@@ -27,6 +27,28 @@ export default function AdminPage() {
   const [pdfFile,   setPdfFile]   = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
+
+  // Menu Items state
+  const [miRestaurant, setMiRestaurant] = useState('')
+  const [menuItems,    setMenuItems]    = useState([])
+  const [miLoading,    setMiLoading]    = useState(false)
+  const [miForm, setMiForm] = useState({ name:'', description:'', price:'', category:'', discount_type:'', discount_value:'', photo: null })
+  const [miEditId, setMiEditId] = useState(null)
+  const [miSaving, setMiSaving] = useState(false)
+  const [miMsg,    setMiMsg]    = useState('')
+
+  // Site Content state
+  const [scPage,    setScPage]    = useState('home')
+  const [scFields,  setScFields]  = useState({})
+  const [scLoading, setScLoading] = useState(false)
+  const [scSaving,  setScSaving]  = useState(false)
+  const [scMsg,     setScMsg]     = useState('')
+
+  const SC_SCHEMAS = {
+    home:    ['headline','subheadline','ctaText'],
+    about:   ['headline','subheadline','storyTitle','storyP1','storyP2'],
+    contact: ['headline','subheadline','email','phone','location','hours'],
+  }
 
   // Redirect non-admins
   useEffect(() => {
@@ -88,6 +110,82 @@ export default function AdminPage() {
   async function approveReview(reviewId, approve) {
     await api.admin.patchReview(reviewId, { is_approved: approve }, token)
     setReviews(r => r.map(rev => rev.id === reviewId ? { ...rev, is_approved: approve } : rev))
+  }
+
+  // ── Menu Items handlers ─────────────────────────────────────────
+  async function loadMenuItems(restaurantId) {
+    if (!restaurantId) return
+    setMiLoading(true)
+    try {
+      const data = await api.menuItems.list(restaurantId)
+      setMenuItems(data || [])
+    } catch { setMenuItems([]) }
+    finally { setMiLoading(false) }
+  }
+
+  function miStartEdit(item) {
+    setMiEditId(item.id)
+    setMiForm({ name: item.name, description: item.description||'', price: item.price, category: item.category||'', discount_type: item.discount_type||'', discount_value: item.discount_value||'', photo: null })
+  }
+
+  function miReset() {
+    setMiEditId(null)
+    setMiForm({ name:'', description:'', price:'', category:'', discount_type:'', discount_value:'', photo: null })
+    setMiMsg('')
+  }
+
+  async function miSave(e) {
+    e.preventDefault()
+    if (!miRestaurant) return
+    setMiSaving(true); setMiMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('name',          miForm.name)
+      fd.append('description',   miForm.description)
+      fd.append('price',         miForm.price)
+      fd.append('category',      miForm.category)
+      fd.append('discount_type', miForm.discount_type)
+      fd.append('discount_value',miForm.discount_value)
+      if (miForm.photo) fd.append('photo', miForm.photo)
+
+      if (miEditId) {
+        const updated = await api.menuItems.update(miEditId, fd, token)
+        setMenuItems(items => items.map(i => i.id === miEditId ? updated : i))
+        setMiMsg('✓ Item updated')
+      } else {
+        const created = await api.menuItems.create(miRestaurant, fd, token)
+        setMenuItems(items => [...items, created])
+        setMiMsg('✓ Item added')
+      }
+      miReset()
+    } catch (err) { setMiMsg(`Error: ${err.message}`) }
+    finally { setMiSaving(false) }
+  }
+
+  async function miDelete(id) {
+    if (!confirm('Delete this menu item?')) return
+    await api.menuItems.delete(id, token)
+    setMenuItems(items => items.filter(i => i.id !== id))
+  }
+
+  // ── Site Content handlers ────────────────────────────────────────
+  async function scLoad(page) {
+    setScLoading(true); setScMsg('')
+    try {
+      const data = await api.siteContent.get(page)
+      setScFields(data?.content || {})
+    } catch { setScFields({}) }
+    finally { setScLoading(false) }
+  }
+
+  async function scSave(e) {
+    e.preventDefault()
+    setScSaving(true); setScMsg('')
+    try {
+      await api.siteContent.update(scPage, scFields, token)
+      setScMsg('✓ Saved successfully')
+    } catch (err) { setScMsg(`Error: ${err.message}`) }
+    finally { setScSaving(false) }
   }
 
   if (authLoading || loading) return (
@@ -317,6 +415,174 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── MENU ITEMS */}
+        {tab === 'Menu Items' && (
+          <div className="space-y-5 animate-fade-in">
+            {/* Restaurant selector */}
+            <div className="card p-5">
+              <h3 className="font-semibold text-[var(--c-text)] mb-3 flex items-center gap-2"><Tag size={17}/> Visual Menu Items</h3>
+              <select value={miRestaurant} onChange={e => { setMiRestaurant(e.target.value); loadMenuItems(e.target.value); miReset() }}
+                className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white">
+                <option value="">— Select restaurant —</option>
+                {restaurants.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
+              </select>
+            </div>
+
+            {miRestaurant && (
+              <>
+                {/* Add / Edit form */}
+                <div className="card p-5">
+                  <h4 className="font-semibold text-[var(--c-text)] mb-4">{miEditId ? 'Edit item' : 'Add new item'}</h4>
+                  <form onSubmit={miSave} className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Item name *</label>
+                        <input value={miForm.name} onChange={e => setMiForm(f=>({...f,name:e.target.value}))} required
+                          placeholder="e.g. Margherita Pizza"
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Price (LKR) *</label>
+                        <input type="number" step="0.01" value={miForm.price} onChange={e => setMiForm(f=>({...f,price:e.target.value}))} required
+                          placeholder="950.00"
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Description</label>
+                      <input value={miForm.description} onChange={e => setMiForm(f=>({...f,description:e.target.value}))}
+                        placeholder="Short description of the dish"
+                        className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Category</label>
+                        <input value={miForm.category} onChange={e => setMiForm(f=>({...f,category:e.target.value}))}
+                          placeholder="e.g. Main Course"
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Discount type</label>
+                        <select value={miForm.discount_type} onChange={e => setMiForm(f=>({...f,discount_type:e.target.value}))}
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white">
+                          <option value="">None</option>
+                          <option value="percent">Percent (%)</option>
+                          <option value="fixed">Fixed (LKR)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Discount value</label>
+                        <input type="number" step="0.01" value={miForm.discount_value} onChange={e => setMiForm(f=>({...f,discount_value:e.target.value}))}
+                          placeholder="e.g. 20"
+                          disabled={!miForm.discount_type}
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white disabled:opacity-40"/>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Photo (optional)</label>
+                      <input type="file" accept="image/*" onChange={e => setMiForm(f=>({...f,photo:e.target.files[0]}))}
+                        className="w-full text-sm text-[var(--c-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF2D55]/10 file:text-[#FF2D55] hover:file:bg-[#FF2D55]/20"/>
+                    </div>
+                    <div className="flex items-center gap-3 pt-1">
+                      <button type="submit" disabled={miSaving}
+                        className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                        {miSaving ? 'Saving…' : miEditId ? 'Update item' : 'Add item'}
+                      </button>
+                      {miEditId && (
+                        <button type="button" onClick={miReset} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary transition-all">
+                          Cancel
+                        </button>
+                      )}
+                      {miMsg && <p className={`text-sm font-medium ${miMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{miMsg}</p>}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Items list */}
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h4 className="font-semibold text-[var(--c-text)]">Items ({menuItems.length})</h4>
+                  </div>
+                  {miLoading ? (
+                    <div className="flex justify-center py-12"><Spinner size={28}/></div>
+                  ) : menuItems.length === 0 ? (
+                    <p className="text-sm text-[var(--c-muted)] text-center py-8">No items yet</p>
+                  ) : (
+                    <div className="divide-y divide-[var(--c-border)]">
+                      {menuItems.map(item => (
+                        <div key={item.id} className="flex items-center gap-4 px-4 py-3">
+                          {item.photo_url ? (
+                            <img src={item.photo_url} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--c-border)]"/>
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-[#f0f0f0] flex items-center justify-center shrink-0"><Image size={20} className="text-[var(--c-dim)]"/></div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-[var(--c-text)] truncate">{item.name}</p>
+                            <p className="text-xs text-[var(--c-muted)]">
+                              Rs {Number(item.price).toFixed(2)}
+                              {item.category ? ` · ${item.category}` : ''}
+                              {item.discount_type ? ` · ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' LKR'} OFF` : ''}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => miStartEdit(item)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><Pencil size={14}/></button>
+                            <button onClick={() => miDelete(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={14}/></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── SITE CONTENT */}
+        {tab === 'Site Content' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="card p-5">
+              <h3 className="font-semibold text-[var(--c-text)] mb-4 flex items-center gap-2"><FileText size={17}/> Page Content Editor</h3>
+              <div className="flex gap-2 mb-6">
+                {['home','about','contact'].map(p => (
+                  <button key={p} onClick={() => { setScPage(p); scLoad(p) }}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${scPage === p ? 'text-white shadow-sm' : 'text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary'}`}
+                    style={scPage === p ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              {scLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div> : (
+                <form onSubmit={scSave} className="space-y-4">
+                  {(SC_SCHEMAS[scPage] || []).map(field => (
+                    <div key={field}>
+                      <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 capitalize">{field.replace(/([A-Z])/g,' $1')}</label>
+                      {field.startsWith('story') || field === 'subheadline' ? (
+                        <textarea rows={3} value={scFields[field] || ''} onChange={e => setScFields(f=>({...f,[field]:e.target.value}))}
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white resize-none"/>
+                      ) : (
+                        <input value={scFields[field] || ''} onChange={e => setScFields(f=>({...f,[field]:e.target.value}))}
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button type="submit" disabled={scSaving}
+                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                      {scSaving ? 'Saving…' : 'Save changes'}
+                    </button>
+                    {scMsg && <p className={`text-sm font-medium ${scMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{scMsg}</p>}
+                  </div>
+                </form>
+              )}
+            </div>
+            <p className="text-xs text-[var(--c-dim)] text-center">Changes appear live on the website immediately after saving.</p>
           </div>
         )}
 

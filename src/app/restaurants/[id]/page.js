@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   MapPin, Phone, Globe, Clock, ArrowLeft, Star,
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
-  ChevronRight, ThumbsUp,
+  ChevronRight, ThumbsUp, Navigation,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
@@ -62,7 +62,8 @@ function RatingBar({ label, count, total }) {
 }
 
 /* ── Visual menu grouped by category */
-function MenuSection({ items }) {
+function MenuSection({ items, brandColor }) {
+  const color = brandColor || '#FF2D55'
   const available = items?.filter(i => i.is_available) || []
   const [activeCategory, setActiveCategory] = useState(null)
 
@@ -87,6 +88,13 @@ function MenuSection({ items }) {
     )
   }
 
+  function discountedPrice(item) {
+    if (!item.discount_type || !item.discount_value || !item.price) return null
+    if (item.discount_type === 'percent') return item.price * (1 - item.discount_value / 100)
+    if (item.discount_type === 'fixed')   return item.price - item.discount_value
+    return null
+  }
+
   return (
     <div>
       {/* Category pill tabs */}
@@ -99,7 +107,7 @@ function MenuSection({ items }) {
               'px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-150 shrink-0',
               shown === cat ? 'text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             )}
-            style={shown === cat ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+            style={shown === cat ? { background: color } : {}}
           >
             {cat}
           </button>
@@ -108,22 +116,46 @@ function MenuSection({ items }) {
 
       {/* Menu items */}
       <div className="space-y-3">
-        {groups[shown]?.map(item => (
-          <div key={item.id}
-            className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:border-[#FF2D55]/20 hover:shadow-sm transition-all duration-150">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-[15px] leading-tight">{item.name}</p>
-              {item.description && (
-                <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>
+        {groups[shown]?.map(item => {
+          const salePrice = discountedPrice(item)
+          return (
+            <div key={item.id}
+              className="flex items-start gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-sm transition-all duration-150"
+              style={{ borderColor: salePrice ? `${color}22` : undefined }}>
+              {/* Photo */}
+              {item.photo_url && (
+                <img src={item.photo_url} alt={item.name}
+                  className="w-20 h-20 rounded-xl object-cover shrink-0 border border-gray-100" />
               )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-900 text-[15px] leading-tight">{item.name}</p>
+                    {item.description && (
+                      <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>
+                    )}
+                  </div>
+                  {item.price && (
+                    <div className="text-right shrink-0">
+                      {salePrice ? (
+                        <>
+                          <span className="text-[13px] text-gray-400 line-through block">Rs. {Number(item.price).toLocaleString()}</span>
+                          <span className="text-[15px] font-black block" style={{ color }}>Rs. {Math.round(salePrice).toLocaleString()}</span>
+                          <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full mt-0.5 inline-block"
+                            style={{ background: color }}>
+                            {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[15px] font-black" style={{ color }}>Rs. {Number(item.price).toLocaleString()}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            {item.price && (
-              <span className="text-[15px] font-black shrink-0" style={{ color: '#FF2D55' }}>
-                Rs. {Number(item.price).toLocaleString()}
-              </span>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
       <p className="text-xs text-gray-400 text-center mt-6">
         Prices may vary. Contact the restaurant to confirm.
@@ -198,7 +230,9 @@ export default function RestaurantPage() {
 
   const { name, description, address, town, district, province, phone, website,
           cuisine_types, price_range, cover_image, open_hours,
-          menu_items, menu_url, restaurant_ratings } = restaurant
+          menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed } = restaurant
+
+  const color = brand_color || '#FF2D55'
 
   const avgRating   = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || reviews.length
@@ -267,7 +301,8 @@ export default function RestaurantPage() {
               )}>
               <Icon size={14} />{label}
               {key === 'reviews' && reviewCount > 0 && (
-                <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: '#FF2D55', color: '#fff' }}>
+                <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 text-white"
+                  style={{ background: color }}>
                   {reviewCount > 99 ? '99+' : reviewCount}
                 </span>
               )}
@@ -280,7 +315,7 @@ export default function RestaurantPage() {
           <div className="animate-fade-in">
             {menu_url
               ? <MenuViewer pdfUrl={menu_url} restaurantName={name} />
-              : <MenuSection items={menu_items} />
+              : <MenuSection items={menu_items} brandColor={color} />
             }
           </div>
         )}
@@ -300,7 +335,7 @@ export default function RestaurantPage() {
               {open_hours && (
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
-                    <Clock size={16} style={{ color: '#FF2D55' }} />
+                    <Clock size={16} style={{ color }} />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Opening hours</p>
@@ -311,7 +346,7 @@ export default function RestaurantPage() {
               {phone && (
                 <a href={`tel:${phone}`} className="flex items-start gap-3 group">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
-                    <Phone size={16} style={{ color: '#FF2D55' }} />
+                    <Phone size={16} style={{ color }} />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Phone</p>
@@ -322,7 +357,7 @@ export default function RestaurantPage() {
               {website && (
                 <a href={website} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 group">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
-                    <Globe size={16} style={{ color: '#FF2D55' }} />
+                    <Globe size={16} style={{ color }} />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Website</p>
@@ -332,7 +367,7 @@ export default function RestaurantPage() {
               )}
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
-                  <MapPin size={16} style={{ color: '#FF2D55' }} />
+                  <MapPin size={16} style={{ color }} />
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Address</p>
@@ -340,6 +375,32 @@ export default function RestaurantPage() {
                 </div>
               </div>
             </div>
+
+            {/* Google Maps embed */}
+            {google_maps_embed && (
+              <div className="p-5 rounded-2xl bg-white border border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-gray-900">Location</h2>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || `${name} ${town} Sri Lanka`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                    style={{ background: color }}>
+                    <Navigation size={12} /> Get directions
+                  </a>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-100" style={{ height: 260 }}>
+                  <iframe
+                    src={google_maps_embed}
+                    width="100%" height="260"
+                    style={{ border: 0 }}
+                    allowFullScreen loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Restaurant location"
+                  />
+                </div>
+              </div>
+            )}
 
             {cuisine_types?.length > 0 && (
               <div className="p-5 rounded-2xl bg-white border border-gray-100">
@@ -368,7 +429,7 @@ export default function RestaurantPage() {
                 <p className="text-sm text-gray-400 mb-4">Share your experience and help others discover great food.</p>
                 <Link href="/auth"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
-                  style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)', boxShadow: '0 2px 12px rgba(255,45,85,.3)' }}>
+                    style={{ background: color, boxShadow: `0 2px 12px ${color}40` }}>
                   Sign in
                 </Link>
               </div>
@@ -396,7 +457,7 @@ export default function RestaurantPage() {
                     type="submit"
                     disabled={!myRating || submitting}
                     className="w-full py-3 rounded-xl text-sm font-bold text-white transition-opacity disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                    style={{ background: color }}>
                     {submitting ? 'Submitting…' : 'Submit review'}
                   </button>
                 </form>
@@ -420,7 +481,7 @@ export default function RestaurantPage() {
                     <div key={review.id} className="p-4 rounded-2xl bg-white border border-gray-100">
                       <div className="flex items-start gap-3 mb-2">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-black"
-                          style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                          style={{ background: color }}>
                           {initials}
                         </div>
                         <div className="flex-1 min-w-0">

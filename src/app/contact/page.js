@@ -1,44 +1,42 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Link from 'next/link'
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle, ArrowRight } from 'lucide-react'
+import { api } from '@/lib/api'
 
-const contactInfo = [
-  {
-    icon: Mail,
-    label: 'Email Us',
-    value: 'hello@digitolio.lk',
-    desc: 'We reply within 24 hours',
-    href: 'mailto:hello@digitolio.lk',
-  },
-  {
-    icon: Phone,
-    label: 'Call Us',
-    value: '+94 11 234 5678',
-    desc: 'Mon – Fri, 9am – 5pm',
-    href: 'tel:+94112345678',
-  },
-  {
-    icon: MapPin,
-    label: 'Location',
-    value: 'Colombo, Sri Lanka',
-    desc: 'Serving all 9 provinces',
-    href: null,
-  },
-  {
-    icon: Clock,
-    label: 'Office Hours',
-    value: 'Mon – Fri',
-    desc: '9:00 AM – 5:00 PM',
-    href: null,
-  },
+const defaultContactInfo = [
+  { icon: Mail,  label: 'Email Us',     value: 'hello@digitolio.lk', desc: 'We reply within 24 hours',  href: 'mailto:hello@digitolio.lk' },
+  { icon: Phone, label: 'Call Us',      value: '+94 11 234 5678',    desc: 'Mon – Fri, 9am – 5pm',       href: 'tel:+94112345678' },
+  { icon: MapPin,label: 'Location',     value: 'Colombo, Sri Lanka', desc: 'Serving all 9 provinces',    href: null },
+  { icon: Clock, label: 'Office Hours', value: 'Mon – Fri',          desc: '9:00 AM – 5:00 PM',          href: null },
 ]
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [cms, setCms] = useState({})
+
+  useEffect(() => {
+    api.siteContent.get('contact')
+      .then(d => { if (d?.content) setCms(d.content) })
+      .catch(() => {})
+  }, [])
+
+  const email    = cms.email    || 'hello@digitolio.lk'
+  const phone    = cms.phone    || '+94 11 234 5678'
+  const location = cms.location || 'Colombo, Sri Lanka'
+  const hours    = cms.hours    || '9:00 AM – 5:00 PM'
+  const headline = cms.headline || 'Contact Us'
+  const subheadline = cms.subheadline || "Have a question, feedback, or want to list your food place? We'd love to hear from you."
+
+  const contactInfo = [
+    { icon: Mail,  label: 'Email Us',     value: email,    desc: 'We reply within 24 hours', href: `mailto:${email}` },
+    { icon: Phone, label: 'Call Us',      value: phone,    desc: 'Mon – Fri, 9am – 5pm',      href: `tel:${phone.replace(/\s/g,'')}` },
+    { icon: MapPin,label: 'Location',     value: location, desc: 'Serving all 9 provinces',   href: null },
+    { icon: Clock, label: 'Office Hours', value: 'Mon – Fri', desc: hours,                    href: null },
+  ]
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -70,10 +68,10 @@ export default function ContactPage() {
               Get in Touch
             </div>
             <h1 className="text-5xl md:text-6xl font-black text-white leading-tight tracking-tight mb-6">
-              Contact Us
+              {headline}
             </h1>
             <p className="text-white/90 text-lg leading-relaxed max-w-xl mx-auto">
-              Have a question, feedback, or want to list your food place? We&apos;d love to hear from you.
+              {subheadline}
             </p>
           </div>
         </section>

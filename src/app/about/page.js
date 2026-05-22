@@ -1,36 +1,21 @@
 import Navbar from '@/components/layout/Navbar'
 import Link from 'next/link'
 import { Target, Users, MapPin, ShieldCheck, ArrowRight, UtensilsCrossed, Building2, Coffee, ShoppingBag } from 'lucide-react'
+import { api } from '@/lib/api'
 
 export const metadata = {
   title: 'About Us',
   description: 'Learn about Digitolio — Sri Lanka\'s food discovery platform for hotels, restaurants, food shops and snack bars.',
 }
 
-const values = [
-  {
-    icon: Target,
-    title: 'Our Mission',
-    desc: 'To make it effortless for anyone in Sri Lanka to find the right food menu — whether you\'re at a five-star hotel or a roadside snack bar.',
-  },
-  {
-    icon: Users,
-    title: 'Community First',
-    desc: 'We empower real customers to share honest reviews, helping others make better food choices every day.',
-  },
-  {
-    icon: MapPin,
-    title: 'All 9 Provinces',
-    desc: 'From Colombo to Jaffna, Kandy to Galle — we cover every province so no food place gets left behind.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Trusted & Accurate',
-    desc: 'Menus are kept up to date by restaurant owners and verified by our team, so you always see real prices.',
-  },
+const defaultValues = [
+  { icon: Target,      title: 'Our Mission',     desc: 'To make it effortless for anyone in Sri Lanka to find the right food menu — whether you\'re at a five-star hotel or a roadside snack bar.' },
+  { icon: Users,       title: 'Community First',  desc: 'We empower real customers to share honest reviews, helping others make better food choices every day.' },
+  { icon: MapPin,      title: 'All 9 Provinces',  desc: 'From Colombo to Jaffna, Kandy to Galle — we cover every province so no food place gets left behind.' },
+  { icon: ShieldCheck, title: 'Trusted & Accurate', desc: 'Menus are kept up to date by restaurant owners and verified by our team, so you always see real prices.' },
 ]
 
-const stats = [
+const defaultStats = [
   { value: '500+', label: 'Food Places Listed' },
   { value: '9',    label: 'Provinces Covered' },
   { value: '10K+', label: 'User Reviews' },
@@ -38,13 +23,24 @@ const stats = [
 ]
 
 const categories = [
-  { icon: Building2,      label: 'Hotels',       desc: 'Full-service hotel dining rooms and buffets.' },
-  { icon: UtensilsCrossed,label: 'Restaurants',   desc: 'From fine dining to local rice and curry spots.' },
-  { icon: ShoppingBag,    label: 'Food Shops',    desc: 'Bakeries, takeaways and specialty food stores.' },
-  { icon: Coffee,         label: 'Snack Bars',    desc: 'Quick bites, short eats and refreshments.' },
+  { icon: Building2,       label: 'Hotels',       desc: 'Full-service hotel dining rooms and buffets.' },
+  { icon: UtensilsCrossed, label: 'Restaurants',   desc: 'From fine dining to local rice and curry spots.' },
+  { icon: ShoppingBag,     label: 'Food Shops',    desc: 'Bakeries, takeaways and specialty food stores.' },
+  { icon: Coffee,          label: 'Snack Bars',    desc: 'Quick bites, short eats and refreshments.' },
 ]
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  let cms = null
+  try { cms = await api.siteContent.get('about') } catch {}
+  const c = cms?.content || {}
+
+  const headline    = c.headline    || 'About Digitolio'
+  const subheadline = c.subheadline || 'We built Digitolio to solve a simple problem — finding food menus across Sri Lanka was hard. We made it easy.'
+  const storyTitle  = c.storyTitle  || 'Sri Lanka\'s food discovery platform'
+  const storyP1     = c.storyP1    || 'Digitolio started with a simple question: "Where can I find the menu before I go?" We built the answer — a single platform where anyone can discover and explore food menus from hotels, restaurants, food shops and snack bars across every province in Sri Lanka.'
+  const storyP2     = c.storyP2    || 'Whether you\'re a tourist looking for a good meal, a local finding a new favourite spot, or a business owner wanting to showcase your menu — Digitolio is built for you.'
+  const stats       = c.stats       || defaultStats
+
   return (
     <>
       <Navbar />
@@ -60,10 +56,10 @@ export default function AboutPage() {
               Our Story
             </div>
             <h1 className="text-5xl md:text-6xl font-black text-white leading-tight tracking-tight mb-6">
-              About Digitolio
+              {headline}
             </h1>
             <p className="text-white/90 text-lg leading-relaxed max-w-xl mx-auto">
-              We built Digitolio to solve a simple problem — finding food menus across Sri Lanka was hard. We made it easy.
+              {subheadline}
             </p>
           </div>
         </section>
@@ -87,13 +83,13 @@ export default function AboutPage() {
               <div>
                 <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-3">Who we are</p>
                 <h2 className="font-display text-3xl md:text-4xl font-black text-[var(--c-text)] mb-5">
-                  Sri Lanka&apos;s food discovery platform
+                  {storyTitle}
                 </h2>
                 <p className="text-[var(--c-muted)] leading-relaxed mb-4">
-                  Digitolio started with a simple question: <em>"Where can I find the menu before I go?"</em> We built the answer — a single platform where anyone can discover and explore food menus from hotels, restaurants, food shops and snack bars across every province in Sri Lanka.
+                  {storyP1}
                 </p>
                 <p className="text-[var(--c-muted)] leading-relaxed">
-                  Whether you&apos;re a tourist looking for a good meal, a local finding a new favourite spot, or a business owner wanting to showcase your menu — Digitolio is built for you.
+                  {storyP2}
                 </p>
               </div>
               {/* Visual card */}
@@ -120,7 +116,7 @@ export default function AboutPage() {
               <h2 className="font-display text-3xl md:text-4xl font-black text-[var(--c-text)]">Our values</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {values.map(({ icon: Icon, title, desc }) => (
+              {defaultValues.map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex gap-5 p-6 rounded-2xl bg-white border border-[var(--c-border)] hover:border-[#FF2D55]/20 hover:shadow-card-hover transition-all duration-200">
                   <div className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                     <Icon size={20} className="text-white" strokeWidth={2} />

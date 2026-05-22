@@ -55,6 +55,28 @@ export const api = {
     delete: (id, token)     => apiFetch(`/reviews/${id}`, { method:'DELETE' }, token),
   },
 
+  siteContent: {
+    get:    (page)         => apiFetch(`/site-content/${page}`),
+    update: (page, data, token) => apiFetch(`/site-content/${page}`, { method:'PUT', body: JSON.stringify(data) }, token),
+  },
+
+  menuItems: {
+    list:   (restaurantId) => apiFetch(`/menu-items/${restaurantId}`),
+    create: (restaurantId, formData, token) =>
+      fetch(`${BASE}/api/menu-items/${restaurantId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }).then(r => r.json()),
+    update: (id, formData, token) =>
+      fetch(`${BASE}/api/menu-items/item/${id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }).then(r => r.json()),
+    delete: (id, token) => apiFetch(`/menu-items/item/${id}`, { method:'DELETE' }, token),
+  },
+
   admin: {
     stats:      (token)           => apiFetch('/admin/stats', {}, token),
     users:      (params, token)   => apiFetch('/admin/users?' + new URLSearchParams(params), {}, token),
