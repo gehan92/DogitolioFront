@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react'
@@ -8,8 +8,9 @@ import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide
 export default function AuthPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [tab,       setTab]       = useState('signin')   // 'signin' | 'signup'
+  const [tab,       setTab]       = useState('signin')
   const [name,      setName]      = useState('')
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')
@@ -21,6 +22,12 @@ export default function AuthPage() {
   useEffect(() => {
     if (!loading && user) router.replace('/')
   }, [user, loading])
+
+  // Show error passed from auth callback (e.g. expired magic link)
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) setError(urlError)
+  }, [searchParams])
 
   function reset() { setError(''); setSuccess('') }
 
