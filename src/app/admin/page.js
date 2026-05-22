@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import clsx from 'clsx'
 
-const TABS = ['Overview', 'Restaurants', 'Reviews', 'Users', 'Menu Items', 'Site Content']
+const TABS = ['Overview', 'Restaurants', 'Reviews', 'Users', 'Menu Items', 'Site Content', 'History']
 
 export default function AdminPage() {
   const { user, isAdmin, loading: authLoading, token } = useAuth()
@@ -49,6 +49,10 @@ export default function AdminPage() {
     about:   ['headline','subheadline','storyTitle','storyP1','storyP2'],
     contact: ['headline','subheadline','email','phone','location','hours'],
   }
+
+  // History state
+  const [auditLogs,    setAuditLogs]    = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
 
   // Redirect non-admins
   useEffect(() => {
@@ -186,6 +190,16 @@ export default function AdminPage() {
       setScMsg('✓ Saved successfully')
     } catch (err) { setScMsg(`Error: ${err.message}`) }
     finally { setScSaving(false) }
+  }
+
+  // ── History handler ──────────────────────────────────────────────
+  async function loadAuditLogs() {
+    setAuditLoading(true)
+    try {
+      const data = await api.admin.auditLogs({ limit: 100 }, token)
+      setAuditLogs(data?.data || [])
+    } catch { setAuditLogs([]) }
+    finally { setAuditLoading(false) }
   }
 
   if (authLoading || loading) return (
@@ -583,6 +597,66 @@ export default function AdminPage() {
               )}
             </div>
             <p className="text-xs text-[var(--c-dim)] text-center">Changes appear live on the website immediately after saving.</p>
+          </div>
+        )}
+
+        {/* ── HISTORY */}
+        {tab === 'History' && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2">
+                <FileText size={17}/> Activity History
+              </h3>
+              <button onClick={loadAuditLogs} disabled={auditLoading}
+                className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                {auditLoading ? 'Loading…' : auditLogs.length ? 'Refresh' : 'Load history'}
+              </button>
+            </div>
+
+            {auditLoading ? (
+              <div className="flex justify-center py-16"><Spinner size={28}/></div>
+            ) : auditLogs.length === 0 ? (
+              <div className="card p-12 text-center">
+                <FileText size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/>
+                <p className="text-[var(--c-muted)] text-sm">No history yet. Click "Load history" or perform some admin actions first.</p>
+              </div>
+            ) : (
+              <div className="card overflow-hidden">
+                <div className="divide-y divide-[var(--c-border)]">
+                  {auditLogs.map(log => {
+                    const actionColors = {
+                      'menu_item.create':   'bg-green-50 text-green-700',
+                      'menu_item.update':   'bg-blue-50 text-blue-700',
+                      'menu_item.delete':   'bg-red-50 text-red-600',
+                      'menu.upload':        'bg-purple-50 text-purple-700',
+                      'review.delete':      'bg-red-50 text-red-600',
+                      'review.approve':     'bg-green-50 text-green-700',
+                      'review.unapprove':   'bg-amber-50 text-amber-700',
+                      'review.flag':        'bg-amber-50 text-amber-700',
+                      'user.ban':           'bg-red-50 text-red-600',
+                      'user.unban':         'bg-green-50 text-green-700',
+                      'user.role_change':   'bg-blue-50 text-blue-700',
+                      'site_content.update':'bg-purple-50 text-purple-700',
+                    }
+                    const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
+                    return (
+                      <div key={log.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                        <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${color}`}>
+                          {log.action}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-[var(--c-text)] truncate font-medium">{log.target}</p>
+                          <p className="text-xs text-[var(--c-muted)]">by {log.profiles?.name || 'Admin'}</p>
+                        </div>
+                        <p className="text-xs text-[var(--c-dim)] shrink-0">
+                          {new Date(log.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

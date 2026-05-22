@@ -78,11 +78,12 @@ export const api = {
   },
 
   admin: {
-    stats:      (token)           => apiFetch('/admin/stats', {}, token),
-    users:      (params, token)   => apiFetch('/admin/users?' + new URLSearchParams(params), {}, token),
-    patchUser:  (id, data, token) => apiFetch(`/admin/users/${id}`, { method:'PATCH', body: JSON.stringify(data) }, token),
-    reviews:    (params, token)   => apiFetch('/admin/reviews?' + new URLSearchParams(params), {}, token),
-    deleteReview:(id, token)      => apiFetch(`/reviews/admin/${id}`, { method:'DELETE' }, token),
-    patchReview: (id, data, token)=> apiFetch(`/reviews/admin/${id}`, { method:'PATCH', body: JSON.stringify(data) }, token),
+    stats:       (token)           => apiFetch('/admin/stats', {}, token),
+    users:       (params, token)   => apiFetch('/admin/users?' + new URLSearchParams(params), {}, token),
+    patchUser:   (id, data, token) => apiFetch(`/admin/users/${id}`, { method:'PATCH', body: JSON.stringify(data) }, token),
+    reviews:     (params, token)   => apiFetch('/admin/reviews?' + new URLSearchParams(params), {}, token),
+    deleteReview:(id, token)       => apiFetch(`/reviews/admin/${id}`, { method:'DELETE' }, token),
+    patchReview: (id, data, token) => apiFetch(`/reviews/admin/${id}`, { method:'PATCH', body: JSON.stringify(data) }, token),
+    auditLogs:   (params, token)   => apiFetch('/admin/audit-logs?' + new URLSearchParams(params), {}, token),
   },
 }
