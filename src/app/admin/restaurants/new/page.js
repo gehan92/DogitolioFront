@@ -14,7 +14,7 @@ const PROVINCES = [
   'North Western', 'North Central', 'Uva', 'Sabaragamuwa',
 ]
 
-const PRICE_RANGES = ['budget', 'mid-range', 'upscale', 'fine-dining']
+const PRICE_RANGES = ['budget', 'mid', 'upscale']
 
 const CUISINE_OPTIONS = [
   'Sri Lankan', 'Chinese', 'Indian', 'Western', 'Italian', 'Japanese',
