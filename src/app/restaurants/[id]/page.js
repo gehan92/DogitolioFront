@@ -64,7 +64,7 @@ function RatingBar({ label, count, total }) {
 /* ── Visual menu grouped by category */
 function MenuSection({ items, brandColor }) {
   const color = brandColor || '#FF2D55'
-  const available = items?.filter(i => i.is_available) || []
+  const available = items || []
   const [activeCategory, setActiveCategory] = useState(null)
 
   const groups = available.reduce((acc, item) => {
