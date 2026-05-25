@@ -1,4 +1,4 @@
-import { DUMMY_RESTAURANTS, DUMMY_REVIEWS, filterRestaurants, paginateDummy } from './dummyData'
+import { DUMMY_RESTAURANTS, DUMMY_REVIEWS, filterRestaurants } from './dummyData'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -7,6 +7,18 @@ async function apiFetch(path, options = {}, token = null) {
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   const res = await fetch(`${BASE}/api${path}`, { ...options, headers })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Something went wrong')
+  return data
+}
+
+// For multipart FormData uploads — no Content-Type (browser sets boundary automatically)
+async function formFetch(url, token, formData, method = 'POST') {
+  const res = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Something went wrong')
   return data
@@ -39,12 +51,7 @@ export const api = {
   },
 
   menus: {
-    upload: (restaurantId, formData, token) =>
-      fetch(`${BASE}/api/menus/${restaurantId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData, // FormData — no Content-Type header, browser sets it
-      }).then(r => r.json()),
+    upload:  (restaurantId, formData, token) => formFetch(`${BASE}/api/menus/${restaurantId}`, token, formData),
     history: (restaurantId, token) => apiFetch(`/menus/${restaurantId}/history`, {}, token),
     delete:  (menuId, token)       => apiFetch(`/menus/${menuId}`, { method:'DELETE' }, token),
   },
@@ -62,18 +69,8 @@ export const api = {
 
   menuItems: {
     list:   (restaurantId) => apiFetch(`/menu-items/${restaurantId}`),
-    create: (restaurantId, formData, token) =>
-      fetch(`${BASE}/api/menu-items/${restaurantId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      }).then(r => r.json()),
-    update: (id, formData, token) =>
-      fetch(`${BASE}/api/menu-items/item/${id}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      }).then(r => r.json()),
+    create: (restaurantId, formData, token) => formFetch(`${BASE}/api/menu-items/${restaurantId}`, token, formData),
+    update: (id, formData, token)           => formFetch(`${BASE}/api/menu-items/item/${id}`, token, formData, 'PUT'),
     delete: (id, token) => apiFetch(`/menu-items/item/${id}`, { method:'DELETE' }, token),
   },
 

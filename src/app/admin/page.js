@@ -170,13 +170,14 @@ export default function AdminPage() {
       if (miEditId) {
         const updated = await api.menuItems.update(miEditId, fd, token)
         setMenuItems(items => items.map(i => i.id === miEditId ? updated : i))
+        miReset()
         setMiMsg('✓ Item updated')
       } else {
         const created = await api.menuItems.create(miRestaurant, fd, token)
         setMenuItems(items => [...items, created])
+        miReset()
         setMiMsg('✓ Item added')
       }
-      miReset()
     } catch (err) { setMiMsg(`Error: ${err.message}`) }
     finally { setMiSaving(false) }
   }
