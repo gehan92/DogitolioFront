@@ -123,7 +123,7 @@ export default function AdminPage() {
     setMiLoading(true)
     try {
       const data = await api.menuItems.list(restaurantId)
-      setMenuItems(data || [])
+      setMenuItems(data?.data || [])
     } catch { setMenuItems([]) }
     finally { setMiLoading(false) }
   }
