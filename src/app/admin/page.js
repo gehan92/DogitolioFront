@@ -354,9 +354,14 @@ export default function AdminPage() {
                       <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
                       <p className="text-xs text-[var(--c-muted)]">{r.town}, {r.district}</p>
                     </div>
-                    <Link href={`/restaurants/${r.id}`}>
-                      <Button size="sm" variant="ghost" className="text-xs">View</Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/admin/restaurants/${r.id}/edit`}>
+                        <Button size="sm" variant="secondary" className="text-xs"><Pencil size={12}/> Edit</Button>
+                      </Link>
+                      <Link href={`/restaurants/${r.id}`}>
+                        <Button size="sm" variant="ghost" className="text-xs">View</Button>
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>
