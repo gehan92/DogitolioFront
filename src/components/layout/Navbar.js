@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -19,11 +19,14 @@ const navLinks = [
 export default function Navbar() {
   const { user, profile, isAdmin, loading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 
   async function handleSignOut() {
     await supabase.auth.signOut()
     setMenuOpen(false)
+    router.push('/')
+    router.refresh()
   }
 
   return (
