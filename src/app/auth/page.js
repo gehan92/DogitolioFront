@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui'
 
 export default function AuthPage() {
   return (

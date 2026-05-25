@@ -10,7 +10,7 @@ import {
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
 const MenuViewer = dynamic(() => import('@/components/restaurant/MenuViewer'), { ssr: false })
-import { PriceBadge, Spinner } from '@/components/ui'
+import { PriceBadge, Spinner, Button } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import clsx from 'clsx'
