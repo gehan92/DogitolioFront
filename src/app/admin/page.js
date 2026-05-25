@@ -480,9 +480,30 @@ export default function AdminPage() {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Category</label>
-                        <input value={miForm.category} onChange={e => setMiForm(f=>({...f,category:e.target.value}))}
-                          placeholder="e.g. Main Course"
-                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"/>
+                        <select value={miForm.category} onChange={e => setMiForm(f=>({...f,category:e.target.value}))}
+                          className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white">
+                          <option value="">— Select —</option>
+                          <option>Starters</option>
+                          <option>Soups</option>
+                          <option>Salads</option>
+                          <option>Main Course</option>
+                          <option>Rice & Noodles</option>
+                          <option>Kottu</option>
+                          <option>Roti & Hoppers</option>
+                          <option>Grills & BBQ</option>
+                          <option>Seafood</option>
+                          <option>Vegetarian</option>
+                          <option>Sandwiches & Burgers</option>
+                          <option>Pizza & Pasta</option>
+                          <option>Sides</option>
+                          <option>Desserts</option>
+                          <option>Beverages</option>
+                          <option>Juices & Smoothies</option>
+                          <option>Short Eats</option>
+                          <option>Bakery & Pastries</option>
+                          <option>Kids Menu</option>
+                          <option>Specials</option>
+                        </select>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Discount type</label>
