@@ -5,7 +5,10 @@ import { ZoomIn, ZoomOut, ExternalLink, Download, FileText } from 'lucide-react'
 import 'react-pdf/dist/Page/TextLayer.css'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString()
 
 export default function MenuViewer({ pdfUrl, restaurantName }) {
   const [numPages,   setNumPages]   = useState(null)

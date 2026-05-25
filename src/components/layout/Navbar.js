@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { supabase } from '@/lib/supabase'
 import { Avatar } from '@/components/ui'
 import clsx from 'clsx'
 
@@ -17,13 +16,13 @@ const navLinks = [
 ]
 
 export default function Navbar() {
-  const { user, profile, isAdmin, loading } = useAuth()
+  const { user, profile, isAdmin, loading, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
+    await signOut()
     setMenuOpen(false)
     router.push('/')
     router.refresh()
@@ -86,13 +85,14 @@ export default function Navbar() {
                 <Link
                   href="/admin"
                   className={clsx(
-                    'relative px-4 py-2 text-[13px] font-semibold rounded-lg transition-all duration-150',
+                    'relative px-4 py-2 text-[13px] font-semibold rounded-lg transition-all duration-150 flex items-center gap-1.5',
                     pathname.startsWith('/admin')
-                      ? 'text-amber-600'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                      : 'text-amber-600 hover:bg-amber-50 border border-amber-200'
                   )}
                 >
-                  Dashboard
+                  <LayoutDashboard size={13} />
+                  Admin
                 </Link>
               )}
             </nav>

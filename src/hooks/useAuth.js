@@ -84,8 +84,15 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin'
   const token   = session?.access_token ?? null
 
+  async function signOut() {
+    await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
+    setSession(null)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, signOut }}>
       {children}
     </AuthContext.Provider>
   )

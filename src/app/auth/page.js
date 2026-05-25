@@ -14,7 +14,7 @@ export default function AuthPage() {
 }
 
 function AuthInner() {
-  const { user, loading } = useAuth()
+  const { user, loading, isAdmin } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -28,8 +28,8 @@ function AuthInner() {
   const [success,   setSuccess]   = useState('')
 
   useEffect(() => {
-    if (!loading && user) router.replace('/')
-  }, [user, loading])
+    if (!loading && user) router.replace(isAdmin ? '/admin' : '/')
+  }, [user, loading, isAdmin])
 
   // Show error passed from auth callback (e.g. expired magic link)
   useEffect(() => {
