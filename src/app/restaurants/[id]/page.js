@@ -229,8 +229,11 @@ export default function RestaurantPage() {
   )
 
   const { name, description, address, town, district, province, phone, website,
-          cuisine_types, price_range, cover_image, open_hours,
+          cuisine_types: cuisine_types_raw, price_range, cover_image, open_hours,
           menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed } = restaurant
+
+  const cuisine_types = Array.isArray(cuisine_types_raw) ? cuisine_types_raw
+    : (typeof cuisine_types_raw === 'string' && cuisine_types_raw ? cuisine_types_raw.split(',').map(s => s.trim()) : [])
 
   const color = brand_color || '#FF2D55'
 

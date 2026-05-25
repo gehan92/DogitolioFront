@@ -6,7 +6,10 @@ import clsx from 'clsx'
 
 export default function RestaurantCard({ restaurant, className }) {
   const { id, name, description, town, district, cover_image,
-          cuisine_types, price_range, restaurant_ratings } = restaurant
+          cuisine_types: cuisine_types_raw, price_range, restaurant_ratings } = restaurant
+
+  const cuisine_types = Array.isArray(cuisine_types_raw) ? cuisine_types_raw
+    : (typeof cuisine_types_raw === 'string' && cuisine_types_raw ? cuisine_types_raw.split(',').map(s => s.trim()) : [])
 
   const rating      = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || 0
