@@ -90,6 +90,7 @@ export const api = {
 
     // Users
     users:       (params, token)     => apiFetch('/admin/users?' + new URLSearchParams(params), {}, token),
+    userCounts:  (token)            => apiFetch('/admin/users/counts', {}, token),
     patchUser:   (id, data, token)   => apiFetch(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
 
     // Reviews

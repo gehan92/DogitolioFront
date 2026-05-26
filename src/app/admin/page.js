@@ -147,6 +147,7 @@ export default function AdminPage() {
   const [usersTotalPages, setUsersTotalPages] = useState(1)
   const [usrsLoading,     setUsrsLoading]     = useState(false)
   const [usersRoleFilter, setUsersRoleFilter] = useState('')
+  const [userRoleCounts,  setUserRoleCounts]  = useState(null) // { total, admin, staff, owner, user }
 
   // ── Audit logs (paginated)
   const [auditLogs,      setAuditLogs]      = useState([])
@@ -287,16 +288,19 @@ export default function AdminPage() {
     finally { setRevsLoading(false) }
   }
 
-  async function loadUsers(page = 1, roleFilter = usersRoleFilter) {
+  async function loadUsers(page = 1, roleFilter = usersRoleFilter, fetchCounts = false) {
     setUsrsLoading(true)
     try {
       const params = { page, limit: PAGE_SIZE }
       if (roleFilter) params.role = roleFilter
-      const data = await api.admin.users(params, token)
+      const calls = [api.admin.users(params, token)]
+      if (fetchCounts) calls.push(api.admin.userCounts(token))
+      const [data, counts] = await Promise.all(calls)
       setUsers(data.data || [])
       setUsersTotal(data.total ?? 0)
       setUsersTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
       setUsersPage(page)
+      if (counts) setUserRoleCounts(counts)
     } catch (err) { console.error(err) }
     finally { setUsrsLoading(false) }
   }
@@ -364,7 +368,7 @@ export default function AdminPage() {
         !tabsLoaded.has('Restaurants') && !tabsLoaded.has('Boost')) {
       loadRestaurants(1)
     } else if (key === 'Reviews')  { loadReviews(1) }
-    else if (key === 'Users')      { loadUsers(1) }
+    else if (key === 'Users')      { loadUsers(1, '', true) }
     else if (key === 'History')    { loadAuditLogs(1) }
     else if (key === 'Requests')   { loadChangeRequests(1) }
     else if (key === 'Owners')     { loadOwners() }
@@ -418,6 +422,8 @@ export default function AdminPage() {
   async function changeUserRole(userId, newRole) {
     await api.admin.patchUser(userId, { role: newRole }, token)
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: newRole } : usr))
+    // Refresh counts so pill badges stay accurate
+    api.admin.userCounts(token).then(setUserRoleCounts).catch(() => {})
   }
 
   function changeUsersRoleFilter(role) {
@@ -1299,26 +1305,38 @@ export default function AdminPage() {
                 {/* Role filter pills */}
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { value: '',       label: 'All' },
-                    { value: 'admin',  label: 'Admin' },
-                    { value: 'staff',  label: 'Staff' },
-                    { value: 'owner',  label: 'Owner' },
-                    { value: 'user',   label: 'User' },
-                  ].map(r => (
-                    <button
-                      key={r.value}
-                      onClick={() => changeUsersRoleFilter(r.value)}
-                      className={clsx(
-                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-                        usersRoleFilter === r.value
-                          ? 'text-white border-transparent'
-                          : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary',
-                      )}
-                      style={usersRoleFilter === r.value ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
+                    { value: '',       label: 'All',   countKey: 'total' },
+                    { value: 'admin',  label: 'Admin', countKey: 'admin' },
+                    { value: 'staff',  label: 'Staff', countKey: 'staff' },
+                    { value: 'owner',  label: 'Owner', countKey: 'owner' },
+                    { value: 'user',   label: 'User',  countKey: 'user'  },
+                  ].map(r => {
+                    const isActive = usersRoleFilter === r.value
+                    const count    = userRoleCounts?.[r.countKey]
+                    return (
+                      <button
+                        key={r.value}
+                        onClick={() => changeUsersRoleFilter(r.value)}
+                        className={clsx(
+                          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
+                          isActive
+                            ? 'text-white border-transparent'
+                            : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary',
+                        )}
+                        style={isActive ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+                      >
+                        {r.label}
+                        {count != null && (
+                          <span className={clsx(
+                            'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
+                            isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'
+                          )}>
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 <div className="card overflow-hidden">
