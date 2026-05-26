@@ -376,8 +376,9 @@ export default function AdminPage() {
     else if (key === 'Users')      { loadUsers(1, '', true) }
     else if (key === 'History')    { loadAuditLogs(1) }
     else if (key === 'Requests')   { loadChangeRequests(1) }
-    else if (key === 'Owners')     { loadOwners() }
-    else if (key === 'Staff')      { loadStaff(1) }
+    else if (key === 'Owners')       { loadOwners() }
+    else if (key === 'Staff')        { loadStaff(1) }
+    else if (key === 'Site Content') { scLoad(scPage) }
   }
 
   // ── Handlers ────────────────────────────────────────────────────────────
