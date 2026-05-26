@@ -1,30 +1,57 @@
 'use client'
 import { useState, useEffect, Fragment } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter }                      from 'next/navigation'
+import Link                               from 'next/link'
 import {
   LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload,
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
+  Inbox, Building2, UserCheck, ChevronDown, AlertCircle,
 } from 'lucide-react'
-import Navbar from '@/components/layout/Navbar'
+import Navbar           from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
-import { useAuth } from '@/hooks/useAuth'
-import { api } from '@/lib/api'
-import clsx from 'clsx'
+import { useAuth }      from '@/hooks/useAuth'
+import { supabase }     from '@/lib/supabase'
+import { api }          from '@/lib/api'
+import clsx             from 'clsx'
 
 const PAGE_SIZE = 12
 
-const NAV_ITEMS = [
-  { key: 'Overview',     label: 'Overview',     icon: LayoutDashboard },
-  { key: 'Restaurants',  label: 'Restaurants',  icon: UtensilsCrossed },
-  { key: 'Boost',        label: 'Boost',        icon: Zap },
-  { key: 'Reviews',      label: 'Reviews',      icon: MessageSquare },
-  { key: 'Users',        label: 'Users',        icon: Users },
-  { key: 'Menu Items',   label: 'Menu Items',   icon: Tag },
-  { key: 'Site Content', label: 'Site Content', icon: FileText },
-  { key: 'History',      label: 'History',      icon: Clock },
+// Sections staff can have access toggled for (admin-only sections excluded)
+const STAFF_SECTIONS = [
+  'Overview', 'Restaurants', 'Boost', 'Reviews',
+  'Menu Items', 'Site Content', 'History',
 ]
+
+// All nav items — staff sees a filtered subset based on their permissions
+const ALL_NAV_ITEMS = [
+  { key: 'Overview',     label: 'Overview',         icon: LayoutDashboard, adminOnly: false },
+  { key: 'Restaurants',  label: 'Restaurants',       icon: UtensilsCrossed, adminOnly: false },
+  { key: 'Boost',        label: 'Boost',             icon: Zap,             adminOnly: false },
+  { key: 'Reviews',      label: 'Reviews',           icon: MessageSquare,   adminOnly: false },
+  { key: 'Requests',     label: 'Change Requests',   icon: Inbox,           adminOnly: true  },
+  { key: 'Users',        label: 'Users',             icon: Users,           adminOnly: true  },
+  { key: 'Owners',       label: 'Owners',            icon: Building2,       adminOnly: true  },
+  { key: 'Staff',        label: 'Staff',             icon: UserCheck,       adminOnly: true  },
+  { key: 'Menu Items',   label: 'Menu Items',        icon: Tag,             adminOnly: false },
+  { key: 'Site Content', label: 'Site Content',      icon: FileText,        adminOnly: false },
+  { key: 'History',      label: 'History',           icon: Clock,           adminOnly: false },
+]
+
+const STATUS_COLORS = {
+  pending:  'bg-amber-50  text-amber-700  border-amber-200',
+  approved: 'bg-blue-50   text-blue-700   border-blue-200',
+  rejected: 'bg-red-50    text-red-600    border-red-200',
+  paid:     'bg-purple-50 text-purple-700 border-purple-200',
+  applied:  'bg-green-50  text-green-700  border-green-200',
+}
+
+const ROLE_COLORS = {
+  admin: 'amber',
+  staff: 'blue',
+  owner: 'purple',
+  user:  'gray',
+}
 
 // ── Reusable pagination bar ────────────────────────────────────────────────
 function Pagination({ page, totalPages, total, onPageChange, loading = false }) {
@@ -60,7 +87,6 @@ function Pagination({ page, totalPages, total, onPageChange, loading = false }) 
   )
 }
 
-// ── Tab-level loading placeholder ─────────────────────────────────────────
 function TabSpinner() {
   return (
     <div className="flex justify-center items-center py-16">
@@ -69,9 +95,20 @@ function TabSpinner() {
   )
 }
 
-// ── Main admin page ────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  return (
+    <span className={clsx(
+      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize',
+      STATUS_COLORS[status] || 'bg-gray-50 text-gray-600 border-gray-200'
+    )}>
+      {status}
+    </span>
+  )
+}
+
+// ── Main admin / staff workplace page ──────────────────────────────────────
 export default function AdminPage() {
-  const { user, profile, isAdmin, loading: authLoading, token } = useAuth()
+  const { user, profile, isAdmin, isStaff, loading: authLoading, token } = useAuth()
   const router = useRouter()
 
   // ── Navigation
@@ -79,33 +116,37 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [tabsLoaded,  setTabsLoaded]  = useState(new Set(['Overview']))
 
-  // ── Global state (initial load)
+  // ── Staff permissions (loaded from Supabase directly via RLS)
+  const [myPermissions, setMyPermissions] = useState(null) // null = not yet loaded
+
+  // ── Global state
   const [stats,   setStats]   = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // ── Restaurants (paginated, for table display)
-  const [restaurants,     setRestaurants]     = useState([])
-  const [restPage,        setRestPage]        = useState(1)
-  const [restTotal,       setRestTotal]       = useState(0)
-  const [restTotalPages,  setRestTotalPages]  = useState(1)
-  const [restsLoading,    setRestsLoading]    = useState(false)
+  // ── Restaurants (paginated table)
+  const [restaurants,    setRestaurants]    = useState([])
+  const [restPage,       setRestPage]       = useState(1)
+  const [restTotal,      setRestTotal]      = useState(0)
+  const [restTotalPages, setRestTotalPages] = useState(1)
+  const [restsLoading,   setRestsLoading]   = useState(false)
 
-  // ── Restaurant options (all, for dropdowns — not paginated)
+  // ── Restaurant options (all, for dropdowns)
   const [restaurantOptions, setRestaurantOptions] = useState([])
 
   // ── Reviews (paginated)
-  const [reviews,         setReviews]         = useState([])
-  const [revPage,         setRevPage]         = useState(1)
-  const [revTotal,        setRevTotal]        = useState(0)
-  const [revTotalPages,   setRevTotalPages]   = useState(1)
-  const [revsLoading,     setRevsLoading]     = useState(false)
+  const [reviews,        setReviews]        = useState([])
+  const [revPage,        setRevPage]        = useState(1)
+  const [revTotal,       setRevTotal]       = useState(0)
+  const [revTotalPages,  setRevTotalPages]  = useState(1)
+  const [revsLoading,    setRevsLoading]    = useState(false)
 
-  // ── Users (paginated)
+  // ── Users (paginated + role filter)
   const [users,           setUsers]           = useState([])
   const [usersPage,       setUsersPage]       = useState(1)
   const [usersTotal,      setUsersTotal]      = useState(0)
   const [usersTotalPages, setUsersTotalPages] = useState(1)
   const [usrsLoading,     setUsrsLoading]     = useState(false)
+  const [usersRoleFilter, setUsersRoleFilter] = useState('')
 
   // ── Audit logs (paginated)
   const [auditLogs,      setAuditLogs]      = useState([])
@@ -114,13 +155,44 @@ export default function AdminPage() {
   const [logsTotalPages, setLogsTotalPages] = useState(1)
   const [auditLoading,   setAuditLoading]   = useState(false)
 
-  // ── Menu upload state
+  // ── Change Requests (paginated + status filter)
+  const [changeRequests,    setChangeRequests]    = useState([])
+  const [crPage,            setCrPage]            = useState(1)
+  const [crTotal,           setCrTotal]           = useState(0)
+  const [crTotalPages,      setCrTotalPages]      = useState(1)
+  const [crLoading,         setCrLoading]         = useState(false)
+  const [crStatusFilter,    setCrStatusFilter]    = useState('')
+  const [crExpandedId,      setCrExpandedId]      = useState(null)
+  const [crExpandedData,    setCrExpandedData]    = useState({})
+  const [crActionNote,      setCrActionNote]      = useState('')
+  const [crActionLoading,   setCrActionLoading]   = useState(false)
+
+  // ── Owners
+  const [owners,       setOwners]       = useState([])
+  const [ownersLoading,setOwnersLoading]= useState(false)
+  const [ownerForm,    setOwnerForm]    = useState({ owner_id: '', restaurant_id: '' })
+  const [ownerMsg,     setOwnerMsg]     = useState('')
+  const [ownerSaving,  setOwnerSaving]  = useState(false)
+  const [allUsers,     setAllUsers]     = useState([])
+
+  // ── Staff Management
+  const [staffList,       setStaffList]       = useState([])
+  const [staffPage,       setStaffPage]       = useState(1)
+  const [staffTotal,      setStaffTotal]      = useState(0)
+  const [staffTotalPages, setStaffTotalPages] = useState(1)
+  const [staffLoading,    setStaffLoading]    = useState(false)
+  const [expandedStaffId, setExpandedStaffId] = useState(null)
+  const [staffPermsMap,   setStaffPermsMap]   = useState({}) // { staffId: { section: bool } }
+  const [staffPermsLoading, setStaffPermsLoading] = useState(false)
+  const [staffPermsMsg,   setStaffPermsMsg]   = useState('')
+
+  // ── Menu upload
   const [selectedRestaurant, setSelectedRestaurant] = useState('')
   const [pdfFile,            setPdfFile]            = useState(null)
   const [uploading,          setUploading]          = useState(false)
   const [uploadMsg,          setUploadMsg]          = useState('')
 
-  // ── Menu items state
+  // ── Menu items
   const [miRestaurant, setMiRestaurant] = useState('')
   const [menuItems,    setMenuItems]    = useState([])
   const [miLoading,    setMiLoading]    = useState(false)
@@ -132,7 +204,7 @@ export default function AdminPage() {
   const [miSaving, setMiSaving] = useState(false)
   const [miMsg,    setMiMsg]    = useState('')
 
-  // ── Site Content state
+  // ── Site Content
   const [scPage,    setScPage]    = useState('home')
   const [scFields,  setScFields]  = useState({})
   const [scLoading, setScLoading] = useState(false)
@@ -145,36 +217,48 @@ export default function AdminPage() {
     contact: ['headline', 'subheadline', 'email', 'phone', 'location', 'hours'],
   }
 
-  // ── Boost state
+  // ── Boost
   const [boostPlan,       setBoostPlan]       = useState('30')
   const [boostMsg,        setBoostMsg]        = useState('')
   const [historyOpenId,   setHistoryOpenId]   = useState(null)
   const [boostHistoryMap, setBoostHistoryMap] = useState({})
   const [historyLoading,  setHistoryLoading]  = useState(false)
 
-  // ── Auth guard
+  // ── Auth guard: allow admin or staff
   useEffect(() => {
-    if (!authLoading && user && profile && !isAdmin) router.replace('/')
+    if (!authLoading && user && profile && !isAdmin && !isStaff) router.replace('/')
     if (!authLoading && !user) router.replace('/')
-  }, [user, profile, isAdmin, authLoading])
+  }, [user, profile, isAdmin, isStaff, authLoading])
 
-  // ── Initial load: stats + dropdown options
+  // ── Initial load
   useEffect(() => {
-    if (!token || !isAdmin) return
+    if (!token || (!isAdmin && !isStaff)) return
     loadInitial()
-  }, [token, isAdmin])
+  }, [token, isAdmin, isStaff])
 
-  // ── Data loaders ───────────────────────────────────────────────────────
+  // ── Data loaders ────────────────────────────────────────────────────────
 
   async function loadInitial() {
     setLoading(true)
     try {
-      const [statsData, optsData] = await Promise.all([
-        api.admin.stats(token),
-        api.restaurants.list({ limit: 200 }),
-      ])
-      setStats(statsData)
-      setRestaurantOptions(optsData.data || [])
+      if (isAdmin) {
+        const [statsData, optsData] = await Promise.all([
+          api.admin.stats(token),
+          api.restaurants.list({ limit: 200 }),
+        ])
+        setStats(statsData)
+        setRestaurantOptions(optsData.data || [])
+      } else {
+        // Staff: load restaurant options + own section permissions from Supabase (RLS allows)
+        const [optsData, permsData] = await Promise.all([
+          api.restaurants.list({ limit: 200 }),
+          supabase.from('staff_permissions').select('section, can_access').eq('staff_id', profile.id),
+        ])
+        setRestaurantOptions(optsData.data || [])
+        const permMap = {}
+        ;(permsData.data || []).forEach(p => { permMap[p.section] = p.can_access })
+        setMyPermissions(permMap)
+      }
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -203,10 +287,12 @@ export default function AdminPage() {
     finally { setRevsLoading(false) }
   }
 
-  async function loadUsers(page = 1) {
+  async function loadUsers(page = 1, roleFilter = usersRoleFilter) {
     setUsrsLoading(true)
     try {
-      const data = await api.admin.users({ page, limit: PAGE_SIZE }, token)
+      const params = { page, limit: PAGE_SIZE }
+      if (roleFilter) params.role = roleFilter
+      const data = await api.admin.users(params, token)
       setUsers(data.data || [])
       setUsersTotal(data.total ?? 0)
       setUsersTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
@@ -227,7 +313,46 @@ export default function AdminPage() {
     finally { setAuditLoading(false) }
   }
 
-  // ── Lazy tab navigation ────────────────────────────────────────────────
+  async function loadChangeRequests(page = 1, statusFilter = crStatusFilter) {
+    setCrLoading(true)
+    try {
+      const params = { page, limit: PAGE_SIZE }
+      if (statusFilter) params.status = statusFilter
+      const data = await api.admin.changeRequests(params, token)
+      setChangeRequests(data.data || [])
+      setCrTotal(data.total ?? 0)
+      setCrTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
+      setCrPage(page)
+    } catch (err) { console.error(err) }
+    finally { setCrLoading(false) }
+  }
+
+  async function loadOwners() {
+    setOwnersLoading(true)
+    try {
+      const [ownersData, usersData] = await Promise.all([
+        api.admin.owners(token),
+        api.admin.users({ limit: 200 }, token),
+      ])
+      setOwners(ownersData.data || [])
+      setAllUsers(usersData.data || [])
+    } catch (err) { console.error(err) }
+    finally { setOwnersLoading(false) }
+  }
+
+  async function loadStaff(page = 1) {
+    setStaffLoading(true)
+    try {
+      const data = await api.admin.staff({ page, limit: PAGE_SIZE }, token)
+      setStaffList(data.data || [])
+      setStaffTotal(data.total ?? 0)
+      setStaffTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
+      setStaffPage(page)
+    } catch (err) { console.error(err) }
+    finally { setStaffLoading(false) }
+  }
+
+  // ── Lazy tab navigation ─────────────────────────────────────────────────
   function navigate(key) {
     setTab(key)
     setSidebarOpen(false)
@@ -235,20 +360,18 @@ export default function AdminPage() {
 
     setTabsLoaded(prev => new Set([...prev, key]))
 
-    // Restaurants and Boost share the same paginated list
     if ((key === 'Restaurants' || key === 'Boost') &&
         !tabsLoaded.has('Restaurants') && !tabsLoaded.has('Boost')) {
       loadRestaurants(1)
-    } else if (key === 'Reviews') {
-      loadReviews(1)
-    } else if (key === 'Users') {
-      loadUsers(1)
-    } else if (key === 'History') {
-      loadAuditLogs(1)
-    }
+    } else if (key === 'Reviews')  { loadReviews(1) }
+    else if (key === 'Users')      { loadUsers(1) }
+    else if (key === 'History')    { loadAuditLogs(1) }
+    else if (key === 'Requests')   { loadChangeRequests(1) }
+    else if (key === 'Owners')     { loadOwners() }
+    else if (key === 'Staff')      { loadStaff(1) }
   }
 
-  // ── Handlers ──────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────
 
   async function handleUpload(e) {
     e.preventDefault()
@@ -260,24 +383,19 @@ export default function AdminPage() {
       const result = await api.menus.upload(selectedRestaurant, form, token)
       setUploadMsg(`✓ Menu uploaded — version ${result.version}`)
       setPdfFile(null); setSelectedRestaurant('')
-    } catch (err) {
-      setUploadMsg(`Error: ${err.message}`)
-    } finally { setUploading(false) }
+    } catch (err) { setUploadMsg(`Error: ${err.message}`) }
+    finally { setUploading(false) }
   }
 
   async function deleteRestaurant(restaurantId, name) {
-    if (!confirm(`Delete "${name}"?\n\nThis will deactivate the restaurant and hide it from the public.`)) return
+    if (!confirm(`Delete "${name}"?\n\nThis will hide the restaurant from the public.`)) return
     try {
       await api.restaurants.delete(restaurantId, token)
-      // Go back one page if we deleted the last item on a non-first page
       const targetPage = restaurants.length === 1 && restPage > 1 ? restPage - 1 : restPage
       await loadRestaurants(targetPage)
-      // Refresh dropdown options
       const opts = await api.restaurants.list({ limit: 200 })
       setRestaurantOptions(opts.data || [])
-    } catch (err) {
-      alert(`Failed to delete: ${err.message}`)
-    }
+    } catch (err) { alert(`Failed: ${err.message}`) }
   }
 
   async function deleteReview(reviewId) {
@@ -297,7 +415,116 @@ export default function AdminPage() {
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, is_banned: !isBanned } : usr))
   }
 
-  // ── Menu Items handlers ────────────────────────────────────────────────
+  async function changeUserRole(userId, newRole) {
+    await api.admin.patchUser(userId, { role: newRole }, token)
+    setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: newRole } : usr))
+  }
+
+  function changeUsersRoleFilter(role) {
+    setUsersRoleFilter(role)
+    setUsersPage(1)
+    loadUsers(1, role)
+  }
+
+  // ── Change Request handlers ──────────────────────────────────────────────
+
+  async function expandChangeRequest(id) {
+    if (crExpandedId === id) { setCrExpandedId(null); return }
+    setCrExpandedId(id)
+    if (crExpandedData[id]) return
+    try {
+      const data = await api.admin.getChangeRequest(id, token)
+      setCrExpandedData(m => ({ ...m, [id]: data }))
+    } catch (err) { console.error(err) }
+  }
+
+  async function handleCrAction(requestId, status) {
+    setCrActionLoading(true)
+    try {
+      await api.admin.patchChangeRequest(requestId, { status, admin_note: crActionNote }, token)
+      setCrActionNote('')
+      setCrExpandedId(null)
+      setCrExpandedData(m => { const n = { ...m }; delete n[requestId]; return n })
+      await loadChangeRequests(crPage, crStatusFilter)
+      if (isAdmin && stats) {
+        const updated = await api.admin.stats(token)
+        setStats(updated)
+      }
+    } catch (err) { alert(`Error: ${err.message}`) }
+    finally { setCrActionLoading(false) }
+  }
+
+  function changeCrFilter(status) {
+    setCrStatusFilter(status)
+    setCrPage(1)
+    loadChangeRequests(1, status)
+  }
+
+  // ── Owner assignment handlers ────────────────────────────────────────────
+
+  async function assignOwner(e) {
+    e.preventDefault()
+    if (!ownerForm.owner_id || !ownerForm.restaurant_id) return
+    setOwnerSaving(true); setOwnerMsg('')
+    try {
+      await api.admin.assignOwner(ownerForm, token)
+      setOwnerForm({ owner_id: '', restaurant_id: '' })
+      setOwnerMsg('✓ Owner assigned')
+      await loadOwners()
+    } catch (err) { setOwnerMsg(`Error: ${err.message}`) }
+    finally { setOwnerSaving(false) }
+  }
+
+  async function removeOwner(id) {
+    if (!confirm('Remove this owner assignment?')) return
+    try {
+      await api.admin.removeOwner(id, token)
+      setOwners(o => o.filter(a => a.id !== id))
+    } catch (err) { alert(`Error: ${err.message}`) }
+  }
+
+  // ── Staff permission handlers ────────────────────────────────────────────
+
+  async function expandStaff(staffId) {
+    if (expandedStaffId === staffId) { setExpandedStaffId(null); return }
+    setExpandedStaffId(staffId)
+    if (staffPermsMap[staffId]) return
+    setStaffPermsLoading(true)
+    try {
+      const data = await api.admin.staffPermissions(staffId, token)
+      const permMap = {}
+      // Default all sections to true if no record exists
+      STAFF_SECTIONS.forEach(s => { permMap[s] = true })
+      ;(data.data || []).forEach(p => { permMap[p.section] = p.can_access })
+      setStaffPermsMap(m => ({ ...m, [staffId]: permMap }))
+    } catch (err) { console.error(err) }
+    finally { setStaffPermsLoading(false) }
+  }
+
+  function toggleStaffPerm(staffId, section) {
+    setStaffPermsMap(m => ({
+      ...m,
+      [staffId]: { ...m[staffId], [section]: !m[staffId][section] },
+    }))
+  }
+
+  async function saveStaffPermissions(staffId) {
+    setStaffPermsLoading(true); setStaffPermsMsg('')
+    try {
+      const perms = staffPermsMap[staffId] || {}
+      const permissions = STAFF_SECTIONS.map(section => ({
+        section,
+        can_access: perms[section] !== false,
+      }))
+      await api.admin.updateStaffPermissions(staffId, permissions, token)
+      setStaffPermsMsg('✓ Permissions saved')
+      setTimeout(() => setStaffPermsMsg(''), 3000)
+    } catch (err) { setStaffPermsMsg(`Error: ${err.message}`) }
+    finally { setStaffPermsLoading(false) }
+  }
+
+  // ── Menu Items handlers ──────────────────────────────────────────────────
+
   async function loadMenuItems(restaurantId) {
     if (!restaurantId) return
     setMiLoading(true)
@@ -357,7 +584,8 @@ export default function AdminPage() {
     setMenuItems(items => items.filter(i => i.id !== id))
   }
 
-  // ── Site Content handlers ──────────────────────────────────────────────
+  // ── Site Content handlers ────────────────────────────────────────────────
+
   async function scLoad(page) {
     setScLoading(true); setScMsg('')
     try {
@@ -377,7 +605,8 @@ export default function AdminPage() {
     finally { setScSaving(false) }
   }
 
-  // ── Boost helpers ──────────────────────────────────────────────────────
+  // ── Boost helpers ────────────────────────────────────────────────────────
+
   function isBoostActive(r) {
     return r.is_boosted && (!r.boost_expires_at || new Date(r.boost_expires_at) > new Date())
   }
@@ -386,7 +615,6 @@ export default function AdminPage() {
     setBoostMsg('')
     try {
       const updated = await api.restaurants.boost(restaurantId, { enabled, plan }, token)
-      // Optimistic update both paginated list and dropdown options
       setRestaurants(rs => rs.map(r => r.id === restaurantId ? { ...r, ...updated } : r))
       setRestaurantOptions(opts => opts.map(r => r.id === restaurantId ? { ...r, ...updated } : r))
       setBoostMsg(enabled ? '✓ Boost activated' : '✓ Boost removed')
@@ -410,13 +638,29 @@ export default function AdminPage() {
     } finally { setHistoryLoading(false) }
   }
 
-  // ── Derived boost stats from full restaurant options list ──────────────
+  // ── Derived values ───────────────────────────────────────────────────────
+
   const boostActiveCount  = restaurantOptions.filter(isBoostActive).length
   const boostExpiredCount = restaurantOptions.filter(r =>
     r.is_boosted && r.boost_expires_at && new Date(r.boost_expires_at) <= new Date()
   ).length
 
-  // ── Early returns ──────────────────────────────────────────────────────
+  const pendingRequestsCount = stats?.stats?.pendingRequests ?? 0
+
+  // Build nav items based on role + permissions
+  const navItems = isAdmin
+    ? ALL_NAV_ITEMS
+    : ALL_NAV_ITEMS.filter(item => {
+        if (item.adminOnly) return false
+        if (!myPermissions) return true // still loading → show all
+        return myPermissions[item.key] !== false
+      })
+
+  const isWorkplace = isStaff && !isAdmin
+  const dashboardTitle = isWorkplace ? 'My Workplace' : 'Admin Panel'
+
+  // ── Early returns ────────────────────────────────────────────────────────
+
   if (authLoading || loading) return (
     <>
       <Navbar />
@@ -424,7 +668,10 @@ export default function AdminPage() {
     </>
   )
 
-  const currentNav = NAV_ITEMS.find(n => n.key === tab)
+  const currentNav = navItems.find(n => n.key === tab) || navItems[0]
+
+  const inputCls = 'w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white'
+  const gradientBtn = 'px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90'
 
   return (
     <>
@@ -432,7 +679,7 @@ export default function AdminPage() {
 
       <div className="flex min-h-[calc(100vh-66px)]">
 
-        {/* ── Mobile overlay */}
+        {/* Mobile overlay */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
@@ -452,7 +699,7 @@ export default function AdminPage() {
               <Shield size={17} className="text-amber-700" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-[13px] text-gray-900 leading-tight">Admin Panel</p>
+              <p className="font-bold text-[13px] text-gray-900 leading-tight">{dashboardTitle}</p>
               <p className="text-[11px] text-gray-400 truncate">{profile?.name || user?.email}</p>
             </div>
             <button
@@ -464,8 +711,9 @@ export default function AdminPage() {
           </div>
 
           <nav className="flex-1 overflow-y-auto py-3 px-3">
-            {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+            {navItems.map(({ key, label, icon: Icon }) => {
               const active = tab === key
+              const hasBadge = key === 'Requests' && pendingRequestsCount > 0
               return (
                 <button
                   key={key}
@@ -479,7 +727,12 @@ export default function AdminPage() {
                   style={active ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
                 >
                   <Icon size={16} className="shrink-0" />
-                  {label}
+                  <span className="flex-1 text-left">{label}</span>
+                  {hasBadge && !active && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shrink-0">
+                      {pendingRequestsCount}
+                    </span>
+                  )}
                   {active && <ChevronRight size={14} className="ml-auto opacity-70" />}
                 </button>
               )
@@ -521,96 +774,116 @@ export default function AdminPage() {
 
             <div className="hidden lg:flex items-center gap-2 mb-7">
               {currentNav && <currentNav.icon size={18} className="text-[#FF2D55]" />}
-              <h1 className="font-bold text-xl text-gray-900">{tab}</h1>
+              <h1 className="font-bold text-xl text-gray-900">{currentNav?.label || tab}</h1>
             </div>
 
-            {/* ── OVERVIEW ─────────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                OVERVIEW
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Overview' && (
               <div className="space-y-6 animate-fade-in">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Restaurants', value: stats?.stats?.restaurants, icon: UtensilsCrossed },
-                    { label: 'Reviews',     value: stats?.stats?.reviews,     icon: MessageSquare },
-                    { label: 'Users',       value: stats?.stats?.users,       icon: Users },
-                    { label: 'Menus',       value: stats?.stats?.menus,       icon: Upload },
-                  ].map(({ label, value, icon: Icon }) => (
-                    <div key={label} className="card p-5">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Icon size={14} className="text-[#FF2D55]" />
-                        <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">{label}</p>
-                      </div>
-                      <p className="font-display text-3xl font-black text-[var(--c-text)]">{value ?? '—'}</p>
+                {isAdmin && stats ? (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Restaurants',      value: stats.stats?.restaurants,      icon: UtensilsCrossed },
+                        { label: 'Reviews',          value: stats.stats?.reviews,          icon: MessageSquare   },
+                        { label: 'Users',            value: stats.stats?.users,            icon: Users           },
+                        { label: 'Menus',            value: stats.stats?.menus,            icon: Upload          },
+                      ].map(({ label, value, icon: Icon }) => (
+                        <div key={label} className="card p-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon size={14} className="text-[#FF2D55]" />
+                            <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">{label}</p>
+                          </div>
+                          <p className="font-display text-3xl font-black text-[var(--c-text)]">{value ?? '—'}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="card p-5">
-                    <h3 className="font-semibold text-[var(--c-text)] mb-3">Recent reviews</h3>
-                    {stats?.recentReviews?.length ? stats.recentReviews.map(r => (
-                      <div key={r.id} className="flex items-start gap-2 py-2 border-b border-[var(--c-border)] last:border-0 text-sm">
-                        <span className="text-amber-500 font-bold shrink-0">{'★'.repeat(r.rating)}</span>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{r.restaurants?.name}</p>
-                          <p className="text-[var(--c-muted)] truncate text-xs">{r.comment || '(no comment)'}</p>
+                    {pendingRequestsCount > 0 && (
+                      <button
+                        onClick={() => navigate('Requests')}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 text-left hover:bg-amber-100 transition-colors"
+                      >
+                        <AlertCircle size={18} className="text-amber-600 shrink-0" />
+                        <div>
+                          <p className="text-sm font-bold text-amber-800">
+                            {pendingRequestsCount} pending change request{pendingRequestsCount > 1 ? 's' : ''}
+                          </p>
+                          <p className="text-xs text-amber-600">Click to review and take action</p>
                         </div>
-                      </div>
-                    )) : <p className="text-sm text-[var(--c-muted)]">No recent reviews</p>}
-                  </div>
+                        <ChevronRight size={16} className="ml-auto text-amber-500" />
+                      </button>
+                    )}
 
-                  <div className="card p-5">
-                    <h3 className="font-semibold text-[var(--c-text)] mb-3">Recent menu uploads</h3>
-                    {stats?.recentMenus?.length ? stats.recentMenus.map(m => (
-                      <div key={m.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)] last:border-0 text-sm">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{m.restaurants?.name}</p>
-                          <p className="text-xs text-[var(--c-muted)]">v{m.version} · {m.profiles?.name}</p>
-                        </div>
-                        <Badge color="green">Live</Badge>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="card p-5">
+                        <h3 className="font-semibold text-[var(--c-text)] mb-3">Recent reviews</h3>
+                        {stats.recentReviews?.length ? stats.recentReviews.map(r => (
+                          <div key={r.id} className="flex items-start gap-2 py-2 border-b border-[var(--c-border)] last:border-0 text-sm">
+                            <span className="text-amber-500 font-bold shrink-0">{'★'.repeat(r.rating)}</span>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{r.restaurants?.name}</p>
+                              <p className="text-[var(--c-muted)] truncate text-xs">{r.comment || '(no comment)'}</p>
+                            </div>
+                          </div>
+                        )) : <p className="text-sm text-[var(--c-muted)]">No recent reviews</p>}
                       </div>
-                    )) : <p className="text-sm text-[var(--c-muted)]">No uploads yet</p>}
+
+                      <div className="card p-5">
+                        <h3 className="font-semibold text-[var(--c-text)] mb-3">Recent menu uploads</h3>
+                        {stats.recentMenus?.length ? stats.recentMenus.map(m => (
+                          <div key={m.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)] last:border-0 text-sm">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{m.restaurants?.name}</p>
+                              <p className="text-xs text-[var(--c-muted)]">v{m.version} · {m.profiles?.name}</p>
+                            </div>
+                            <Badge color="green">Live</Badge>
+                          </div>
+                        )) : <p className="text-sm text-[var(--c-muted)]">No uploads yet</p>}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Staff welcome overview
+                  <div className="card p-8 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                      <Shield size={26} className="text-amber-700" />
+                    </div>
+                    <h2 className="font-bold text-xl text-[var(--c-text)] mb-1">Welcome, {profile?.name}</h2>
+                    <p className="text-[var(--c-muted)] text-sm">
+                      You are logged in as <span className="font-semibold text-blue-600">Staff</span>.
+                      Use the sidebar to access your permitted sections.
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* ── RESTAURANTS ──────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                RESTAURANTS
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Restaurants' && (
               <div className="space-y-5 animate-fade-in">
 
                 {/* Menu upload */}
                 <div className="card p-5">
                   <h3 className="font-semibold text-[var(--c-text)] mb-4 flex items-center gap-2">
-                    <Upload size={18} className="text-[#FF2D55]" />
-                    Upload / replace menu PDF
+                    <Upload size={18} className="text-[#FF2D55]" /> Upload / replace menu PDF
                   </h3>
                   <form onSubmit={handleUpload} className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select restaurant</label>
-                      <select
-                        value={selectedRestaurant}
-                        onChange={e => setSelectedRestaurant(e.target.value)}
-                        required
-                        className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                      >
+                      <select value={selectedRestaurant} onChange={e => setSelectedRestaurant(e.target.value)} required className={inputCls}>
                         <option value="">— Choose restaurant —</option>
-                        {restaurantOptions.map(r => (
-                          <option key={r.id} value={r.id}>{r.name} — {r.town}</option>
-                        ))}
+                        {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
                       </select>
                     </div>
-
                     <div>
                       <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">PDF menu file</label>
-                      <div className={clsx(
-                        'border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer',
-                        pdfFile ? 'border-[#FF2D55]/40 bg-red-50/30' : 'border-[var(--c-border2)] hover:border-[#FF2D55]/30',
-                      )}>
-                        <input
-                          type="file" accept="application/pdf"
-                          onChange={e => setPdfFile(e.target.files[0])}
-                          className="hidden" id="pdf-upload" required
-                        />
+                      <div className={clsx('border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer', pdfFile ? 'border-[#FF2D55]/40 bg-red-50/30' : 'border-[var(--c-border2)] hover:border-[#FF2D55]/30')}>
+                        <input type="file" accept="application/pdf" onChange={e => setPdfFile(e.target.files[0])} className="hidden" id="pdf-upload" required />
                         <label htmlFor="pdf-upload" className="cursor-pointer">
                           {pdfFile ? (
                             <div>
@@ -626,16 +899,11 @@ export default function AdminPage() {
                         </label>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-3">
                       <Button type="submit" loading={uploading} disabled={!selectedRestaurant || !pdfFile}>
                         <Upload size={15} /> Upload menu
                       </Button>
-                      {uploadMsg && (
-                        <p className={clsx('text-sm font-medium', uploadMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>
-                          {uploadMsg}
-                        </p>
-                      )}
+                      {uploadMsg && <p className={clsx('text-sm font-medium', uploadMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>{uploadMsg}</p>}
                     </div>
                   </form>
                 </div>
@@ -644,14 +912,14 @@ export default function AdminPage() {
                 <div className="card overflow-hidden">
                   <div className="flex items-center justify-between p-4 border-b border-[var(--c-border)]">
                     <h3 className="font-semibold text-[var(--c-text)]">
-                      All restaurants
-                      {restTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({restTotal})</span>}
+                      All restaurants {restTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({restTotal})</span>}
                     </h3>
-                    <Link href="/admin/restaurants/new">
-                      <Button size="sm" variant="secondary"><Plus size={14} /> Add new</Button>
-                    </Link>
+                    {isAdmin && (
+                      <Link href="/admin/restaurants/new">
+                        <Button size="sm" variant="secondary"><Plus size={14} /> Add new</Button>
+                      </Link>
+                    )}
                   </div>
-
                   {restsLoading ? <TabSpinner /> : restaurants.length === 0 ? (
                     <p className="text-sm text-[var(--c-muted)] text-center py-10">No restaurants yet.</p>
                   ) : (
@@ -685,35 +953,28 @@ export default function AdminPage() {
                               <Link href={`/restaurants/${r.id}`}>
                                 <Button size="sm" variant="ghost" className="text-xs">View</Button>
                               </Link>
-                              <button
-                                onClick={() => deleteRestaurant(r.id, r.name)}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
-                                title="Delete restaurant"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {isAdmin && (
+                                <button onClick={() => deleteRestaurant(r.id, r.name)}
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
                       </div>
-                      <Pagination
-                        page={restPage}
-                        totalPages={restTotalPages}
-                        total={restTotal}
-                        onPageChange={loadRestaurants}
-                        loading={restsLoading}
-                      />
+                      <Pagination page={restPage} totalPages={restTotalPages} total={restTotal} onPageChange={loadRestaurants} loading={restsLoading} />
                     </>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ── BOOST ────────────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                BOOST
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Boost' && (
               <div className="space-y-5 animate-fade-in">
-
-                {/* Summary cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[
                     { label: 'Total restaurants', value: stats?.stats?.restaurants ?? restaurantOptions.length },
@@ -727,40 +988,24 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                {/* Global plan selector */}
                 <div className="card p-5 flex flex-wrap items-center gap-3">
                   <p className="text-sm font-semibold text-[var(--c-text)] shrink-0">Quick-boost plan:</p>
                   {[{ value: '30', label: '30 days' }, { value: '60', label: '60 days' }, { value: '90', label: '90 days' }].map(p => (
-                    <button
-                      key={p.value}
-                      type="button"
-                      onClick={() => setBoostPlan(p.value)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
-                        boostPlan === p.value
-                          ? 'text-white border-transparent'
-                          : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-amber-400/40'
-                      }`}
-                      style={boostPlan === p.value ? { background: 'linear-gradient(135deg,#F59E0B,#EF4444)' } : {}}
-                    >
+                    <button key={p.value} type="button" onClick={() => setBoostPlan(p.value)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${boostPlan === p.value ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-amber-400/40'}`}
+                      style={boostPlan === p.value ? { background: 'linear-gradient(135deg,#F59E0B,#EF4444)' } : {}}>
                       {p.label}
                     </button>
                   ))}
-                  {boostMsg && (
-                    <p className={`text-sm font-semibold ml-auto ${boostMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
-                      {boostMsg}
-                    </p>
-                  )}
+                  {boostMsg && <p className={`text-sm font-semibold ml-auto ${boostMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{boostMsg}</p>}
                 </div>
 
-                {/* Per-restaurant boost list */}
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b border-[var(--c-border)]">
                     <h3 className="font-semibold text-[var(--c-text)]">
-                      Manage restaurant boosts
-                      {restTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({restTotal})</span>}
+                      Manage restaurant boosts {restTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({restTotal})</span>}
                     </h3>
                   </div>
-
                   {restsLoading ? <TabSpinner /> : restaurants.length === 0 ? (
                     <p className="text-sm text-[var(--c-muted)] text-center py-10">No restaurants found.</p>
                   ) : (
@@ -775,58 +1020,32 @@ export default function AdminPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-0.5">
                                     <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
-                                    {active && (
-                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
-                                        style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
-                                        <Zap size={8} className="fill-white" /> Featured
-                                      </span>
-                                    )}
-                                    {expired && (
-                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-400 shrink-0">
-                                        Expired
-                                      </span>
-                                    )}
+                                    {active  && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}><Zap size={8} className="fill-white" /> Featured</span>}
+                                    {expired && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-400 shrink-0">Expired</span>}
                                   </div>
                                   <p className="text-xs text-[var(--c-muted)]">
                                     {r.town}, {r.district}
-                                    {active && r.boost_expires_at && (
-                                      <> · expires {new Date(r.boost_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>
-                                    )}
+                                    {active && r.boost_expires_at && <> · expires {new Date(r.boost_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   {active ? (
-                                    <button
-                                      onClick={() => quickBoost(r.id, false, boostPlan)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
-                                    >
+                                    <button onClick={() => quickBoost(r.id, false, boostPlan)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors">
                                       <ZapOff size={12} /> Remove
                                     </button>
                                   ) : (
-                                    <button
-                                      onClick={() => quickBoost(r.id, true, boostPlan)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90"
-                                      style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}
-                                    >
+                                    <button onClick={() => quickBoost(r.id, true, boostPlan)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90" style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
                                       <Zap size={12} className="fill-white" /> Boost {boostPlan}d
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => loadBoostHistory(r.id)}
-                                    className={clsx('p-1.5 rounded-lg transition-colors', historyOpenId === r.id ? 'bg-amber-50 text-amber-600' : 'hover:bg-surface-secondary text-[var(--c-muted)]')}
-                                    title="Boost history"
-                                  >
+                                  <button onClick={() => loadBoostHistory(r.id)} className={clsx('p-1.5 rounded-lg transition-colors', historyOpenId === r.id ? 'bg-amber-50 text-amber-600' : 'hover:bg-surface-secondary text-[var(--c-muted)]')} title="Boost history">
                                     <History size={13} />
                                   </button>
                                   <Link href={`/admin/restaurants/${r.id}/edit`}>
-                                    <button className="p-1.5 rounded-lg hover:bg-surface-secondary text-[var(--c-muted)] transition-colors">
-                                      <Pencil size={13} />
-                                    </button>
+                                    <button className="p-1.5 rounded-lg hover:bg-surface-secondary text-[var(--c-muted)] transition-colors"><Pencil size={13} /></button>
                                   </Link>
                                 </div>
                               </div>
-
-                              {/* Inline boost history */}
                               {historyOpenId === r.id && (
                                 <div className="mx-4 mb-3 rounded-xl border border-amber-100 bg-amber-50/50 overflow-hidden">
                                   <div className="px-4 py-2 border-b border-amber-100 flex items-center gap-2">
@@ -843,25 +1062,14 @@ export default function AdminPage() {
                                         <div key={h.id} className="flex items-center justify-between px-4 py-2.5">
                                           <div className="flex items-center gap-2">
                                             {h.action === 'enabled' ? (
-                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                                                style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
-                                                <Zap size={8} className="fill-white" /> Boosted
-                                              </span>
+                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}><Zap size={8} className="fill-white" /> Boosted</span>
                                             ) : (
-                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
-                                                <ZapOff size={8} /> Removed
-                                              </span>
+                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600"><ZapOff size={8} /> Removed</span>
                                             )}
                                             {h.plan && <span className="text-xs text-amber-700 font-medium">{h.plan} days</span>}
-                                            {h.expires_at && h.action === 'enabled' && (
-                                              <span className="text-xs text-[var(--c-muted)]">
-                                                → {new Date(h.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                              </span>
-                                            )}
+                                            {h.expires_at && h.action === 'enabled' && <span className="text-xs text-[var(--c-muted)]">→ {new Date(h.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
                                           </div>
-                                          <span className="text-[11px] text-[var(--c-dim)] shrink-0">
-                                            {new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                          </span>
+                                          <span className="text-[11px] text-[var(--c-dim)] shrink-0">{new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
                                       ))}
                                     </div>
@@ -872,33 +1080,24 @@ export default function AdminPage() {
                           )
                         })}
                       </div>
-                      <Pagination
-                        page={restPage}
-                        totalPages={restTotalPages}
-                        total={restTotal}
-                        onPageChange={loadRestaurants}
-                        loading={restsLoading}
-                      />
+                      <Pagination page={restPage} totalPages={restTotalPages} total={restTotal} onPageChange={loadRestaurants} loading={restsLoading} />
                     </>
                   )}
                 </div>
-
-                <p className="text-xs text-[var(--c-dim)] text-center">
-                  Collect payment from the restaurant owner first, then activate their boost here.
-                </p>
+                <p className="text-xs text-[var(--c-dim)] text-center">Collect payment from the restaurant owner first, then activate their boost here.</p>
               </div>
             )}
 
-            {/* ── REVIEWS ──────────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                REVIEWS
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Reviews' && (
               <div className="card overflow-hidden animate-fade-in">
                 <div className="p-4 border-b border-[var(--c-border)]">
                   <h3 className="font-semibold text-[var(--c-text)]">
-                    All reviews
-                    {revTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({revTotal})</span>}
+                    All reviews {revTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({revTotal})</span>}
                   </h3>
                 </div>
-
                 {revsLoading ? <TabSpinner /> : reviews.length === 0 ? (
                   <p className="text-sm text-[var(--c-muted)] text-center py-10">No reviews yet.</p>
                 ) : (
@@ -912,114 +1111,478 @@ export default function AdminPage() {
                                 <span className="text-xs font-semibold text-amber-600">{'★'.repeat(r.rating)}</span>
                                 <span className="text-xs text-[var(--c-muted)]">by {r.profiles?.name}</span>
                                 <span className="text-xs text-[var(--c-muted)]">→ {r.restaurants?.name}</span>
-                                {!r.is_approved && (
-                                  <Badge color="amber" className="text-[10px]">Pending</Badge>
-                                )}
+                                {!r.is_approved && <Badge color="amber" className="text-[10px]">Pending</Badge>}
                               </div>
                               {r.comment && <p className="text-sm text-[var(--c-text)] truncate">{r.comment}</p>}
-                              <p className="text-xs text-[var(--c-dim)] mt-0.5">
-                                {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              </p>
+                              <p className="text-xs text-[var(--c-dim)] mt-0.5">{new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               {!r.is_approved ? (
-                                <button
-                                  onClick={() => approveReview(r.id, true)}
-                                  className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                                  title="Approve"
-                                >
-                                  <Check size={15} />
-                                </button>
+                                <button onClick={() => approveReview(r.id, true)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Approve"><Check size={15} /></button>
                               ) : (
-                                <button
-                                  onClick={() => approveReview(r.id, false)}
-                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors"
-                                  title="Unapprove"
-                                >
-                                  <X size={15} />
-                                </button>
+                                <button onClick={() => approveReview(r.id, false)} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors" title="Unapprove"><X size={15} /></button>
                               )}
-                              <button
-                                onClick={() => deleteReview(r.id)}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 size={15} />
-                              </button>
+                              <button onClick={() => deleteReview(r.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors" title="Delete"><Trash2 size={15} /></button>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <Pagination
-                      page={revPage}
-                      totalPages={revTotalPages}
-                      total={revTotal}
-                      onPageChange={loadReviews}
-                      loading={revsLoading}
-                    />
+                    <Pagination page={revPage} totalPages={revTotalPages} total={revTotal} onPageChange={loadReviews} loading={revsLoading} />
                   </>
                 )}
               </div>
             )}
 
-            {/* ── USERS ────────────────────────────────────────────────── */}
-            {tab === 'Users' && (
-              <div className="card overflow-hidden animate-fade-in">
-                <div className="p-4 border-b border-[var(--c-border)]">
-                  <h3 className="font-semibold text-[var(--c-text)]">
-                    All users
-                    {usersTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({usersTotal})</span>}
-                  </h3>
+            {/* ═══════════════════════════════════════════════════════════
+                CHANGE REQUESTS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Requests' && (
+              <div className="space-y-4 animate-fade-in">
+
+                {/* Status filter pills */}
+                <div className="flex flex-wrap gap-2">
+                  {['', 'pending', 'approved', 'rejected', 'paid', 'applied'].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => changeCrFilter(s)}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize border',
+                        crStatusFilter === s
+                          ? 'text-white border-transparent'
+                          : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary',
+                      )}
+                      style={crStatusFilter === s ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+                    >
+                      {s === '' ? 'All' : s}
+                    </button>
+                  ))}
                 </div>
 
-                {usrsLoading ? <TabSpinner /> : users.length === 0 ? (
-                  <p className="text-sm text-[var(--c-muted)] text-center py-10">No users yet.</p>
-                ) : (
-                  <>
-                    <div className="divide-y divide-[var(--c-border)]">
-                      {users.map(u => (
-                        <div key={u.id} className="flex items-center justify-between px-4 py-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <Avatar name={u.name || 'User'} size={32} />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-[var(--c-text)] truncate">{u.name || 'Unnamed'}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <Badge color={u.role === 'admin' ? 'amber' : 'gray'} className="text-[10px]">{u.role}</Badge>
-                                {u.is_banned && <Badge color="red" className="text-[10px]">Banned</Badge>}
-                                <span className="text-[10px] text-[var(--c-dim)]">
-                                  joined {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </span>
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)]">
+                      Change requests {crTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({crTotal})</span>}
+                    </h3>
+                  </div>
+
+                  {crLoading ? <TabSpinner /> : changeRequests.length === 0 ? (
+                    <div className="flex flex-col items-center py-12 gap-2">
+                      <Inbox size={32} className="text-[var(--c-dim)]" />
+                      <p className="text-sm text-[var(--c-muted)]">No change requests{crStatusFilter ? ` with status "${crStatusFilter}"` : ''}.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="divide-y divide-[var(--c-border)]">
+                        {changeRequests.map(cr => (
+                          <Fragment key={cr.id}>
+                            <div
+                              className="px-4 py-3 cursor-pointer hover:bg-surface-secondary transition-colors"
+                              onClick={() => expandChangeRequest(cr.id)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                    <StatusBadge status={cr.status} />
+                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{cr.type?.replace(/_/g, ' ')}</span>
+                                  </div>
+                                  <p className="font-medium text-sm text-[var(--c-text)] mt-1">{cr.title}</p>
+                                  <p className="text-xs text-[var(--c-muted)] mt-0.5">
+                                    {cr.restaurants?.name}
+                                    {cr.profiles?.name && <> · by {cr.profiles.name}</>}
+                                    <span className="ml-1.5 text-[var(--c-dim)]">· {new Date(cr.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                  </p>
+                                </div>
+                                <ChevronDown
+                                  size={16}
+                                  className={clsx('text-[var(--c-muted)] shrink-0 mt-1 transition-transform', crExpandedId === cr.id && 'rotate-180')}
+                                />
                               </div>
                             </div>
+
+                            {/* Expanded detail */}
+                            {crExpandedId === cr.id && (
+                              <div className="mx-4 mb-3 rounded-xl border border-[var(--c-border)] bg-gray-50/60 p-4 space-y-3">
+                                <div>
+                                  <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-[var(--c-text)]">{cr.description}</p>
+                                </div>
+                                {cr.admin_note && (
+                                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                                    <p className="text-xs font-semibold text-blue-700 mb-0.5">Admin note</p>
+                                    <p className="text-sm text-blue-800">{cr.admin_note}</p>
+                                  </div>
+                                )}
+
+                                {/* Status history */}
+                                {crExpandedData[cr.id]?.history?.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide mb-2">Status history</p>
+                                    <div className="space-y-1">
+                                      {crExpandedData[cr.id].history.map(h => (
+                                        <div key={h.id} className="flex items-center gap-2 text-xs">
+                                          <StatusBadge status={h.to_status} />
+                                          {h.note && <span className="text-[var(--c-muted)] truncate">{h.note}</span>}
+                                          <span className="text-[var(--c-dim)] shrink-0 ml-auto">{new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Action note */}
+                                {cr.status !== 'applied' && (
+                                  <div>
+                                    <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Note (optional)</label>
+                                    <input
+                                      value={crActionNote}
+                                      onChange={e => setCrActionNote(e.target.value)}
+                                      placeholder="Add a note for the owner…"
+                                      className={inputCls}
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Action buttons */}
+                                <div className="flex flex-wrap gap-2">
+                                  {cr.status === 'pending' && (
+                                    <>
+                                      <button disabled={crActionLoading} onClick={() => handleCrAction(cr.id, 'approved')}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50">
+                                        {crActionLoading ? 'Saving…' : '✓ Approve'}
+                                      </button>
+                                      <button disabled={crActionLoading} onClick={() => handleCrAction(cr.id, 'rejected')}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50">
+                                        Reject
+                                      </button>
+                                    </>
+                                  )}
+                                  {cr.status === 'approved' && (
+                                    <button disabled={crActionLoading} onClick={() => handleCrAction(cr.id, 'paid')}
+                                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50">
+                                      {crActionLoading ? 'Saving…' : 'Mark as Paid'}
+                                    </button>
+                                  )}
+                                  {cr.status === 'paid' && (
+                                    <button disabled={crActionLoading} onClick={() => handleCrAction(cr.id, 'applied')}
+                                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50">
+                                      {crActionLoading ? 'Saving…' : 'Mark as Applied'}
+                                    </button>
+                                  )}
+                                  {cr.status === 'rejected' && (
+                                    <button disabled={crActionLoading} onClick={() => handleCrAction(cr.id, 'pending')}
+                                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary transition-colors disabled:opacity-50">
+                                      Reopen
+                                    </button>
+                                  )}
+                                  {cr.status === 'applied' && (
+                                    <span className="text-xs text-green-700 font-semibold py-1.5">Changes have been applied</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </Fragment>
+                        ))}
+                      </div>
+                      <Pagination page={crPage} totalPages={crTotalPages} total={crTotal} onPageChange={p => loadChangeRequests(p, crStatusFilter)} loading={crLoading} />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                USERS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Users' && (
+              <div className="space-y-4 animate-fade-in">
+                {/* Role filter pills */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: '',       label: 'All' },
+                    { value: 'admin',  label: 'Admin' },
+                    { value: 'staff',  label: 'Staff' },
+                    { value: 'owner',  label: 'Owner' },
+                    { value: 'user',   label: 'User' },
+                  ].map(r => (
+                    <button
+                      key={r.value}
+                      onClick={() => changeUsersRoleFilter(r.value)}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
+                        usersRoleFilter === r.value
+                          ? 'text-white border-transparent'
+                          : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary',
+                      )}
+                      style={usersRoleFilter === r.value ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)]">
+                      {usersRoleFilter ? `${usersRoleFilter.charAt(0).toUpperCase() + usersRoleFilter.slice(1)}s` : 'All users'}
+                      {usersTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({usersTotal})</span>}
+                    </h3>
+                  </div>
+
+                  {usrsLoading ? <TabSpinner /> : users.length === 0 ? (
+                    <p className="text-sm text-[var(--c-muted)] text-center py-10">No users found.</p>
+                  ) : (
+                    <>
+                      <div className="divide-y divide-[var(--c-border)]">
+                        {users.map(u => (
+                          <div key={u.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <Avatar name={u.name || 'User'} size={32} />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-[var(--c-text)] truncate">{u.name || 'Unnamed'}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <Badge color={ROLE_COLORS[u.role] || 'gray'} className="text-[10px]">{u.role}</Badge>
+                                  {u.is_banned && <Badge color="red" className="text-[10px]">Banned</Badge>}
+                                  <span className="text-[10px] text-[var(--c-dim)]">
+                                    joined {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Role change — prevent changing own role */}
+                              {u.id !== user?.id && (
+                                <select
+                                  value={u.role}
+                                  onChange={e => changeUserRole(u.id, e.target.value)}
+                                  className="text-xs border border-[var(--c-border)] rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[#FF2D55]/40"
+                                >
+                                  {['user', 'owner', 'staff', 'admin'].map(r => (
+                                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                                  ))}
+                                </select>
+                              )}
+                              {u.id !== user?.id && (
+                                <button
+                                  onClick={() => toggleBan(u.id, u.is_banned)}
+                                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors', u.is_banned ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100')}
+                                >
+                                  {u.is_banned ? 'Unban' : 'Ban'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <Pagination page={usersPage} totalPages={usersTotalPages} total={usersTotal} onPageChange={p => loadUsers(p, usersRoleFilter)} loading={usrsLoading} />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                OWNERS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Owners' && (
+              <div className="space-y-5 animate-fade-in">
+
+                {/* Assign owner form */}
+                <div className="card p-5">
+                  <h3 className="font-semibold text-[var(--c-text)] mb-4 flex items-center gap-2">
+                    <Building2 size={17} className="text-[#FF2D55]" /> Assign restaurant owner
+                  </h3>
+                  <form onSubmit={assignOwner} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select user</label>
+                        <select value={ownerForm.owner_id} onChange={e => setOwnerForm(f => ({ ...f, owner_id: e.target.value }))} required className={inputCls}>
+                          <option value="">— Choose user —</option>
+                          {allUsers.filter(u => u.role !== 'admin').map(u => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select restaurant</label>
+                        <select value={ownerForm.restaurant_id} onChange={e => setOwnerForm(f => ({ ...f, restaurant_id: e.target.value }))} required className={inputCls}>
+                          <option value="">— Choose restaurant —</option>
+                          {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button type="submit" disabled={ownerSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                        {ownerSaving ? 'Assigning…' : 'Assign owner'}
+                      </button>
+                      {ownerMsg && <p className={clsx('text-sm font-medium', ownerMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>{ownerMsg}</p>}
+                    </div>
+                    <p className="text-xs text-[var(--c-dim)]">
+                      The selected user will automatically be promoted to the <strong>owner</strong> role if they are not already.
+                    </p>
+                  </form>
+                </div>
+
+                {/* Owner assignments list */}
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)]">
+                      Current assignments {owners.length > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({owners.length})</span>}
+                    </h3>
+                  </div>
+                  {ownersLoading ? <TabSpinner /> : owners.length === 0 ? (
+                    <p className="text-sm text-[var(--c-muted)] text-center py-10">No owner assignments yet.</p>
+                  ) : (
+                    <div className="divide-y divide-[var(--c-border)]">
+                      {owners.map(a => (
+                        <div key={a.id} className="flex items-center justify-between px-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-sm font-medium text-[var(--c-text)] truncate">{a.profiles?.name}</p>
+                              <Badge color="purple" className="text-[10px]">owner</Badge>
+                            </div>
+                            <p className="text-xs text-[var(--c-muted)]">
+                              {a.restaurants?.name} — {a.restaurants?.town}
+                              <span className="ml-1.5 text-[var(--c-dim)]">
+                                · assigned {new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            </p>
                           </div>
                           <button
-                            onClick={() => toggleBan(u.id, u.is_banned)}
-                            className={clsx(
-                              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0',
-                              u.is_banned
-                                ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                                : 'bg-red-50 text-red-600 hover:bg-red-100',
-                            )}
+                            onClick={() => removeOwner(a.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors shrink-0"
+                            title="Remove assignment"
                           >
-                            {u.is_banned ? 'Unban' : 'Ban'}
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}
                     </div>
-                    <Pagination
-                      page={usersPage}
-                      totalPages={usersTotalPages}
-                      total={usersTotal}
-                      onPageChange={loadUsers}
-                      loading={usrsLoading}
-                    />
-                  </>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
-            {/* ── MENU ITEMS ───────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                STAFF
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Staff' && (
+              <div className="space-y-5 animate-fade-in">
+
+                <div className="card p-5">
+                  <h3 className="font-semibold text-[var(--c-text)] mb-2 flex items-center gap-2">
+                    <UserCheck size={17} className="text-[#FF2D55]" /> Staff members
+                  </h3>
+                  <p className="text-xs text-[var(--c-muted)] mb-0">
+                    Promote any user to <strong>Staff</strong> via the Users tab, then configure their section permissions here.
+                  </p>
+                </div>
+
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)]">
+                      All staff {staffTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({staffTotal})</span>}
+                    </h3>
+                  </div>
+
+                  {staffLoading ? <TabSpinner /> : staffList.length === 0 ? (
+                    <div className="flex flex-col items-center py-12 gap-2">
+                      <UserCheck size={32} className="text-[var(--c-dim)]" />
+                      <p className="text-sm text-[var(--c-muted)]">No staff members yet.</p>
+                      <p className="text-xs text-[var(--c-dim)]">Go to Users → change a user&apos;s role to Staff.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="divide-y divide-[var(--c-border)]">
+                        {staffList.map(s => (
+                          <Fragment key={s.id}>
+                            <div
+                              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-surface-secondary transition-colors"
+                              onClick={() => expandStaff(s.id)}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <Avatar name={s.name || 'Staff'} size={32} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-[var(--c-text)] truncate">{s.name || 'Unnamed'}</p>
+                                  <p className="text-xs text-[var(--c-muted)]">
+                                    joined {new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    {s.is_banned && <span className="ml-1.5 text-red-500 font-semibold">· Banned</span>}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs text-[var(--c-muted)]">Permissions</span>
+                                <ChevronDown
+                                  size={15}
+                                  className={clsx('text-[var(--c-muted)] transition-transform', expandedStaffId === s.id && 'rotate-180')}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Permission matrix */}
+                            {expandedStaffId === s.id && (
+                              <div className="mx-4 mb-3 rounded-xl border border-[var(--c-border)] bg-gray-50/60 p-4">
+                                <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide mb-3">
+                                  Section access for {s.name}
+                                </p>
+                                {staffPermsLoading && !staffPermsMap[s.id] ? (
+                                  <div className="flex justify-center py-4"><Spinner size={20} /></div>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                    {STAFF_SECTIONS.map(section => {
+                                      const perms = staffPermsMap[s.id] || {}
+                                      const hasAccess = perms[section] !== false
+                                      return (
+                                        <label key={section} className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white border border-[var(--c-border)] cursor-pointer hover:border-[#FF2D55]/30 transition-colors">
+                                          <span className="text-sm font-medium text-[var(--c-text)]">{section}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleStaffPerm(s.id, section)}
+                                            className={clsx(
+                                              'w-10 h-5 rounded-full transition-all relative shrink-0',
+                                              hasAccess ? 'bg-green-500' : 'bg-gray-200'
+                                            )}
+                                          >
+                                            <span className={clsx(
+                                              'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
+                                              hasAccess ? 'right-0.5' : 'left-0.5'
+                                            )} />
+                                          </button>
+                                        </label>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => saveStaffPermissions(s.id)}
+                                    disabled={staffPermsLoading}
+                                    className={gradientBtn}
+                                    style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                                  >
+                                    {staffPermsLoading ? 'Saving…' : 'Save permissions'}
+                                  </button>
+                                  {staffPermsMsg && (
+                                    <p className={clsx('text-sm font-medium', staffPermsMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>
+                                      {staffPermsMsg}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </Fragment>
+                        ))}
+                      </div>
+                      <Pagination page={staffPage} totalPages={staffTotalPages} total={staffTotal} onPageChange={loadStaff} loading={staffLoading} />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                MENU ITEMS
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Menu Items' && (
               <div className="space-y-5 animate-fade-in">
                 <div className="card p-5">
@@ -1029,12 +1592,10 @@ export default function AdminPage() {
                   <select
                     value={miRestaurant}
                     onChange={e => { setMiRestaurant(e.target.value); loadMenuItems(e.target.value); miReset() }}
-                    className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
+                    className={inputCls}
                   >
                     <option value="">— Select restaurant —</option>
-                    {restaurantOptions.map(r => (
-                      <option key={r.id} value={r.id}>{r.name} — {r.town}</option>
-                    ))}
+                    {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
                   </select>
                 </div>
 
@@ -1046,58 +1607,28 @@ export default function AdminPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Item name *</label>
-                            <input
-                              value={miForm.name}
-                              onChange={e => setMiForm(f => ({ ...f, name: e.target.value }))}
-                              required placeholder="e.g. Margherita Pizza"
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                            />
+                            <input value={miForm.name} onChange={e => setMiForm(f => ({ ...f, name: e.target.value }))} required placeholder="e.g. Margherita Pizza" className={inputCls} />
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Price (LKR) *</label>
-                            <input
-                              type="number" step="0.01"
-                              value={miForm.price}
-                              onChange={e => setMiForm(f => ({ ...f, price: e.target.value }))}
-                              required placeholder="950.00"
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                            />
+                            <input type="number" step="0.01" value={miForm.price} onChange={e => setMiForm(f => ({ ...f, price: e.target.value }))} required placeholder="950.00" className={inputCls} />
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Description</label>
-                          <input
-                            value={miForm.description}
-                            onChange={e => setMiForm(f => ({ ...f, description: e.target.value }))}
-                            placeholder="Short description of the dish"
-                            className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                          />
+                          <input value={miForm.description} onChange={e => setMiForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description" className={inputCls} />
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Category</label>
-                            <select
-                              value={miForm.category}
-                              onChange={e => setMiForm(f => ({ ...f, category: e.target.value }))}
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                            >
+                            <select value={miForm.category} onChange={e => setMiForm(f => ({ ...f, category: e.target.value }))} className={inputCls}>
                               <option value="">— Select —</option>
-                              {[
-                                'Starters','Soups','Salads','Main Course','Rice & Noodles',
-                                'Kottu','Roti & Hoppers','Grills & BBQ','Seafood','Vegetarian',
-                                'Sandwiches & Burgers','Pizza & Pasta','Sides','Desserts',
-                                'Beverages','Juices & Smoothies','Short Eats','Bakery & Pastries',
-                                'Kids Menu','Specials',
-                              ].map(c => <option key={c}>{c}</option>)}
+                              {['Starters','Soups','Salads','Main Course','Rice & Noodles','Kottu','Roti & Hoppers','Grills & BBQ','Seafood','Vegetarian','Sandwiches & Burgers','Pizza & Pasta','Sides','Desserts','Beverages','Juices & Smoothies','Short Eats','Bakery & Pastries','Kids Menu','Specials'].map(c => <option key={c}>{c}</option>)}
                             </select>
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Discount type</label>
-                            <select
-                              value={miForm.discount_type}
-                              onChange={e => setMiForm(f => ({ ...f, discount_type: e.target.value }))}
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                            >
+                            <select value={miForm.discount_type} onChange={e => setMiForm(f => ({ ...f, discount_type: e.target.value }))} className={inputCls}>
                               <option value="">None</option>
                               <option value="percent">Percent (%)</option>
                               <option value="fixed">Fixed (LKR)</option>
@@ -1105,43 +1636,19 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Discount value</label>
-                            <input
-                              type="number" step="0.01"
-                              value={miForm.discount_value}
-                              onChange={e => setMiForm(f => ({ ...f, discount_value: e.target.value }))}
-                              placeholder="e.g. 20"
-                              disabled={!miForm.discount_type}
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white disabled:opacity-40"
-                            />
+                            <input type="number" step="0.01" value={miForm.discount_value} onChange={e => setMiForm(f => ({ ...f, discount_value: e.target.value }))} placeholder="e.g. 20" disabled={!miForm.discount_type} className={`${inputCls} disabled:opacity-40`} />
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Photo (optional)</label>
-                          <input
-                            type="file" accept="image/*"
-                            onChange={e => setMiForm(f => ({ ...f, photo: e.target.files[0] }))}
-                            className="w-full text-sm text-[var(--c-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF2D55]/10 file:text-[#FF2D55] hover:file:bg-[#FF2D55]/20"
-                          />
+                          <input type="file" accept="image/*" onChange={e => setMiForm(f => ({ ...f, photo: e.target.files[0] }))} className="w-full text-sm text-[var(--c-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF2D55]/10 file:text-[#FF2D55] hover:file:bg-[#FF2D55]/20" />
                         </div>
                         <div className="flex items-center gap-3 pt-1">
-                          <button
-                            type="submit" disabled={miSaving}
-                            className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
-                            style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
-                          >
+                          <button type="submit" disabled={miSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                             {miSaving ? 'Saving…' : miEditId ? 'Update item' : 'Add item'}
                           </button>
-                          {miEditId && (
-                            <button
-                              type="button" onClick={miReset}
-                              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary transition-all"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                          {miMsg && (
-                            <p className={`text-sm font-medium ${miMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{miMsg}</p>
-                          )}
+                          {miEditId && <button type="button" onClick={miReset} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary transition-all">Cancel</button>}
+                          {miMsg && <p className={`text-sm font-medium ${miMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{miMsg}</p>}
                         </div>
                       </form>
                     </div>
@@ -1150,44 +1657,44 @@ export default function AdminPage() {
                       <div className="p-4 border-b border-[var(--c-border)]">
                         <h4 className="font-semibold text-[var(--c-text)]">Items ({menuItems.length})</h4>
                       </div>
-                      {miLoading ? (
-                        <div className="flex justify-center py-12"><Spinner size={28} /></div>
-                      ) : menuItems.length === 0 ? (
-                        <p className="text-sm text-[var(--c-muted)] text-center py-8">No items yet</p>
-                      ) : (
-                        <div className="divide-y divide-[var(--c-border)]">
-                          {menuItems.map(item => (
-                            <div key={item.id} className="flex items-center gap-4 px-4 py-3">
-                              {item.photo_url ? (
-                                <img src={item.photo_url} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--c-border)]" />
-                              ) : (
-                                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                                  <Image size={20} className="text-[var(--c-dim)]" />
+                      {miLoading ? <div className="flex justify-center py-12"><Spinner size={28} /></div>
+                        : menuItems.length === 0 ? <p className="text-sm text-[var(--c-muted)] text-center py-8">No items yet</p>
+                        : (
+                          <div className="divide-y divide-[var(--c-border)]">
+                            {menuItems.map(item => (
+                              <div key={item.id} className="flex items-center gap-4 px-4 py-3">
+                                {item.photo_url ? (
+                                  <img src={item.photo_url} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--c-border)]" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                                    <Image size={20} className="text-[var(--c-dim)]" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-sm text-[var(--c-text)] truncate">{item.name}</p>
+                                  <p className="text-xs text-[var(--c-muted)]">
+                                    Rs {Number(item.price).toFixed(2)}
+                                    {item.category ? ` · ${item.category}` : ''}
+                                    {item.discount_type ? ` · ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' LKR'} OFF` : ''}
+                                  </p>
                                 </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-[var(--c-text)] truncate">{item.name}</p>
-                                <p className="text-xs text-[var(--c-muted)]">
-                                  Rs {Number(item.price).toFixed(2)}
-                                  {item.category ? ` · ${item.category}` : ''}
-                                  {item.discount_type ? ` · ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' LKR'} OFF` : ''}
-                                </p>
+                                <div className="flex gap-1 shrink-0">
+                                  <button onClick={() => miStartEdit(item)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><Pencil size={14} /></button>
+                                  <button onClick={() => miDelete(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={14} /></button>
+                                </div>
                               </div>
-                              <div className="flex gap-1 shrink-0">
-                                <button onClick={() => miStartEdit(item)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><Pencil size={14} /></button>
-                                <button onClick={() => miDelete(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        )}
                     </div>
                   </>
                 )}
               </div>
             )}
 
-            {/* ── SITE CONTENT ─────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                SITE CONTENT
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'Site Content' && (
               <div className="space-y-5 animate-fade-in">
                 <div className="card p-5">
@@ -1196,53 +1703,30 @@ export default function AdminPage() {
                   </h3>
                   <div className="flex gap-2 mb-6">
                     {['home', 'about', 'contact'].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => { setScPage(p); scLoad(p) }}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${
-                          scPage === p ? 'text-white shadow-sm' : 'text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary'
-                        }`}
-                        style={scPage === p ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
-                      >
+                      <button key={p} onClick={() => { setScPage(p); scLoad(p) }}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${scPage === p ? 'text-white shadow-sm' : 'text-[var(--c-muted)] border border-[var(--c-border)] hover:bg-surface-secondary'}`}
+                        style={scPage === p ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}>
                         {p}
                       </button>
                     ))}
                   </div>
-
                   {scLoading ? <div className="flex justify-center py-8"><Spinner size={24} /></div> : (
                     <form onSubmit={scSave} className="space-y-4">
                       {(SC_SCHEMAS[scPage] || []).map(field => (
                         <div key={field}>
-                          <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 capitalize">
-                            {field.replace(/([A-Z])/g, ' $1')}
-                          </label>
+                          <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 capitalize">{field.replace(/([A-Z])/g, ' $1')}</label>
                           {field.startsWith('story') || field === 'subheadline' ? (
-                            <textarea
-                              rows={3}
-                              value={scFields[field] || ''}
-                              onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))}
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white resize-none"
-                            />
+                            <textarea rows={3} value={scFields[field] || ''} onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))} className={`${inputCls} resize-none`} />
                           ) : (
-                            <input
-                              value={scFields[field] || ''}
-                              onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))}
-                              className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
-                            />
+                            <input value={scFields[field] || ''} onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))} className={inputCls} />
                           )}
                         </div>
                       ))}
                       <div className="flex items-center gap-3 pt-2">
-                        <button
-                          type="submit" disabled={scSaving}
-                          className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
-                          style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
-                        >
+                        <button type="submit" disabled={scSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                           {scSaving ? 'Saving…' : 'Save changes'}
                         </button>
-                        {scMsg && (
-                          <p className={`text-sm font-medium ${scMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{scMsg}</p>
-                        )}
+                        {scMsg && <p className={`text-sm font-medium ${scMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{scMsg}</p>}
                       </div>
                     </form>
                   )}
@@ -1251,7 +1735,9 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* ── HISTORY ──────────────────────────────────────────────── */}
+            {/* ═══════════════════════════════════════════════════════════
+                HISTORY
+            ═══════════════════════════════════════════════════════════ */}
             {tab === 'History' && (
               <div className="space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between">
@@ -1259,11 +1745,8 @@ export default function AdminPage() {
                     <Clock size={17} /> Activity History
                     {logsTotal > 0 && <span className="font-normal text-[var(--c-muted)] text-base">({logsTotal})</span>}
                   </h3>
-                  <button
-                    onClick={() => loadAuditLogs(logsPage)}
-                    disabled={auditLoading}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50"
-                  >
+                  <button onClick={() => loadAuditLogs(logsPage)} disabled={auditLoading}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
                     {auditLoading ? 'Loading…' : 'Refresh'}
                   </button>
                 </div>
@@ -1287,7 +1770,6 @@ export default function AdminPage() {
                           'review.delete':              'bg-red-50 text-red-600',
                           'review.approve':             'bg-green-50 text-green-700',
                           'review.unapprove':           'bg-amber-50 text-amber-700',
-                          'review.flag':                'bg-amber-50 text-amber-700',
                           'user.ban':                   'bg-red-50 text-red-600',
                           'user.unban':                 'bg-green-50 text-green-700',
                           'user.role_change':           'bg-blue-50 text-blue-700',
@@ -1295,13 +1777,17 @@ export default function AdminPage() {
                           'restaurant.boost.enable':    'bg-amber-50 text-amber-700',
                           'restaurant.boost.remove':    'bg-gray-50 text-gray-600',
                           'restaurant.create':          'bg-green-50 text-green-700',
+                          'owner.assign':               'bg-purple-50 text-purple-700',
+                          'change_request.approved':    'bg-blue-50 text-blue-700',
+                          'change_request.rejected':    'bg-red-50 text-red-600',
+                          'change_request.paid':        'bg-purple-50 text-purple-700',
+                          'change_request.applied':     'bg-green-50 text-green-700',
+                          'staff.permissions_update':   'bg-blue-50 text-blue-700',
                         }
                         const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
                         return (
                           <div key={log.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
-                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${color}`}>
-                              {log.action}
-                            </span>
+                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${color}`}>{log.action}</span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-[var(--c-text)] truncate font-medium">{log.target}</p>
                               <p className="text-xs text-[var(--c-muted)]">by {log.profiles?.name || 'Admin'}</p>
@@ -1313,13 +1799,7 @@ export default function AdminPage() {
                         )
                       })}
                     </div>
-                    <Pagination
-                      page={logsPage}
-                      totalPages={logsTotalPages}
-                      total={logsTotal}
-                      onPageChange={loadAuditLogs}
-                      loading={auditLoading}
-                    />
+                    <Pagination page={logsPage} totalPages={logsTotalPages} total={logsTotal} onPageChange={loadAuditLogs} loading={auditLoading} />
                   </div>
                 )}
               </div>

@@ -82,6 +82,8 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = profile?.role === 'admin'
+  const isStaff = profile?.role === 'staff'
+  const isOwner = profile?.role === 'owner'
   const token   = session?.access_token ?? null
 
   async function signOut() {
@@ -92,7 +94,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, isStaff, isOwner, signOut }}>
       {children}
     </AuthContext.Provider>
   )
