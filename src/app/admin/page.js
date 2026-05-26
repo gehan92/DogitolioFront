@@ -148,6 +148,7 @@ export default function AdminPage() {
   const [usrsLoading,     setUsrsLoading]     = useState(false)
   const [usersRoleFilter, setUsersRoleFilter] = useState('')
   const [userRoleCounts,  setUserRoleCounts]  = useState(null) // { total, admin, staff, owner, user }
+  const [usersMsg,        setUsersMsg]        = useState('')
 
   // ── Audit logs (paginated)
   const [auditLogs,      setAuditLogs]      = useState([])
@@ -420,10 +421,16 @@ export default function AdminPage() {
   }
 
   async function changeUserRole(userId, newRole) {
-    await api.admin.patchUser(userId, { role: newRole }, token)
-    setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: newRole } : usr))
-    // Refresh counts so pill badges stay accurate
-    api.admin.userCounts(token).then(setUserRoleCounts).catch(() => {})
+    setUsersMsg('')
+    try {
+      await api.admin.patchUser(userId, { role: newRole }, token)
+      setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: newRole } : usr))
+      setUsersMsg(`✓ Role updated to "${newRole}"`)
+      setTimeout(() => setUsersMsg(''), 3000)
+      api.admin.userCounts(token).then(setUserRoleCounts).catch(() => {})
+    } catch (err) {
+      setUsersMsg(`Error: ${err.message}`)
+    }
   }
 
   function changeUsersRoleFilter(role) {
@@ -1302,8 +1309,14 @@ export default function AdminPage() {
             ═══════════════════════════════════════════════════════════ */}
             {tab === 'Users' && (
               <div className="space-y-4 animate-fade-in">
-                {/* Role filter pills */}
-                <div className="flex flex-wrap gap-2">
+                {/* Role filter pills + feedback */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {usersMsg && (
+                    <p className={clsx(
+                      'w-full text-xs font-semibold',
+                      usersMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'
+                    )}>{usersMsg}</p>
+                  )}
                   {[
                     { value: '',       label: 'All',   countKey: 'total' },
                     { value: 'admin',  label: 'Admin', countKey: 'admin' },
