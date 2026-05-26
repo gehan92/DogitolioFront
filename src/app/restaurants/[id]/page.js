@@ -13,6 +13,7 @@ const MenuViewer = dynamic(() => import('@/components/restaurant/MenuViewer'), {
 import { PriceBadge, Spinner, Button } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { getCategoryConfig } from '@/lib/venueCategories'
 import clsx from 'clsx'
 
 const TABS = [
@@ -231,12 +232,13 @@ export default function RestaurantPage() {
   const { name, description, address, town, district, province, phone, website,
           cuisine_types: cuisine_types_raw, price_range, cover_image, open_hours,
           menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed,
-          is_boosted, boost_expires_at } = restaurant
+          is_boosted, boost_expires_at, category, category_meta } = restaurant
 
   const cuisine_types = Array.isArray(cuisine_types_raw) ? cuisine_types_raw
     : (typeof cuisine_types_raw === 'string' && cuisine_types_raw ? cuisine_types_raw.split(',').map(s => s.trim()) : [])
 
-  const color = brand_color || '#FF2D55'
+  const categoryConfig = getCategoryConfig(category)
+  const color = brand_color || categoryConfig.accentColor
 
   const boostActive = is_boosted && (!boost_expires_at || new Date(boost_expires_at) > new Date())
 
@@ -253,15 +255,21 @@ export default function RestaurantPage() {
       <main className="max-w-4xl mx-auto px-4 py-6 pb-28 md:pb-10">
 
         {/* Back */}
-        <Link href="/restaurants" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-5 transition-colors font-medium">
-          <ArrowLeft size={14} /> All restaurants
+        <Link
+          href={`/restaurants${category && category !== 'restaurant' ? `?category=${category}` : ''}`}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 mb-5 transition-colors font-medium"
+        >
+          <ArrowLeft size={14} /> All {categoryConfig.label}
         </Link>
 
         {/* Cover hero */}
         <div className="relative h-56 md:h-80 rounded-3xl overflow-hidden mb-6 bg-gray-100">
           {cover_image
             ? <img src={cover_image} alt={name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+            : <div
+                className="w-full h-full flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}
+              >
                 <UtensilsCrossed size={48} className="text-white/50" strokeWidth={1} />
               </div>
           }
@@ -274,8 +282,20 @@ export default function RestaurantPage() {
                   <Zap size={10} className="fill-white" /> Featured
                 </span>
               )}
+              {/* Category label badge for non-restaurants */}
+              {category && category !== 'restaurant' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white bg-white/20 backdrop-blur-sm">
+                  {categoryConfig.singularLabel}
+                </span>
+              )}
+              {/* Hotel star rating from category_meta */}
+              {categoryConfig.features.starRating && category_meta?.star_rating && (
+                <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/90 text-[11px] font-black text-white">
+                  {'★'.repeat(category_meta.star_rating)} {category_meta.star_rating}-Star
+                </span>
+              )}
               {price_range && <PriceBadge range={price_range} />}
-              {cuisine_types?.slice(0, 3).map(c => (
+              {categoryConfig.features.cuisineTypes && cuisine_types?.slice(0, 3).map(c => (
                 <span key={c} className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-[11px] font-semibold">{c}</span>
               ))}
             </div>
@@ -414,7 +434,8 @@ export default function RestaurantPage() {
               </div>
             )}
 
-            {cuisine_types?.length > 0 && (
+            {/* Cuisine types — only for restaurants and snack bars */}
+            {categoryConfig.features.cuisineTypes && cuisine_types?.length > 0 && (
               <div className="p-5 rounded-2xl bg-white border border-gray-100">
                 <h2 className="font-bold text-gray-900 mb-3">Cuisine types</h2>
                 <div className="flex flex-wrap gap-2">
@@ -423,6 +444,54 @@ export default function RestaurantPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Hotel amenities — from category_meta */}
+            {categoryConfig.features.amenities && category_meta?.amenities?.length > 0 && (
+              <div className="p-5 rounded-2xl bg-white border border-gray-100">
+                <h2 className="font-bold text-gray-900 mb-3">Amenities</h2>
+                <div className="flex flex-wrap gap-2">
+                  {category_meta.amenities.map(amenity => (
+                    <span key={amenity} className="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-50 text-gray-600 capitalize">
+                      {amenity}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Hotel check-in / check-out */}
+            {categoryConfig.features.amenities && (category_meta?.check_in || category_meta?.check_out) && (
+              <div className="p-5 rounded-2xl bg-white border border-gray-100">
+                <h2 className="font-bold text-gray-900 mb-3">Check-in &amp; Check-out</h2>
+                <div className="flex gap-6">
+                  {category_meta.check_in && (
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium mb-0.5">Check-in</p>
+                      <p className="text-sm font-bold text-gray-900">{category_meta.check_in}</p>
+                    </div>
+                  )}
+                  {category_meta.check_out && (
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium mb-0.5">Check-out</p>
+                      <p className="text-sm font-bold text-gray-900">{category_meta.check_out}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Hotel booking link */}
+            {categoryConfig.features.amenities && category_meta?.booking_url && (
+              <a
+                href={category_meta.booking_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-black text-white transition-opacity hover:opacity-90"
+                style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}
+              >
+                Book a Room
+              </a>
             )}
           </div>
         )}
@@ -438,7 +507,7 @@ export default function RestaurantPage() {
                   <MessageSquare size={22} style={{ color: '#FF2D55' }} />
                 </div>
                 <p className="font-bold text-gray-900 mb-1">Sign in to leave a review</p>
-                <p className="text-sm text-gray-400 mb-4">Share your experience and help others discover great food.</p>
+                <p className="text-sm text-gray-400 mb-4">Share your experience and help others find great places.</p>
                 <Link href="/auth"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
                     style={{ background: color, boxShadow: `0 2px 12px ${color}40` }}>
@@ -483,7 +552,7 @@ export default function RestaurantPage() {
                   <MessageSquare size={28} className="text-gray-300" />
                 </div>
                 <p className="font-semibold text-gray-700 mb-1">No reviews yet</p>
-                <p className="text-sm text-gray-400">Be the first to review this restaurant.</p>
+                <p className="text-sm text-gray-400">{categoryConfig.reviewPrompt}</p>
               </div>
             ) : (
               <div className="space-y-3">

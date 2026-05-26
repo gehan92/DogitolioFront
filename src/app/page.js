@@ -25,10 +25,10 @@ export default async function HomePage() {
   ]
 
   const categories = [
-    { label: 'Hotels',      icon: Building2,      href: '/restaurants?type=hotel' },
-    { label: 'Restaurants', icon: UtensilsCrossed, href: '/restaurants?type=restaurant' },
-    { label: 'Food Shops',  icon: ShoppingBag,    href: '/restaurants?type=food_shop' },
-    { label: 'Snack Bars',  icon: Coffee,         href: '/restaurants?type=snack_bar' },
+    { label: 'Hotels',      icon: Building2,      href: '/restaurants?category=hotel' },
+    { label: 'Restaurants', icon: UtensilsCrossed, href: '/restaurants?category=restaurant' },
+    { label: 'Food Shops',  icon: ShoppingBag,    href: '/restaurants?category=food_shop' },
+    { label: 'Snack Bars',  icon: Coffee,         href: '/restaurants?category=snack_bar' },
   ]
 
   return (

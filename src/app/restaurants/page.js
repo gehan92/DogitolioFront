@@ -1,39 +1,71 @@
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
 import { Button, SkeletonCard, EmptyState } from '@/components/ui'
-import { UtensilsCrossed, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
+import { getCategoryConfig } from '@/lib/venueCategories'
+
+// Maps category slug → Lucide icon component
+const CATEGORY_ICONS = {
+  restaurant: UtensilsCrossed,
+  hotel:      Building2,
+  snack_bar:  Coffee,
+  food_shop:  ShoppingBag,
+}
+
+// Tabs shown at the top of the listing so users can switch between categories
+const CATEGORY_TABS = [
+  { slug: '',           label: 'All Places'  },
+  { slug: 'restaurant', label: 'Restaurants' },
+  { slug: 'hotel',      label: 'Hotels'      },
+  { slug: 'snack_bar',  label: 'Snack Bars'  },
+  { slug: 'food_shop',  label: 'Food Shops'  },
+]
+
+function buildPageTitle({ category, province, town }) {
+  const categoryLabel = category ? getCategoryConfig(category).label : 'All Places'
+  if (province) return `${categoryLabel} in ${province}`
+  if (town)     return `${categoryLabel} in ${town}`
+  return categoryLabel
+}
 
 function RestaurantsContent() {
-  const params   = useSearchParams()
-  const router   = useRouter()
+  const params = useSearchParams()
+  const router = useRouter()
 
-  const [restaurants, setRestaurants] = useState([])
+  const [venues,      setVenues]      = useState([])
   const [total,       setTotal]       = useState(0)
   const [totalPages,  setTotalPages]  = useState(1)
   const [loading,     setLoading]     = useState(true)
   const [page,        setPage]        = useState(1)
 
-  // Read filters from URL
+  // All active filters read from the URL — single source of truth
   const filters = {
     town:        params.get('town')        || '',
     district:    params.get('district')    || '',
     province:    params.get('province')    || '',
     price_range: params.get('price_range') || '',
+    category:    params.get('category')    || '',
   }
 
-  const fetchRestaurants = useCallback(async (p = 1) => {
+  const categoryConfig = getCategoryConfig(filters.category)
+  const PlaceholderIcon = CATEGORY_ICONS[filters.category] || UtensilsCrossed
+  const pageTitle = buildPageTitle({ category: filters.category, province: filters.province, town: filters.town })
+
+  const fetchVenues = useCallback(async (pageNumber = 1) => {
     setLoading(true)
     try {
-      const queryParams = { page: p, limit: 12, ...Object.fromEntries(Object.entries(filters).filter(([,v]) => v)) }
-      const data = await api.restaurants.list(queryParams)
-      setRestaurants(data.data || [])
-      setTotal(data.total || 0)
-      setTotalPages(data.totalPages || 1)
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, value]) => value)
+      )
+      const result = await api.restaurants.list({ page: pageNumber, limit: 12, ...activeFilters })
+      setVenues(result.data || [])
+      setTotal(result.total || 0)
+      setTotalPages(result.totalPages || 1)
     } catch (err) {
       console.error(err)
     } finally {
@@ -43,13 +75,14 @@ function RestaurantsContent() {
 
   useEffect(() => {
     setPage(1)
-    fetchRestaurants(1)
+    fetchVenues(1)
   }, [params])
 
   function handleSearch(searchParams) {
     const newParams = new URLSearchParams()
-    Object.entries(searchParams).forEach(([k, v]) => { if (v) newParams.set(k, v) })
-    // If has search query, go to search page
+    Object.entries(searchParams).forEach(([key, value]) => { if (value) newParams.set(key, value) })
+    // Keep the active category when the user searches from this page
+    if (filters.category) newParams.set('category', filters.category)
     if (searchParams.q) {
       router.push(`/search?${newParams}`)
     } else {
@@ -59,93 +92,146 @@ function RestaurantsContent() {
 
   function handlePageChange(newPage) {
     setPage(newPage)
-    fetchRestaurants(newPage)
+    fetchVenues(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const activeFilters = Object.entries(filters).filter(([, v]) => v)
+  function handleCategoryTab(slug) {
+    const newParams = new URLSearchParams()
+    // Preserve location filters when switching categories
+    if (filters.town)        newParams.set('town', filters.town)
+    if (filters.district)    newParams.set('district', filters.district)
+    if (filters.province)    newParams.set('province', filters.province)
+    if (filters.price_range) newParams.set('price_range', filters.price_range)
+    if (slug)                newParams.set('category', slug)
+    router.push(`/restaurants?${newParams}`)
+  }
+
+  function removeFilter(key) {
+    const newParams = new URLSearchParams(params)
+    newParams.delete(key)
+    router.push(`/restaurants?${newParams}`)
+  }
+
+  const activeLocationFilters = Object.entries(filters).filter(
+    ([key, value]) => value && key !== 'category'
+  )
 
   return (
     <>
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8">
 
-        {/* Search */}
+        {/* Search bar */}
         <div className="mb-6">
           <SearchBar onSearch={handleSearch} initialFilters={filters} compact />
         </div>
 
-        {/* Active filter pills */}
-        {activeFilters.length > 0 && (
+        {/* Category tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
+          {CATEGORY_TABS.map(tab => {
+            const isActive = filters.category === tab.slug
+            return (
+              <button
+                key={tab.slug}
+                onClick={() => handleCategoryTab(tab.slug)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-150 shrink-0 border ${
+                  isActive
+                    ? 'text-white border-transparent'
+                    : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary'
+                }`}
+                style={isActive ? { background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` } : {}}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Active location filter pills */}
+        {activeLocationFilters.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
-            {activeFilters.map(([key, value]) => (
+            {activeLocationFilters.map(([key, value]) => (
               <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-sm font-medium">
                 <span className="text-xs capitalize text-brand-500">{key.replace('_', ' ')}:</span>
                 {value}
-                <button onClick={() => {
-                  const p = new URLSearchParams(params)
-                  p.delete(key)
-                  router.push(`/restaurants?${p}`)
-                }} className="ml-0.5 hover:text-brand-900 font-bold">×</button>
+                <button onClick={() => removeFilter(key)} className="ml-0.5 hover:text-brand-900 font-bold">×</button>
               </span>
             ))}
-            <button onClick={() => router.push('/restaurants')} className="text-sm text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors">
-              Clear all
+            <button
+              onClick={() => router.push(filters.category ? `/restaurants?category=${filters.category}` : '/restaurants')}
+              className="text-sm text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors"
+            >
+              Clear filters
             </button>
           </div>
         )}
 
-        {/* Header */}
+        {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">
-            {filters.province || filters.town || 'All restaurants'}
-          </h1>
+          <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{pageTitle}</h1>
           {!loading && <p className="text-sm text-[var(--c-muted)]">{total} found</p>}
         </div>
 
-        {/* Grid */}
+        {/* Venue grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
-        ) : restaurants.length === 0 ? (
+        ) : venues.length === 0 ? (
           <EmptyState
-            icon={UtensilsCrossed}
-            title="No restaurants found"
+            icon={PlaceholderIcon}
+            title={categoryConfig.emptyMessage}
             description="Try adjusting your filters or search for something else."
-            action={<Button onClick={() => router.push('/restaurants')} variant="secondary">Clear filters</Button>}
+            action={
+              <Button onClick={() => handleCategoryTab(filters.category)} variant="secondary">
+                Clear filters
+              </Button>
+            }
           />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {restaurants.map((r, i) => (
-                <div key={r.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
-                  <RestaurantCard restaurant={r} />
+              {venues.map((venue, index) => (
+                <div key={venue.id} className="animate-fade-up" style={{ animationDelay: `${index * 40}ms` }}>
+                  <RestaurantCard restaurant={venue} />
                 </div>
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-10">
-                <Button variant="secondary" size="sm" onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page <= 1}
+                >
                   <ChevronLeft size={16} /> Prev
                 </Button>
 
                 <div className="flex gap-1">
                   {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
-                    <button key={p} onClick={() => handlePageChange(p)}
+                    <button
+                      key={p}
+                      onClick={() => handlePageChange(p)}
                       className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
                         p === page
                           ? 'bg-brand-500 text-white'
                           : 'hover:bg-surface-secondary text-[var(--c-muted)]'
-                      }`}>
+                      }`}
+                    >
                       {p}
                     </button>
                   ))}
                 </div>
 
-                <Button variant="secondary" size="sm" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page >= totalPages}
+                >
                   Next <ChevronRight size={16} />
                 </Button>
               </div>
