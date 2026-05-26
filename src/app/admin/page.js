@@ -25,17 +25,21 @@ const STAFF_SECTIONS = [
 
 // All nav items — staff sees a filtered subset based on their permissions
 const ALL_NAV_ITEMS = [
-  { key: 'Overview',     label: 'Overview',         icon: LayoutDashboard, adminOnly: false },
-  { key: 'Restaurants',  label: 'Restaurants',       icon: UtensilsCrossed, adminOnly: false },
-  { key: 'Boost',        label: 'Boost',             icon: Zap,             adminOnly: false },
-  { key: 'Reviews',      label: 'Reviews',           icon: MessageSquare,   adminOnly: false },
-  { key: 'Requests',     label: 'Change Requests',   icon: Inbox,           adminOnly: true  },
-  { key: 'Users',        label: 'Users',             icon: Users,           adminOnly: true  },
-  { key: 'Owners',       label: 'Owners',            icon: Building2,       adminOnly: true  },
-  { key: 'Staff',        label: 'Staff',             icon: UserCheck,       adminOnly: true  },
-  { key: 'Menu Items',   label: 'Menu Items',        icon: Tag,             adminOnly: false },
-  { key: 'Site Content', label: 'Site Content',      icon: FileText,        adminOnly: false },
-  { key: 'History',      label: 'History',           icon: Clock,           adminOnly: false },
+  // Content — primary entities and their direct tools
+  { key: 'Overview',     label: 'Overview',        icon: LayoutDashboard, adminOnly: false, group: 'Content'    },
+  { key: 'Restaurants',  label: 'Restaurants',     icon: UtensilsCrossed, adminOnly: false, group: 'Content'    },
+  { key: 'Menu Items',   label: 'Menu Items',      icon: Tag,             adminOnly: false, group: 'Content'    },
+  // Moderation — things that need regular review or action
+  { key: 'Reviews',      label: 'Reviews',         icon: MessageSquare,   adminOnly: false, group: 'Moderation' },
+  { key: 'Requests',     label: 'Change Requests', icon: Inbox,           adminOnly: true,  group: 'Moderation' },
+  { key: 'Boost',        label: 'Boost',           icon: Zap,             adminOnly: false, group: 'Moderation' },
+  // Admin — people and access management
+  { key: 'Users',        label: 'Users',           icon: Users,           adminOnly: true,  group: 'Admin'      },
+  { key: 'Owners',       label: 'Owners',          icon: Building2,       adminOnly: true,  group: 'Admin'      },
+  { key: 'Staff',        label: 'Staff',           icon: UserCheck,       adminOnly: true,  group: 'Admin'      },
+  // System — configuration and audit trail
+  { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
+  { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
 ]
 
 const STATUS_COLORS = {
@@ -724,30 +728,42 @@ export default function AdminPage() {
           </div>
 
           <nav className="flex-1 overflow-y-auto py-3 px-3">
-            {navItems.map(({ key, label, icon: Icon }) => {
-              const active = tab === key
-              const hasBadge = key === 'Requests' && pendingRequestsCount > 0
+            {navItems.map(({ key, label, icon: Icon, group }, i) => {
+              const active      = tab === key
+              const hasBadge    = key === 'Requests' && pendingRequestsCount > 0
+              const prevGroup   = i > 0 ? navItems[i - 1].group : null
+              const showDivider = group !== prevGroup
+
               return (
-                <button
-                  key={key}
-                  onClick={() => navigate(key)}
-                  className={clsx(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 mb-0.5',
-                    active
-                      ? 'text-white'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                <div key={key}>
+                  {showDivider && (
+                    <p className={clsx(
+                      'px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400',
+                      i === 0 ? 'pt-1' : 'pt-5'
+                    )}>
+                      {group}
+                    </p>
                   )}
-                  style={active ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  <span className="flex-1 text-left">{label}</span>
-                  {hasBadge && !active && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shrink-0">
-                      {pendingRequestsCount}
-                    </span>
-                  )}
-                  {active && <ChevronRight size={14} className="ml-auto opacity-70" />}
-                </button>
+                  <button
+                    onClick={() => navigate(key)}
+                    className={clsx(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 mb-0.5',
+                      active
+                        ? 'text-white'
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    )}
+                    style={active ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    <span className="flex-1 text-left">{label}</span>
+                    {hasBadge && !active && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shrink-0">
+                        {pendingRequestsCount}
+                      </span>
+                    )}
+                    {active && <ChevronRight size={14} className="ml-auto opacity-70" />}
+                  </button>
+                </div>
               )
             })}
           </nav>
