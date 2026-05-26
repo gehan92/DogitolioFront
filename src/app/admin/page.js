@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload,
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
-  Menu, Clock, Home, ChevronRight, Zap, ZapOff, CheckCircle2,
+  Menu, Clock, Home, ChevronRight, Zap, ZapOff, CheckCircle2, History,
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
@@ -69,8 +69,11 @@ export default function AdminPage() {
   const [auditLoading, setAuditLoading] = useState(false)
 
   // Boost state
-  const [boostPlan,    setBoostPlan]    = useState('30')
-  const [boostMsg,     setBoostMsg]     = useState('')
+  const [boostPlan,         setBoostPlan]         = useState('30')
+  const [boostMsg,          setBoostMsg]           = useState('')
+  const [historyOpenId,     setHistoryOpenId]      = useState(null)
+  const [boostHistoryMap,   setBoostHistoryMap]    = useState({})
+  const [historyLoading,    setHistoryLoading]     = useState(false)
 
   useEffect(() => {
     if (!authLoading && user && profile && !isAdmin) router.replace('/')
@@ -234,8 +237,25 @@ export default function AdminPage() {
       const updated = await api.restaurants.boost(restaurantId, { enabled, plan }, token)
       setRestaurants(rs => rs.map(r => r.id === restaurantId ? { ...r, ...updated } : r))
       setBoostMsg(enabled ? '✓ Boost activated' : '✓ Boost removed')
+      // Refresh history for this restaurant if it's open
+      if (historyOpenId === restaurantId) loadBoostHistory(restaurantId)
     } catch (err) {
       setBoostMsg(`Error: ${err.message}`)
+    }
+  }
+
+  async function loadBoostHistory(restaurantId) {
+    if (historyOpenId === restaurantId) { setHistoryOpenId(null); return }
+    setHistoryOpenId(restaurantId)
+    if (boostHistoryMap[restaurantId]) return // already loaded
+    setHistoryLoading(true)
+    try {
+      const result = await api.restaurants.boostHistory(restaurantId, token)
+      setBoostHistoryMap(m => ({ ...m, [restaurantId]: result.data || [] }))
+    } catch {
+      setBoostHistoryMap(m => ({ ...m, [restaurantId]: [] }))
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -552,7 +572,8 @@ export default function AdminPage() {
                       const active  = isBoostActive(r)
                       const expired = r.is_boosted && r.boost_expires_at && new Date(r.boost_expires_at) <= new Date()
                       return (
-                        <div key={r.id} className="flex items-center gap-4 px-4 py-3">
+                        <Fragment key={r.id}>
+                        <div className="flex items-center gap-4 px-4 py-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
@@ -588,6 +609,11 @@ export default function AdminPage() {
                                 <Zap size={12} className="fill-white" /> Boost {boostPlan}d
                               </button>
                             )}
+                            <button onClick={() => loadBoostHistory(r.id)}
+                              className={clsx('p-1.5 rounded-lg transition-colors', historyOpenId === r.id ? 'bg-amber-50 text-amber-600' : 'hover:bg-surface-secondary text-[var(--c-muted)]')}
+                              title="Boost history">
+                              <History size={13} />
+                            </button>
                             <Link href={`/admin/restaurants/${r.id}/edit`}>
                               <button className="p-1.5 rounded-lg hover:bg-surface-secondary text-[var(--c-muted)] transition-colors">
                                 <Pencil size={13} />
@@ -595,6 +621,52 @@ export default function AdminPage() {
                             </Link>
                           </div>
                         </div>
+
+                        {/* Inline boost history panel */}
+                        {historyOpenId === r.id && (
+                          <div className="mx-4 mb-3 rounded-xl border border-amber-100 bg-amber-50/50 overflow-hidden">
+                            <div className="px-4 py-2 border-b border-amber-100 flex items-center gap-2">
+                              <History size={12} className="text-amber-600" />
+                              <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Boost history — {r.name}</p>
+                            </div>
+                            {historyLoading ? (
+                              <div className="flex justify-center py-6"><Spinner size={20} /></div>
+                            ) : (boostHistoryMap[r.id] || []).length === 0 ? (
+                              <p className="text-xs text-[var(--c-muted)] text-center py-5">No boost history yet.</p>
+                            ) : (
+                              <div className="divide-y divide-amber-100">
+                                {(boostHistoryMap[r.id] || []).map(h => (
+                                  <div key={h.id} className="flex items-center justify-between px-4 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      {h.action === 'enabled' ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                                          style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                                          <Zap size={8} className="fill-white" /> Boosted
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
+                                          <ZapOff size={8} /> Removed
+                                        </span>
+                                      )}
+                                      {h.plan && (
+                                        <span className="text-xs text-amber-700 font-medium">{h.plan} days</span>
+                                      )}
+                                      {h.expires_at && h.action === 'enabled' && (
+                                        <span className="text-xs text-[var(--c-muted)]">
+                                          → {new Date(h.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] text-[var(--c-dim)] shrink-0">
+                                      {new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        </Fragment>
                       )
                     })}
                   </div>

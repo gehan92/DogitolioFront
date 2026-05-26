@@ -48,7 +48,8 @@ export const api = {
     create: (data, token) => apiFetch('/restaurants', { method:'POST', body: JSON.stringify(data) }, token),
     update: (id, data, token) => apiFetch(`/restaurants/${id}`, { method:'PUT', body: JSON.stringify(data) }, token),
     delete: (id, token)   => apiFetch(`/restaurants/${id}`, { method:'DELETE' }, token),
-    boost:  (id, data, token) => apiFetch(`/restaurants/${id}/boost`, { method:'PUT', body: JSON.stringify(data) }, token),
+    boost:        (id, data, token) => apiFetch(`/restaurants/${id}/boost`, { method:'PUT', body: JSON.stringify(data) }, token),
+    boostHistory: (id, token)       => apiFetch(`/restaurants/${id}/boost-history`, {}, token),
   },
 
   menus: {

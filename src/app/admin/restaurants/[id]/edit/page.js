@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, UtensilsCrossed, ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock } from 'lucide-react'
+import { ArrowLeft, UtensilsCrossed, ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner, Button } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -35,9 +35,12 @@ export default function EditRestaurantPage() {
   const fileInputRef = useRef()
 
   // Boost state
-  const [boost,        setBoost]        = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
-  const [boostSaving,  setBoostSaving]  = useState(false)
-  const [boostMsg,     setBoostMsg]     = useState('')
+  const [boost,         setBoost]        = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
+  const [boostSaving,   setBoostSaving]  = useState(false)
+  const [boostMsg,      setBoostMsg]     = useState('')
+  const [boostHistory,  setBoostHistory] = useState([])
+  const [historyOpen,   setHistoryOpen]  = useState(false)
+  const [historyLoading,setHistoryLoading] = useState(false)
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) router.replace('/')
@@ -112,10 +115,37 @@ export default function EditRestaurantPage() {
         boost_expires_at: updated.boost_expires_at,
       })
       setBoostMsg(enabled ? '✓ Boost activated!' : '✓ Boost removed.')
+      // Refresh history
+      if (historyOpen) loadBoostHistory()
     } catch (err) {
       setBoostMsg(`Error: ${err.message}`)
     } finally {
       setBoostSaving(false)
+    }
+  }
+
+  async function loadBoostHistory() {
+    if (!historyOpen) {
+      setHistoryOpen(true)
+      if (boostHistory.length > 0) return
+    }
+    setHistoryLoading(true)
+    try {
+      const result = await api.restaurants.boostHistory(id, token)
+      setBoostHistory(result.data || [])
+    } catch {
+      setBoostHistory([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  function toggleHistory() {
+    if (!historyOpen) {
+      setHistoryOpen(true)
+      loadBoostHistory()
+    } else {
+      setHistoryOpen(false)
     }
   }
 
@@ -390,6 +420,53 @@ export default function EditRestaurantPage() {
                 <p className={`text-sm font-semibold ${boostMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
                   {boostMsg}
                 </p>
+              )}
+            </div>
+
+            {/* Boost History */}
+            <div>
+              <button type="button" onClick={toggleHistory}
+                className="flex items-center gap-2 text-xs font-semibold text-[var(--c-muted)] hover:text-amber-600 transition-colors">
+                <History size={13} />
+                {historyOpen ? 'Hide' : 'View'} boost history
+              </button>
+
+              {historyOpen && (
+                <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/40 overflow-hidden">
+                  {historyLoading ? (
+                    <div className="flex justify-center py-6"><Spinner size={20} /></div>
+                  ) : boostHistory.length === 0 ? (
+                    <p className="text-xs text-[var(--c-muted)] text-center py-5">No boost history yet.</p>
+                  ) : (
+                    <div className="divide-y divide-amber-100">
+                      {boostHistory.map(h => (
+                        <div key={h.id} className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {h.action === 'enabled' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                                style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                                <Zap size={8} className="fill-white" /> Boosted
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
+                                <ZapOff size={8} /> Removed
+                              </span>
+                            )}
+                            {h.plan && <span className="text-xs text-amber-700 font-medium">{h.plan} days</span>}
+                            {h.expires_at && h.action === 'enabled' && (
+                              <span className="text-xs text-[var(--c-muted)]">
+                                → expires {new Date(h.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-[var(--c-dim)] shrink-0 ml-2">
+                            {new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
