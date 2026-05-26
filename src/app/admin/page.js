@@ -125,6 +125,16 @@ export default function AdminPage() {
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, is_banned: !isBanned } : usr))
   }
 
+  async function deleteRestaurant(restaurantId, name) {
+    if (!confirm(`Delete "${name}"?\n\nThis will deactivate the restaurant and hide it from the public.`)) return
+    try {
+      await api.restaurants.delete(restaurantId, token)
+      setRestaurants(rs => rs.filter(r => r.id !== restaurantId))
+    } catch (err) {
+      alert(`Failed to delete: ${err.message}`)
+    }
+  }
+
   async function deleteReview(reviewId) {
     if (!confirm('Delete this review?')) return
     await api.admin.deleteReview(reviewId, token)
@@ -485,6 +495,10 @@ export default function AdminPage() {
                           <Link href={`/restaurants/${r.id}`}>
                             <Button size="sm" variant="ghost" className="text-xs">View</Button>
                           </Link>
+                          <button onClick={() => deleteRestaurant(r.id, r.name)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Delete restaurant">
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     ))}
