@@ -360,8 +360,8 @@ export default function RestaurantPage() {
         {/* ── Menu tab */}
         {tab === 'menu' && (
           <div className="animate-fade-in">
-            {menu_url
-              ? <MenuViewer pdfUrl={menu_url} restaurantName={name} />
+            {restaurant.active_menu?.pdf_url
+              ? <MenuViewer pdfUrl={restaurant.active_menu.pdf_url} restaurantName={name} />
               : <MenuSection items={menu_items} brandColor={color} />
             }
           </div>

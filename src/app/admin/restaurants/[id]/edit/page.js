@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, UtensilsCrossed, Building2, Coffee, ShoppingBag,
   ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History, Wrench,
+  FileText, Upload, Trash2,
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
@@ -50,6 +51,12 @@ export default function EditRestaurantPage() {
   const [error,   setError]   = useState('')
   const fileInputRef = useRef()
 
+  const [activeMenu,    setActiveMenu]    = useState(null)
+  const [menuFile,      setMenuFile]      = useState(null)
+  const [menuUploading, setMenuUploading] = useState(false)
+  const [menuMsg,       setMenuMsg]       = useState('')
+  const menuFileRef = useRef()
+
   // Boost state — separate from the main form, saved independently
   const [boost,          setBoost]         = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
   const [boostSaving,    setBoostSaving]   = useState(false)
@@ -93,6 +100,7 @@ export default function EditRestaurantPage() {
         category_meta:     data.category_meta || {},
       })
       setCoverPreview(data.cover_image || null)
+      setActiveMenu(data.active_menu || null)
       setBoost({
         is_boosted:       data.is_boosted || false,
         boost_plan:       data.boost_plan || '30',
@@ -181,6 +189,37 @@ export default function EditRestaurantPage() {
       loadBoostHistory()
     } else {
       setHistoryOpen(false)
+    }
+  }
+
+  async function handleMenuUpload() {
+    if (!menuFile) return
+    if (!confirm(`Upload "${menuFile.name}" as the menu for "${form.name}"?\n\nThis will replace any existing menu PDF.`)) return
+    setMenuUploading(true); setMenuMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('menu', menuFile)
+      const result = await api.menus.upload(id, fd, token)
+      setActiveMenu(result.menu)
+      setMenuFile(null)
+      if (menuFileRef.current) menuFileRef.current.value = ''
+      setMenuMsg('✓ Menu uploaded successfully!')
+    } catch (err) {
+      setMenuMsg(`Error: ${err.message}`)
+    } finally {
+      setMenuUploading(false)
+    }
+  }
+
+  async function handleMenuDelete() {
+    if (!activeMenu) return
+    if (!confirm('Delete the current menu PDF?\n\nVisitors won\'t be able to view the menu until a new one is uploaded.')) return
+    try {
+      await api.menus.delete(activeMenu.id, token)
+      setActiveMenu(null)
+      setMenuMsg('✓ Menu deleted.')
+    } catch (err) {
+      setMenuMsg(`Error: ${err.message}`)
     }
   }
 
@@ -630,6 +669,87 @@ export default function EditRestaurantPage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Menu PDF */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-sm uppercase tracking-wide flex items-center gap-2" style={{ color: accent }}>
+              <FileText size={14} /> Menu PDF
+            </h2>
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
+              Upload a PDF menu that visitors can view and download on the public page. Only one active menu is shown at a time — uploading a new one replaces the current one.
+            </p>
+
+            {/* Current active menu */}
+            {activeMenu ? (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--c-border)] bg-gray-50/50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                    <FileText size={16} className="text-red-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--c-text)] truncate">Menu v{activeMenu.version}</p>
+                    <p className="text-xs text-[var(--c-muted)]">
+                      Uploaded {new Date(activeMenu.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a href={activeMenu.pdf_url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-semibold text-[var(--c-muted)] hover:text-[var(--c-text)] underline transition-colors">
+                    View
+                  </a>
+                  <button type="button" onClick={handleMenuDelete}
+                    className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--c-dim)] italic">No menu PDF uploaded yet.</p>
+            )}
+
+            {/* Upload new PDF */}
+            <div className="space-y-3">
+              <input
+                ref={menuFileRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={e => { setMenuFile(e.target.files?.[0] || null); setMenuMsg('') }}
+              />
+              {menuFile ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-[var(--c-border)] bg-blue-50/50">
+                  <FileText size={15} className="text-blue-500 shrink-0" />
+                  <span className="text-sm text-[var(--c-text)] truncate flex-1">{menuFile.name}</span>
+                  <button type="button" onClick={() => { setMenuFile(null); if (menuFileRef.current) menuFileRef.current.value = '' }}
+                    className="text-[var(--c-muted)] hover:text-[var(--c-text)] shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => menuFileRef.current?.click()}
+                  className="w-full h-20 rounded-2xl border-2 border-dashed border-[var(--c-border)] flex flex-col items-center justify-center gap-1.5 hover:bg-gray-50 transition-all">
+                  <Upload size={18} className="text-[var(--c-dim)]" />
+                  <span className="text-xs font-medium text-[var(--c-muted)]">Click to choose a PDF (max 20 MB)</span>
+                </button>
+              )}
+
+              {menuFile && (
+                <button type="button" onClick={handleMenuUpload} disabled={menuUploading}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                  style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}>
+                  <Upload size={14} />
+                  {menuUploading ? 'Uploading…' : activeMenu ? 'Replace Menu' : 'Upload Menu'}
+                </button>
+              )}
+
+              {menuMsg && (
+                <p className={`text-sm font-semibold ${menuMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                  {menuMsg}
+                </p>
               )}
             </div>
           </div>
