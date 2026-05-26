@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   MapPin, Phone, Globe, Clock, ArrowLeft, Star,
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
-  ChevronRight, ThumbsUp, Navigation, Zap,
+  ChevronRight, ThumbsUp, Navigation, Zap, Wrench,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
@@ -305,6 +305,21 @@ export default function RestaurantPage() {
             </div>
           </div>
         </div>
+
+        {/* Maintenance / Under-construction banner */}
+        {category_meta?.under_maintenance && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-5">
+            <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+              <Wrench size={17} className="text-orange-500" />
+            </div>
+            <div>
+              <p className="font-bold text-orange-800 text-sm">Temporarily under maintenance</p>
+              <p className="text-sm text-orange-700 mt-0.5">
+                {category_meta?.maintenance_message || 'This venue is currently undergoing maintenance and may have limited availability. Please check back soon or contact them directly.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Rating summary */}
         {avgRating > 0 && (

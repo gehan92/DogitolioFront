@@ -6,7 +6,7 @@ import {
   LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload,
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
-  Inbox, Building2, UserCheck, ChevronDown, AlertCircle,
+  Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff,
 } from 'lucide-react'
 import Navbar           from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
@@ -272,7 +272,7 @@ export default function AdminPage() {
   async function loadRestaurants(page = 1) {
     setRestsLoading(true)
     try {
-      const data = await api.restaurants.list({ page, limit: PAGE_SIZE })
+      const data = await api.restaurants.list({ page, limit: PAGE_SIZE, showAll: 1 })
       setRestaurants(data.data || [])
       setRestTotal(data.total ?? 0)
       setRestTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
@@ -398,13 +398,19 @@ export default function AdminPage() {
   }
 
   async function deleteRestaurant(restaurantId, name) {
-    if (!confirm(`Delete "${name}"?\n\nThis will hide the restaurant from the public.`)) return
+    if (!confirm(`Permanently hide "${name}"?\n\nThe restaurant will be removed from all public listings. You can show it again using the visibility toggle.`)) return
     try {
       await api.restaurants.delete(restaurantId, token)
       const targetPage = restaurants.length === 1 && restPage > 1 ? restPage - 1 : restPage
       await loadRestaurants(targetPage)
-      const opts = await api.restaurants.list({ limit: 200 })
-      setRestaurantOptions(opts.data || [])
+    } catch (err) { alert(`Failed: ${err.message}`) }
+  }
+
+  async function toggleVisibility(r) {
+    if (r.is_active && !confirm(`Hide "${r.name}" from the public?\n\nVisitors won't see it in browse or search results. You can show it again any time.`)) return
+    try {
+      await api.restaurants.update(r.id, { is_active: !r.is_active }, token)
+      setRestaurants(rs => rs.map(x => x.id === r.id ? { ...x, is_active: !r.is_active } : x))
     } catch (err) { alert(`Failed: ${err.message}`) }
   }
 
@@ -421,6 +427,7 @@ export default function AdminPage() {
   }
 
   async function toggleBan(userId, isBanned) {
+    if (!isBanned && !confirm('Ban this user?\n\nThey will be locked out of their account immediately.')) return
     await api.admin.patchUser(userId, { is_banned: !isBanned }, token)
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, is_banned: !isBanned } : usr))
   }
@@ -615,6 +622,7 @@ export default function AdminPage() {
 
   async function scSave(e) {
     e.preventDefault()
+    if (!confirm(`Save changes to the "${scPage}" page?\n\nChanges go live on the website immediately.`)) return
     setScSaving(true); setScMsg('')
     try {
       await api.siteContent.update(scPage, scFields, token)
@@ -956,11 +964,16 @@ export default function AdminPage() {
                     <>
                       <div className="divide-y divide-[var(--c-border)]">
                         {restaurants.map(r => (
-                          <div key={r.id} className="flex items-center justify-between px-4 py-3 hover:bg-surface-secondary transition-colors">
+                          <div key={r.id} className={clsx('flex items-center justify-between px-4 py-3 hover:bg-surface-secondary transition-colors', !r.is_active && 'opacity-60 bg-gray-50/60')}>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 mb-0.5">
                                 <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
-                                {isBoostActive(r) && (
+                                {!r.is_active && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-500 shrink-0">
+                                    <EyeOff size={8} /> Hidden
+                                  </span>
+                                )}
+                                {r.is_active && isBoostActive(r) && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
                                     style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
                                     <Zap size={8} className="fill-white" /> Featured
@@ -980,12 +993,24 @@ export default function AdminPage() {
                               <Link href={`/admin/restaurants/${r.id}/edit`}>
                                 <Button size="sm" variant="secondary" className="text-xs"><Pencil size={12} /> Edit</Button>
                               </Link>
-                              <Link href={`/restaurants/${r.id}`}>
-                                <Button size="sm" variant="ghost" className="text-xs">View</Button>
-                              </Link>
+                              {r.is_active && (
+                                <Link href={`/restaurants/${r.id}`}>
+                                  <Button size="sm" variant="ghost" className="text-xs">View</Button>
+                                </Link>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  onClick={() => toggleVisibility(r)}
+                                  title={r.is_active ? 'Hide from public' : 'Show to public'}
+                                  className={clsx('p-1.5 rounded-lg transition-colors', r.is_active ? 'hover:bg-amber-50 text-amber-400 hover:text-amber-600' : 'hover:bg-green-50 text-green-400 hover:text-green-600')}
+                                >
+                                  {r.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                              )}
                               {isAdmin && (
                                 <button onClick={() => deleteRestaurant(r.id, r.name)}
-                                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                                  title="Permanently hide">
                                   <Trash2 size={14} />
                                 </button>
                               )}

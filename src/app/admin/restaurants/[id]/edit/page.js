@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, UtensilsCrossed, Building2, Coffee, ShoppingBag,
-  ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History,
+  ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History, Wrench,
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
@@ -190,6 +190,7 @@ export default function EditRestaurantPage() {
       setError('Name, town, district and province are required.')
       return
     }
+    if (!confirm(`Save changes to "${form.name}"?`)) return
     setSaving(true); setError('')
     try {
       let cover_image = form.cover_image
@@ -631,6 +632,45 @@ export default function EditRestaurantPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Maintenance Mode */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-sm uppercase tracking-wide text-orange-500 flex items-center gap-2">
+              <Wrench size={14} className="text-orange-400" /> Maintenance Mode
+            </h2>
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
+              When enabled, a banner appears on the public listing page saying the venue is temporarily under maintenance. The restaurant remains visible but customers see the notice.
+            </p>
+            <div className="flex items-center justify-between p-4 rounded-xl border border-[var(--c-border)] bg-gray-50/50">
+              <div>
+                <p className="text-sm font-semibold text-[var(--c-text)]">Under maintenance / under construction</p>
+                <p className="text-xs text-[var(--c-muted)] mt-0.5">
+                  {form.category_meta?.under_maintenance ? 'Banner is currently visible to visitors.' : 'No banner shown to visitors.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMeta('under_maintenance', !form.category_meta?.under_maintenance)}
+                className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${form.category_meta?.under_maintenance ? 'bg-orange-500' : 'bg-gray-200'}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${form.category_meta?.under_maintenance ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+            {form.category_meta?.under_maintenance && (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">Maintenance message (shown to visitors)</label>
+                <input
+                  value={form.category_meta?.maintenance_message || ''}
+                  onChange={e => setMeta('maintenance_message', e.target.value)}
+                  placeholder="e.g. We are temporarily closed for renovations. Back soon!"
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = '#F97316' + '66'}
+                  onBlur={e => e.target.style.borderColor = ''}
+                />
+                <p className="text-xs text-[var(--c-dim)] mt-1">Leave blank to use the default message.</p>
+              </div>
+            )}
           </div>
 
           {/* Error */}
