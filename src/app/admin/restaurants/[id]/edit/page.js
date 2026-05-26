@@ -692,7 +692,9 @@ export default function EditRestaurantPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[var(--c-text)] truncate">Menu v{activeMenu.version}</p>
                     <p className="text-xs text-[var(--c-muted)]">
-                      Uploaded {new Date(activeMenu.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      Uploaded {activeMenu.created_at
+                        ? new Date(activeMenu.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'just now'}
                     </p>
                   </div>
                 </div>
