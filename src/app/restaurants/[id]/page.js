@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   MapPin, Phone, Globe, Clock, ArrowLeft, Star,
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
-  ChevronRight, ThumbsUp, Navigation,
+  ChevronRight, ThumbsUp, Navigation, Zap,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
@@ -230,12 +230,15 @@ export default function RestaurantPage() {
 
   const { name, description, address, town, district, province, phone, website,
           cuisine_types: cuisine_types_raw, price_range, cover_image, open_hours,
-          menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed } = restaurant
+          menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed,
+          is_boosted, boost_expires_at } = restaurant
 
   const cuisine_types = Array.isArray(cuisine_types_raw) ? cuisine_types_raw
     : (typeof cuisine_types_raw === 'string' && cuisine_types_raw ? cuisine_types_raw.split(',').map(s => s.trim()) : [])
 
   const color = brand_color || '#FF2D55'
+
+  const boostActive = is_boosted && (!boost_expires_at || new Date(boost_expires_at) > new Date())
 
   const avgRating   = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || reviews.length
@@ -265,6 +268,12 @@ export default function RestaurantPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6">
             <div className="flex flex-wrap items-center gap-2 mb-2">
+              {boostActive && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wide text-white shadow"
+                  style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                  <Zap size={10} className="fill-white" /> Featured
+                </span>
+              )}
               {price_range && <PriceBadge range={price_range} />}
               {cuisine_types?.slice(0, 3).map(c => (
                 <span key={c} className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-[11px] font-semibold">{c}</span>

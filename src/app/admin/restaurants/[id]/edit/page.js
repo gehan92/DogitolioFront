@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, UtensilsCrossed, ImagePlus, X } from 'lucide-react'
+import { ArrowLeft, UtensilsCrossed, ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner, Button } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -34,6 +34,11 @@ export default function EditRestaurantPage() {
   const [error,   setError]   = useState('')
   const fileInputRef = useRef()
 
+  // Boost state
+  const [boost,        setBoost]        = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
+  const [boostSaving,  setBoostSaving]  = useState(false)
+  const [boostMsg,     setBoostMsg]     = useState('')
+
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) router.replace('/')
   }, [user, isAdmin, authLoading])
@@ -61,6 +66,11 @@ export default function EditRestaurantPage() {
         cover_image:       data.cover_image || null,
       })
       setCoverPreview(data.cover_image || null)
+      setBoost({
+        is_boosted:       data.is_boosted || false,
+        boost_plan:       data.boost_plan || '30',
+        boost_expires_at: data.boost_expires_at || null,
+      })
       setFetchLoading(false)
     }).catch(() => { setError('Failed to load restaurant'); setFetchLoading(false) })
   }, [id])
@@ -90,6 +100,23 @@ export default function EditRestaurantPage() {
         ? f.cuisine_types.filter(c => c !== cuisine)
         : [...f.cuisine_types, cuisine],
     }))
+  }
+
+  async function handleBoostSave(enabled) {
+    setBoostSaving(true); setBoostMsg('')
+    try {
+      const updated = await api.restaurants.boost(id, { enabled, plan: boost.boost_plan }, token)
+      setBoost({
+        is_boosted:       updated.is_boosted,
+        boost_plan:       updated.boost_plan || '30',
+        boost_expires_at: updated.boost_expires_at,
+      })
+      setBoostMsg(enabled ? '✓ Boost activated!' : '✓ Boost removed.')
+    } catch (err) {
+      setBoostMsg(`Error: ${err.message}`)
+    } finally {
+      setBoostSaving(false)
+    }
   }
 
   async function handleSubmit(e) {
@@ -295,6 +322,75 @@ export default function EditRestaurantPage() {
                   className="w-10 h-10 rounded-xl border border-[var(--c-border)] cursor-pointer p-0.5 bg-white" />
                 <span className="text-sm text-[var(--c-muted)]">{form.brand_color} — used for the restaurant page theme</span>
               </div>
+            </div>
+          </div>
+
+          {/* Boost Settings — own save button, separate from main form */}
+          <div className="card p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-[var(--c-text)] text-sm uppercase tracking-wide text-amber-500 flex items-center gap-2">
+                <Zap size={14} className="fill-amber-400 text-amber-400" /> Boost Listing
+              </h2>
+              {boost.is_boosted && boost.boost_expires_at && new Date(boost.boost_expires_at) > new Date() ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                  <CheckCircle2 size={11} /> Active
+                </span>
+              ) : boost.is_boosted && boost.boost_expires_at && new Date(boost.boost_expires_at) <= new Date() ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500">
+                  <Clock size={11} /> Expired
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">
+                  Inactive
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
+              Boosted restaurants appear first in browse &amp; search results with a <strong>Featured</strong> badge. The restaurant owner pays you directly — you activate it here manually.
+            </p>
+
+            {boost.is_boosted && boost.boost_expires_at && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 font-medium">
+                <Clock size={13} />
+                Expires: {new Date(boost.boost_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs font-semibold text-[var(--c-muted)] mb-2">Boost duration</p>
+              <div className="flex gap-2">
+                {[{ value: '30', label: '30 days' }, { value: '60', label: '60 days' }, { value: '90', label: '90 days' }].map(p => (
+                  <button key={p.value} type="button" onClick={() => setBoost(b => ({ ...b, boost_plan: p.value }))}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${boost.boost_plan === p.value ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-amber-400/40'}`}
+                    style={boost.boost_plan === p.value ? { background: 'linear-gradient(135deg,#F59E0B,#EF4444)' } : {}}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {!boost.is_boosted || (boost.boost_expires_at && new Date(boost.boost_expires_at) <= new Date()) ? (
+                <button type="button" onClick={() => handleBoostSave(true)} disabled={boostSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                  <Zap size={14} className="fill-white" />
+                  {boostSaving ? 'Activating…' : 'Activate Boost'}
+                </button>
+              ) : (
+                <button type="button" onClick={() => handleBoostSave(false)} disabled={boostSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-60 transition-all">
+                  <ZapOff size={14} />
+                  {boostSaving ? 'Removing…' : 'Remove Boost'}
+                </button>
+              )}
+              {boostMsg && (
+                <p className={`text-sm font-semibold ${boostMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                  {boostMsg}
+                </p>
+              )}
             </div>
           </div>
 

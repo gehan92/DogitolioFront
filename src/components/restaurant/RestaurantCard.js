@@ -1,8 +1,14 @@
 'use client'
 import Link from 'next/link'
-import { MapPin, UtensilsCrossed } from 'lucide-react'
+import { MapPin, UtensilsCrossed, Zap } from 'lucide-react'
 import { StarRating, PriceBadge, Badge } from '@/components/ui'
 import clsx from 'clsx'
+
+function isBoostActive(restaurant) {
+  if (!restaurant.is_boosted) return false
+  if (!restaurant.boost_expires_at) return true
+  return new Date(restaurant.boost_expires_at) > new Date()
+}
 
 export default function RestaurantCard({ restaurant, className }) {
   const { id, name, description, town, district, cover_image,
@@ -13,9 +19,11 @@ export default function RestaurantCard({ restaurant, className }) {
 
   const rating      = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || 0
+  const boosted     = isBoostActive(restaurant)
 
   return (
-    <Link href={`/restaurants/${id}`} className={clsx('card block overflow-hidden group', className)}>
+    <Link href={`/restaurants/${id}`}
+      className={clsx('card block overflow-hidden group relative', boosted && 'ring-2 ring-amber-400 ring-offset-1', className)}>
       {/* Cover image */}
       <div className="relative h-52 overflow-hidden bg-gray-100">
         {cover_image ? (
@@ -24,14 +32,23 @@ export default function RestaurantCard({ restaurant, className }) {
         ) : (
           <div className="w-full h-full relative flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg,#FF2D55 0%,#FF6035 100%)' }}>
-            {/* subtle pattern */}
             <div className="absolute inset-0 opacity-10"
               style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 20%, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
             <UtensilsCrossed size={44} className="text-white/60" strokeWidth={1.2} />
           </div>
         )}
-        {/* gradient overlay for text legibility */}
+        {/* gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
+        {/* Featured badge — top left */}
+        {boosted && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wide text-white shadow-lg"
+            style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+            <Zap size={10} className="fill-white" />
+            Featured
+          </div>
+        )}
+
         {price_range && (
           <div className="absolute top-3 right-3">
             <PriceBadge range={price_range} />

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload,
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
-  Menu, Clock, Home, ChevronRight,
+  Menu, Clock, Home, ChevronRight, Zap, ZapOff, CheckCircle2,
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
@@ -16,6 +16,7 @@ import clsx from 'clsx'
 const NAV_ITEMS = [
   { key: 'Overview',     label: 'Overview',     icon: LayoutDashboard },
   { key: 'Restaurants',  label: 'Restaurants',  icon: UtensilsCrossed },
+  { key: 'Boost',        label: 'Boost',        icon: Zap },
   { key: 'Reviews',      label: 'Reviews',      icon: MessageSquare },
   { key: 'Users',        label: 'Users',        icon: Users },
   { key: 'Menu Items',   label: 'Menu Items',   icon: Tag },
@@ -66,6 +67,10 @@ export default function AdminPage() {
   // History state
   const [auditLogs,    setAuditLogs]    = useState([])
   const [auditLoading, setAuditLoading] = useState(false)
+
+  // Boost state
+  const [boostPlan,    setBoostPlan]    = useState('30')
+  const [boostMsg,     setBoostMsg]     = useState('')
 
   useEffect(() => {
     if (!authLoading && user && profile && !isAdmin) router.replace('/')
@@ -206,6 +211,22 @@ export default function AdminPage() {
       setScMsg('✓ Saved successfully')
     } catch (err) { setScMsg(`Error: ${err.message}`) }
     finally { setScSaving(false) }
+  }
+
+  // ── Boost helpers
+  function isBoostActive(r) {
+    return r.is_boosted && (!r.boost_expires_at || new Date(r.boost_expires_at) > new Date())
+  }
+
+  async function quickBoost(restaurantId, enabled, plan) {
+    setBoostMsg('')
+    try {
+      const updated = await api.restaurants.boost(restaurantId, { enabled, plan }, token)
+      setRestaurants(rs => rs.map(r => r.id === restaurantId ? { ...r, ...updated } : r))
+      setBoostMsg(enabled ? '✓ Boost activated' : '✓ Boost removed')
+    } catch (err) {
+      setBoostMsg(`Error: ${err.message}`)
+    }
   }
 
   // ── History handler
@@ -443,9 +464,19 @@ export default function AdminPage() {
                   <div className="divide-y divide-[var(--c-border)]">
                     {restaurants.map(r => (
                       <div key={r.id} className="flex items-center justify-between px-4 py-3 hover:bg-surface-secondary transition-colors">
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
-                          <p className="text-xs text-[var(--c-muted)]">{r.town}, {r.district}</p>
+                        <div className="min-w-0 flex items-center gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
+                              {isBoostActive(r) && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
+                                  style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                                  <Zap size={8} className="fill-white" /> Featured
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[var(--c-muted)]">{r.town}, {r.district}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Link href={`/admin/restaurants/${r.id}/edit`}>
@@ -459,6 +490,105 @@ export default function AdminPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── BOOST */}
+            {tab === 'Boost' && (
+              <div className="space-y-5 animate-fade-in">
+
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Total restaurants', value: restaurants.length },
+                    { label: 'Boosted (active)',  value: restaurants.filter(isBoostActive).length },
+                    { label: 'Expired boosts',    value: restaurants.filter(r => r.is_boosted && r.boost_expires_at && new Date(r.boost_expires_at) <= new Date()).length },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="card p-5">
+                      <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide mb-1">{label}</p>
+                      <p className="font-display text-3xl font-black text-[var(--c-text)]">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Global plan selector + feedback */}
+                <div className="card p-5 flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-semibold text-[var(--c-text)] shrink-0">Quick-boost plan:</p>
+                  {[{ value: '30', label: '30 days' }, { value: '60', label: '60 days' }, { value: '90', label: '90 days' }].map(p => (
+                    <button key={p.value} type="button" onClick={() => setBoostPlan(p.value)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${boostPlan === p.value ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-amber-400/40'}`}
+                      style={boostPlan === p.value ? { background: 'linear-gradient(135deg,#F59E0B,#EF4444)' } : {}}>
+                      {p.label}
+                    </button>
+                  ))}
+                  {boostMsg && (
+                    <p className={`text-sm font-semibold ml-auto ${boostMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                      {boostMsg}
+                    </p>
+                  )}
+                </div>
+
+                {/* Restaurant boost list */}
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)]">Manage restaurant boosts</h3>
+                  </div>
+                  <div className="divide-y divide-[var(--c-border)]">
+                    {restaurants.map(r => {
+                      const active  = isBoostActive(r)
+                      const expired = r.is_boosted && r.boost_expires_at && new Date(r.boost_expires_at) <= new Date()
+                      return (
+                        <div key={r.id} className="flex items-center gap-4 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
+                              {active && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
+                                  style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                                  <Zap size={8} className="fill-white" /> Featured
+                                </span>
+                              )}
+                              {expired && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-400 shrink-0">
+                                  Expired
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[var(--c-muted)]">
+                              {r.town}, {r.district}
+                              {active && r.boost_expires_at && (
+                                <> · expires {new Date(r.boost_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {active ? (
+                              <button onClick={() => quickBoost(r.id, false, boostPlan)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors">
+                                <ZapOff size={12} /> Remove
+                              </button>
+                            ) : (
+                              <button onClick={() => quickBoost(r.id, true, boostPlan)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90"
+                                style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
+                                <Zap size={12} className="fill-white" /> Boost {boostPlan}d
+                              </button>
+                            )}
+                            <Link href={`/admin/restaurants/${r.id}/edit`}>
+                              <button className="p-1.5 rounded-lg hover:bg-surface-secondary text-[var(--c-muted)] transition-colors">
+                                <Pencil size={13} />
+                              </button>
+                            </Link>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <p className="text-xs text-[var(--c-dim)] text-center">
+                  Collect payment from the restaurant owner first, then activate their boost here.
+                </p>
               </div>
             )}
 
@@ -765,7 +895,9 @@ export default function AdminPage() {
                           'user.ban':            'bg-red-50 text-red-600',
                           'user.unban':          'bg-green-50 text-green-700',
                           'user.role_change':    'bg-blue-50 text-blue-700',
-                          'site_content.update': 'bg-purple-50 text-purple-700',
+                          'site_content.update':         'bg-purple-50 text-purple-700',
+                          'restaurant.boost.enable':    'bg-amber-50 text-amber-700',
+                          'restaurant.boost.remove':    'bg-gray-50 text-gray-600',
                         }
                         const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
                         return (
