@@ -6,7 +6,7 @@ import {
   LayoutDashboard, UtensilsCrossed, MessageSquare, Users, Upload,
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
-  Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff,
+  Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
 } from 'lucide-react'
 import Navbar           from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
@@ -456,6 +456,7 @@ export default function AdminPage() {
   async function expandChangeRequest(id) {
     if (crExpandedId === id) { setCrExpandedId(null); return }
     setCrExpandedId(id)
+    setCrActionNote('')
     if (crExpandedData[id]) return
     try {
       const data = await api.admin.getChangeRequest(id, token)
@@ -875,7 +876,7 @@ export default function AdminPage() {
                           <div key={m.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)] last:border-0 text-sm">
                             <div className="min-w-0">
                               <p className="font-medium truncate">{m.restaurants?.name}</p>
-                              <p className="text-xs text-[var(--c-muted)]">v{m.version} · {m.profiles?.name}</p>
+                              <p className="text-xs text-[var(--c-muted)]">v{m.version} · {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                             </div>
                             <Badge color="green">Live</Badge>
                           </div>
@@ -1258,9 +1259,21 @@ export default function AdminPage() {
                             {/* Expanded detail */}
                             {crExpandedId === cr.id && (
                               <div className="mx-4 mb-3 rounded-xl border border-[var(--c-border)] bg-gray-50/60 p-4 space-y-3">
+
+                                {/* Quick link to edit the restaurant */}
+                                {cr.restaurants?.id && (
+                                  <Link
+                                    href={`/admin/restaurants/${cr.restaurants.id}/edit`}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                                  >
+                                    <ExternalLink size={12} />
+                                    Edit {cr.restaurants.name}
+                                  </Link>
+                                )}
+
                                 <div>
                                   <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-[var(--c-text)]">{cr.description}</p>
+                                  <p className="text-sm text-[var(--c-text)] whitespace-pre-wrap">{cr.description}</p>
                                 </div>
                                 {cr.admin_note && (
                                   <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
@@ -1288,12 +1301,13 @@ export default function AdminPage() {
                                 {/* Action note */}
                                 {cr.status !== 'applied' && (
                                   <div>
-                                    <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Note (optional)</label>
-                                    <input
+                                    <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Note for owner (optional)</label>
+                                    <textarea
                                       value={crActionNote}
                                       onChange={e => setCrActionNote(e.target.value)}
-                                      placeholder="Add a note for the owner…"
-                                      className={inputCls}
+                                      placeholder="Explain what was done, what's needed, or why it was rejected…"
+                                      rows={3}
+                                      className={`${inputCls} resize-none`}
                                     />
                                   </div>
                                 )}
