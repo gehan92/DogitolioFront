@@ -98,13 +98,13 @@ export default function RestaurantCard({ restaurant: venue, className }) {
 
       {/* Card body */}
       <div className="p-4">
-        <h3 className="font-display font-bold text-lg text-[var(--c-text)] leading-tight mb-1 group-hover:text-brand-600 transition-colors">
+        <h3 className="font-display font-bold text-lg text-[var(--c-text)] leading-tight mb-1 group-hover:text-brand-600 transition-colors line-clamp-2">
           {name}
         </h3>
 
-        <div className="flex items-center gap-1 text-[var(--c-muted)] text-sm mb-2">
-          <MapPin size={13} />
-          <span>{town}, {district}</span>
+        <div className="flex items-center gap-1 text-[var(--c-muted)] text-sm mb-2 min-w-0">
+          <MapPin size={13} className="shrink-0" />
+          <span className="truncate">{town}{district ? `, ${district}` : ''}</span>
         </div>
 
         {rating > 0 && (
