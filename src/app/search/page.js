@@ -18,10 +18,11 @@ function SearchContent() {
   const [searched, setSearched] = useState(false)
 
   const filters = {
-    town:       params.get('town')        || '',
-    province:   params.get('province')    || '',
-    min_price:  params.get('min_price')   || '',
-    max_price:  params.get('max_price')   || '',
+    town:        params.get('town')        || '',
+    province:    params.get('province')    || '',
+    price_range: params.get('price_range') || '',
+    min_price:   params.get('min_price')   || '',
+    max_price:   params.get('max_price')   || '',
   }
 
   useEffect(() => {
