@@ -78,23 +78,22 @@ export default function MenuViewer({ pdfUrl, restaurantName }) {
       </div>
 
       {/* ── All pages rendered vertically */}
-      <div className="w-full rounded-3xl overflow-hidden"
-        style={{ background: 'linear-gradient(160deg,#1a1a2e 0%,#2d1b4e 60%,#0f1f3c 100%)' }}>
+      <div className="w-full rounded-3xl overflow-hidden bg-gray-50 border border-gray-200">
 
         {loading && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="w-9 h-9 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
-            <p className="text-white/50 text-sm font-medium">Loading menu…</p>
+            <div className="w-9 h-9 rounded-full border-[3px] border-gray-200 border-t-gray-500 animate-spin" />
+            <p className="text-gray-400 text-sm font-medium">Loading menu…</p>
           </div>
         )}
 
         {error && !loading && (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
-            <FileText size={36} className="text-white/25" />
-            <p className="font-bold text-white">Couldn&apos;t load menu PDF</p>
-            <p className="text-sm text-white/50">{error}</p>
+            <FileText size={36} className="text-gray-300" />
+            <p className="font-bold text-gray-700">Couldn&apos;t load menu PDF</p>
+            <p className="text-sm text-gray-400">{error}</p>
             <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold transition-colors">
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 text-sm font-semibold transition-colors">
               <ExternalLink size={14} /> Open PDF directly
             </a>
           </div>
@@ -118,7 +117,7 @@ export default function MenuViewer({ pdfUrl, restaurantName }) {
                 style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.55)' }}
               />
               {numPages > 1 && (
-                <span className="px-3 py-0.5 rounded-full bg-black/40 text-white/50 text-[11px] font-medium">
+                <span className="px-3 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[11px] font-medium">
                   {p} / {numPages}
                 </span>
               )}
