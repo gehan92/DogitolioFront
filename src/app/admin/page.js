@@ -226,9 +226,100 @@ export default function AdminPage() {
   const [themeMsg,    setThemeMsg]    = useState('')
 
   const SC_SCHEMAS = {
-    home:    ['headline', 'subheadline', 'ctaText'],
-    about:   ['headline', 'subheadline', 'storyTitle', 'storyP1', 'storyP2'],
-    contact: ['headline', 'subheadline', 'email', 'phone', 'location', 'hours'],
+    home: [
+      { section: 'Hero', fields: [
+        { key: 'heroBadge',         label: 'Badge Text',        type: 'input'    },
+        { key: 'heroHeadline',      label: 'Main Headline',     type: 'textarea' },
+        { key: 'heroSubheadline',   label: 'Sub-headline',      type: 'textarea' },
+      ]},
+      { section: 'Stats Bar', fields: [
+        { key: 'stat1Value', label: 'Stat 1 – Value (e.g. 500+)',      type: 'input' },
+        { key: 'stat1Label', label: 'Stat 1 – Label (e.g. Food Places)', type: 'input' },
+        { key: 'stat2Value', label: 'Stat 2 – Value',                  type: 'input' },
+        { key: 'stat2Label', label: 'Stat 2 – Label',                  type: 'input' },
+        { key: 'stat3Value', label: 'Stat 3 – Value',                  type: 'input' },
+        { key: 'stat3Label', label: 'Stat 3 – Label',                  type: 'input' },
+      ]},
+      { section: '"Why Us" Section', fields: [
+        { key: 'whyTitle',    label: 'Section Title',    type: 'input'    },
+        { key: 'whySubtitle', label: 'Section Subtitle', type: 'textarea' },
+      ]},
+      { section: '"How It Works" Section', fields: [
+        { key: 'howTitle',   label: 'Section Title',           type: 'input'    },
+        { key: 'step1Title', label: 'Step 1 – Title',          type: 'input'    },
+        { key: 'step1Desc',  label: 'Step 1 – Description',    type: 'textarea' },
+        { key: 'step2Title', label: 'Step 2 – Title',          type: 'input'    },
+        { key: 'step2Desc',  label: 'Step 2 – Description',    type: 'textarea' },
+        { key: 'step3Title', label: 'Step 3 – Title',          type: 'input'    },
+        { key: 'step3Desc',  label: 'Step 3 – Description',    type: 'textarea' },
+      ]},
+      { section: 'CTA Banner', fields: [
+        { key: 'ctaBannerHeadline',    label: 'Headline',     type: 'input'    },
+        { key: 'ctaBannerSubheadline', label: 'Sub-headline', type: 'textarea' },
+      ]},
+      { section: 'Testimonials', fields: [
+        { key: 't1Name',     label: 'Review 1 – Name',     type: 'input'    },
+        { key: 't1Location', label: 'Review 1 – Location', type: 'input'    },
+        { key: 't1Text',     label: 'Review 1 – Quote',    type: 'textarea' },
+        { key: 't2Name',     label: 'Review 2 – Name',     type: 'input'    },
+        { key: 't2Location', label: 'Review 2 – Location', type: 'input'    },
+        { key: 't2Text',     label: 'Review 2 – Quote',    type: 'textarea' },
+        { key: 't3Name',     label: 'Review 3 – Name',     type: 'input'    },
+        { key: 't3Location', label: 'Review 3 – Location', type: 'input'    },
+        { key: 't3Text',     label: 'Review 3 – Quote',    type: 'textarea' },
+      ]},
+      { section: 'Footer', fields: [
+        { key: 'footerDesc',      label: 'Brand Description', type: 'textarea' },
+        { key: 'footerCopyright', label: 'Copyright Text',    type: 'input'    },
+      ]},
+    ],
+    about: [
+      { section: 'Hero', fields: [
+        { key: 'headline',    label: 'Page Headline',     type: 'input'    },
+        { key: 'subheadline', label: 'Page Sub-headline', type: 'textarea' },
+      ]},
+      { section: 'Stats', fields: [
+        { key: 'stat1Value', label: 'Stat 1 – Value', type: 'input' },
+        { key: 'stat1Label', label: 'Stat 1 – Label', type: 'input' },
+        { key: 'stat2Value', label: 'Stat 2 – Value', type: 'input' },
+        { key: 'stat2Label', label: 'Stat 2 – Label', type: 'input' },
+        { key: 'stat3Value', label: 'Stat 3 – Value', type: 'input' },
+        { key: 'stat3Label', label: 'Stat 3 – Label', type: 'input' },
+        { key: 'stat4Value', label: 'Stat 4 – Value', type: 'input' },
+        { key: 'stat4Label', label: 'Stat 4 – Label', type: 'input' },
+      ]},
+      { section: 'Our Story', fields: [
+        { key: 'storyTitle', label: 'Section Title', type: 'input'    },
+        { key: 'storyP1',    label: 'Paragraph 1',   type: 'textarea' },
+        { key: 'storyP2',    label: 'Paragraph 2',   type: 'textarea' },
+      ]},
+      { section: 'Our Values', fields: [
+        { key: 'value1Title', label: 'Value 1 – Title',       type: 'input'    },
+        { key: 'value1Desc',  label: 'Value 1 – Description', type: 'textarea' },
+        { key: 'value2Title', label: 'Value 2 – Title',       type: 'input'    },
+        { key: 'value2Desc',  label: 'Value 2 – Description', type: 'textarea' },
+        { key: 'value3Title', label: 'Value 3 – Title',       type: 'input'    },
+        { key: 'value3Desc',  label: 'Value 3 – Description', type: 'textarea' },
+        { key: 'value4Title', label: 'Value 4 – Title',       type: 'input'    },
+        { key: 'value4Desc',  label: 'Value 4 – Description', type: 'textarea' },
+      ]},
+      { section: 'CTA Section', fields: [
+        { key: 'ctaHeadline', label: 'Headline', type: 'input'    },
+        { key: 'ctaSubtitle', label: 'Subtitle', type: 'textarea' },
+      ]},
+    ],
+    contact: [
+      { section: 'Hero', fields: [
+        { key: 'headline',    label: 'Page Headline',     type: 'input'    },
+        { key: 'subheadline', label: 'Page Sub-headline', type: 'textarea' },
+      ]},
+      { section: 'Contact Info', fields: [
+        { key: 'email',    label: 'Email Address', type: 'input' },
+        { key: 'phone',    label: 'Phone Number',  type: 'input' },
+        { key: 'location', label: 'Location',      type: 'input' },
+        { key: 'hours',    label: 'Office Hours',  type: 'input' },
+      ]},
+    ],
   }
 
   // ── Boost
@@ -1877,18 +1968,25 @@ export default function AdminPage() {
                     ))}
                   </div>
                   {scLoading ? <div className="flex justify-center py-8"><Spinner size={24} /></div> : (
-                    <form onSubmit={scSave} className="space-y-4">
-                      {(SC_SCHEMAS[scPage] || []).map(field => (
-                        <div key={field}>
-                          <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 capitalize">{field.replace(/([A-Z])/g, ' $1')}</label>
-                          {field.startsWith('story') || field === 'subheadline' ? (
-                            <textarea rows={3} value={scFields[field] || ''} onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))} className={`${inputCls} resize-none`} />
-                          ) : (
-                            <input value={scFields[field] || ''} onChange={e => setScFields(f => ({ ...f, [field]: e.target.value }))} className={inputCls} />
-                          )}
+                    <form onSubmit={scSave} className="space-y-6">
+                      {(SC_SCHEMAS[scPage] || []).map(({ section, fields }) => (
+                        <div key={section}>
+                          <p className="text-[11px] font-black text-[#FF2D55] uppercase tracking-widest mb-3">{section}</p>
+                          <div className="space-y-3 pl-3 border-l-2 border-[var(--c-border)]">
+                            {fields.map(({ key, label, type }) => (
+                              <div key={key}>
+                                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">{label}</label>
+                                {type === 'textarea' ? (
+                                  <textarea rows={3} value={scFields[key] || ''} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} resize-none`} />
+                                ) : (
+                                  <input value={scFields[key] || ''} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={inputCls} />
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
-                      <div className="flex items-center gap-3 pt-2">
+                      <div className="flex items-center gap-3 pt-2 border-t border-[var(--c-border)]">
                         <button type="submit" disabled={scSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                           {scSaving ? 'Saving…' : 'Save changes'}
                         </button>

@@ -7,10 +7,54 @@ import { UtensilsCrossed, MapPin, ArrowRight, Building2, Coffee, ShoppingBag, St
 
 export default async function HomePage() {
   let featured = []
+  let cms = {}
   try {
     const { data } = await api.restaurants.list({ limit: 6, page: 1 })
     featured = data || []
   } catch {}
+  try {
+    const cmsData = await api.siteContent.get('home')
+    cms = cmsData?.content || {}
+  } catch {}
+
+  // ── CMS values with fallbacks ──────────────────────────────────────────────
+  const heroBadge         = cms.heroBadge         || "Sri Lanka's Food Discovery Platform"
+  const heroHeadline      = cms.heroHeadline       || "Find the best food menu near you"
+  const heroSubheadline   = cms.heroSubheadline    || "Hotels, restaurants, food shops & snack bars — every menu in one place."
+
+  const stat1Value = cms.stat1Value || '500+'
+  const stat1Label = cms.stat1Label || 'Food Places'
+  const stat2Value = cms.stat2Value || '9'
+  const stat2Label = cms.stat2Label || 'Provinces'
+  const stat3Value = cms.stat3Value || '10K+'
+  const stat3Label = cms.stat3Label || 'Reviews'
+
+  const whyTitle    = cms.whyTitle    || 'Everything you need to find great food'
+  const whySubtitle = cms.whySubtitle || 'Digitolio makes it easy to discover, explore and review every food place across Sri Lanka.'
+
+  const howTitle   = cms.howTitle   || 'How Digitolio works'
+  const step1Title = cms.step1Title || 'Search'
+  const step1Desc  = cms.step1Desc  || 'Find food menus at hotels, restaurants, food shops and snack bars by name, price or location.'
+  const step2Title = cms.step2Title || 'View Menu'
+  const step2Desc  = cms.step2Desc  || 'Browse the full menu with current prices — always up to date and accurate.'
+  const step3Title = cms.step3Title || 'Review'
+  const step3Desc  = cms.step3Desc  || 'Sign in and share your experience to help others find great food nearby.'
+
+  const ctaBannerHeadline    = cms.ctaBannerHeadline    || "Ready to explore Sri Lanka's best food?"
+  const ctaBannerSubheadline = cms.ctaBannerSubheadline || 'Browse menus, discover restaurants and share your experience — all in one place.'
+
+  const t1Name     = cms.t1Name     || 'Kavindi P.'
+  const t1Location = cms.t1Location || 'Colombo'
+  const t1Text     = cms.t1Text     || 'Finally I can check the menu and prices before going to a restaurant. Saved me so many trips!'
+  const t2Name     = cms.t2Name     || 'Rashan F.'
+  const t2Location = cms.t2Location || 'Galle'
+  const t2Text     = cms.t2Text     || 'The PDF menu feature is excellent. I could see the full menu just like holding it in hand.'
+  const t3Name     = cms.t3Name     || 'Thilini S.'
+  const t3Location = cms.t3Location || 'Kandy'
+  const t3Text     = cms.t3Text     || 'Great app for finding local food spots. Discovered so many new places near my home.'
+
+  const footerDesc      = cms.footerDesc      || "Sri Lanka's food discovery platform. Find menus from hotels, restaurants, food shops and snack bars — all in one place."
+  const footerCopyright = cms.footerCopyright || '© 2026 Digitolio. All rights reserved.'
 
   const provinces = [
     { name: 'Western',       rest: '120+' },
@@ -39,40 +83,33 @@ export default async function HomePage() {
         {/* ── HERO */}
         <section className="relative min-h-[88vh] flex flex-col items-center justify-center overflow-hidden px-4 py-20">
 
-          {/* Real food photography background */}
           <img
             src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1600&q=85&auto=format&fit=crop"
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             aria-hidden="true"
           />
-          {/* Dark + brand overlay */}
           <div className="absolute inset-0"
             style={{ background: 'linear-gradient(135deg,rgba(255,45,85,0.82) 0%,rgba(255,78,42,0.80) 55%,rgba(10,10,20,0.88) 100%)' }} />
 
           <div className="relative z-10 max-w-4xl mx-auto text-center">
-            {/* Badge */}
             <div className="inline-flex items-center gap-2 border border-white/40 bg-white/20 rounded-full px-4 py-1.5 text-xs text-white font-semibold mb-8 uppercase tracking-widest">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse inline-block" />
-              Sri Lanka&apos;s Food Discovery Platform
+              {heroBadge}
             </div>
 
-            {/* Headline */}
-            <h1 className="text-5xl md:text-7xl lg:text-[88px] font-black text-white leading-[1.03] tracking-tight mb-6 drop-shadow-sm">
-              Find the best<br />food menu<br />near you
+            <h1 className="text-5xl md:text-7xl lg:text-[88px] font-black text-white leading-[1.03] tracking-tight mb-6 drop-shadow-sm whitespace-pre-line">
+              {heroHeadline}
             </h1>
 
             <p className="text-white/90 text-lg md:text-xl mb-10 max-w-lg mx-auto leading-relaxed">
-              Hotels, restaurants, food shops &amp; snack bars —
-              every menu in one place.
+              {heroSubheadline}
             </p>
 
-            {/* Search */}
             <div className="max-w-2xl mx-auto mb-9">
               <SearchBar />
             </div>
 
-            {/* Category chips */}
             <div className="flex flex-wrap items-center justify-center gap-3">
               {categories.map(({ label, icon: Icon, href }) => (
                 <Link key={label} href={href}
@@ -89,9 +126,9 @@ export default async function HomePage() {
         <section className="bg-white border-b border-[var(--c-border)]">
           <div className="max-w-3xl mx-auto px-4 py-10 grid grid-cols-3 divide-x divide-[var(--c-border)]">
             {[
-              { value: '500+', label: 'Food Places' },
-              { value: '9',    label: 'Provinces' },
-              { value: '10K+', label: 'Reviews' },
+              { value: stat1Value, label: stat1Label },
+              { value: stat2Value, label: stat2Label },
+              { value: stat3Value, label: stat3Label },
             ].map(({ value, label }) => (
               <div key={label} className="text-center px-4">
                 <div className="text-2xl md:text-3xl font-black" style={{ background: 'linear-gradient(90deg,#FF2D55,#FF6035)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{value}</div>
@@ -106,8 +143,8 @@ export default async function HomePage() {
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-12">
               <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-2">Why us</p>
-              <h2 className="font-display text-3xl md:text-4xl font-black text-gray-900">Everything you need to find great food</h2>
-              <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">Digitolio makes it easy to discover, explore and review every food place across Sri Lanka.</p>
+              <h2 className="font-display text-3xl md:text-4xl font-black text-gray-900">{whyTitle}</h2>
+              <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">{whySubtitle}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -240,13 +277,13 @@ export default async function HomePage() {
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-14">
               <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-3">Simple</p>
-              <h2 className="font-display text-3xl md:text-5xl font-black text-white">How Digitolio works</h2>
+              <h2 className="font-display text-3xl md:text-5xl font-black text-white">{howTitle}</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { num: '01', title: 'Search', desc: 'Find food menus at hotels, restaurants, food shops and snack bars by name, price or location.' },
-                { num: '02', title: 'View Menu', desc: 'Browse the full menu with current prices — always up to date and accurate.' },
-                { num: '03', title: 'Review', desc: 'Sign in and share your experience to help others find great food nearby.' },
+                { num: '01', title: step1Title, desc: step1Desc },
+                { num: '02', title: step2Title, desc: step2Desc },
+                { num: '03', title: step3Title, desc: step3Desc },
               ].map(({ num, title, desc }) => (
                 <div key={num} className="p-7 rounded-2xl border border-white/[0.07] bg-white/[0.03] hover:border-[#FF2D55]/30 hover:bg-white/[0.05] transition-all duration-300 group">
                   <div className="text-5xl font-black mb-5 leading-none" style={{ background: 'linear-gradient(180deg,#FF2D55 0%,rgba(255,45,85,0.1) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{num}</div>
@@ -267,9 +304,9 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
-                { name: 'Kavindi P.',    location: 'Colombo',  rating: 5, text: 'Finally I can check the menu and prices before going to a restaurant. Saved me so many trips!' },
-                { name: 'Rashan F.',     location: 'Galle',    rating: 5, text: 'The PDF menu feature is excellent. I could see the full menu just like holding it in hand.' },
-                { name: 'Thilini S.',    location: 'Kandy',    rating: 5, text: 'Great app for finding local food spots. Discovered so many new places near my home.' },
+                { name: t1Name, location: t1Location, rating: 5, text: t1Text },
+                { name: t2Name, location: t2Location, rating: 5, text: t2Text },
+                { name: t3Name, location: t3Location, rating: 5, text: t3Text },
               ].map(({ name, location, rating, text }) => (
                 <div key={name} className="p-6 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col gap-4">
                   <div className="flex gap-0.5">
@@ -297,11 +334,11 @@ export default async function HomePage() {
         {/* ── CTA BANNER */}
         <section className="py-16 px-4" style={{ background: 'linear-gradient(135deg,#FF2D55 0%,#FF4E2A 60%,#FF6035 100%)' }}>
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="font-display text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
-              Ready to explore<br />Sri Lanka&apos;s best food?
+            <h2 className="font-display text-3xl md:text-5xl font-black text-white mb-4 leading-tight whitespace-pre-line">
+              {ctaBannerHeadline}
             </h2>
             <p className="text-white/80 text-base mb-8 max-w-md mx-auto">
-              Browse menus, discover restaurants and share your experience — all in one place.
+              {ctaBannerSubheadline}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/restaurants"
@@ -319,19 +356,16 @@ export default async function HomePage() {
         {/* ── FOOTER */}
         <footer className="bg-[#080808] border-t border-white/[0.05]">
           <div className="max-w-6xl mx-auto px-4 pt-14 pb-10">
-            {/* Top row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
-              {/* Brand */}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2.5 mb-4">
                   <img src="/digtolio_logo.jpg" alt="Digitolio" className="w-9 h-9 rounded-xl" />
                   <span className="font-bold text-white text-lg tracking-tight">Digitolio</span>
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed max-w-xs">
-                  Sri Lanka&apos;s food discovery platform. Find menus from hotels, restaurants, food shops and snack bars — all in one place.
+                  {footerDesc}
                 </p>
               </div>
-              {/* Explore */}
               <div>
                 <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Explore</p>
                 <ul className="space-y-2.5">
@@ -340,7 +374,6 @@ export default async function HomePage() {
                   <li><Link href="/search" className="text-white/55 text-sm hover:text-white transition-colors">Search Menus</Link></li>
                 </ul>
               </div>
-              {/* Company */}
               <div>
                 <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
                 <ul className="space-y-2.5">
@@ -350,15 +383,13 @@ export default async function HomePage() {
                 </ul>
               </div>
             </div>
-            {/* Bottom row */}
             <div className="border-t border-white/[0.07] pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-              <p className="text-white/50 text-xs text-center">© 2026 Digitolio. All rights reserved.</p>
-            <p className="text-white/50 text-xs">Find food menus across Sri Lanka.</p>
+              <p className="text-white/50 text-xs text-center">{footerCopyright}</p>
+              <p className="text-white/50 text-xs">Find food menus across Sri Lanka.</p>
             </div>
           </div>
         </footer>
 
-        {/* Spacer for mobile bottom nav */}
         <div className="h-20 md:h-0" />
       </main>
     </>
