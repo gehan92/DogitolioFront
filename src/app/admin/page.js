@@ -219,6 +219,7 @@ export default function AdminPage() {
   const [scLoading, setScLoading] = useState(false)
   const [scSaving,  setScSaving]  = useState(false)
   const [scMsg,     setScMsg]     = useState('')
+  const [scSavedKeys, setScSavedKeys] = useState(new Set())
 
   // ── Theme
   const [activeTheme, setActiveTheme] = useState('warm')
@@ -320,6 +321,55 @@ export default function AdminPage() {
         { key: 'hours',    label: 'Office Hours',  type: 'input' },
       ]},
     ],
+  }
+
+  const SC_DEFAULTS = {
+    home: {
+      heroBadge:            "Sri Lanka's Food Discovery Platform",
+      heroHeadline:         "Find the best food menu near you",
+      heroSubheadline:      "Hotels, restaurants, food shops & snack bars — every menu in one place.",
+      stat1Value: '500+', stat1Label: 'Food Places',
+      stat2Value: '9',    stat2Label: 'Provinces',
+      stat3Value: '10K+', stat3Label: 'Reviews',
+      whyTitle:    'Everything you need to find great food',
+      whySubtitle: 'Digitolio makes it easy to discover, explore and review every food place across Sri Lanka.',
+      howTitle:    'How Digitolio works',
+      step1Title:  'Search',    step1Desc:  'Find food menus at hotels, restaurants, food shops and snack bars by name, price or location.',
+      step2Title:  'View Menu', step2Desc:  'Browse the full menu with current prices — always up to date and accurate.',
+      step3Title:  'Review',    step3Desc:  'Sign in and share your experience to help others find great food nearby.',
+      ctaBannerHeadline:    "Ready to explore Sri Lanka's best food?",
+      ctaBannerSubheadline: 'Browse menus, discover restaurants and share your experience — all in one place.',
+      t1Name: 'Kavindi P.',  t1Location: 'Colombo', t1Text: 'Finally I can check the menu and prices before going to a restaurant. Saved me so many trips!',
+      t2Name: 'Rashan F.',   t2Location: 'Galle',   t2Text: 'The PDF menu feature is excellent. I could see the full menu just like holding it in hand.',
+      t3Name: 'Thilini S.',  t3Location: 'Kandy',   t3Text: 'Great app for finding local food spots. Discovered so many new places near my home.',
+      footerDesc:      "Sri Lanka's food discovery platform. Find menus from hotels, restaurants, food shops and snack bars — all in one place.",
+      footerCopyright: '© 2026 Digitolio. All rights reserved.',
+    },
+    about: {
+      headline:    'About Digitolio',
+      subheadline: "We built Digitolio to solve a simple problem — finding food menus across Sri Lanka was hard. We made it easy.",
+      stat1Value: '500+', stat1Label: 'Food Places Listed',
+      stat2Value: '9',    stat2Label: 'Provinces Covered',
+      stat3Value: '10K+', stat3Label: 'User Reviews',
+      stat4Value: '4',    stat4Label: 'Venue Categories',
+      storyTitle: "Sri Lanka's food discovery platform",
+      storyP1:    'Digitolio started with a simple question: "Where can I find the menu before I go?" We built the answer — a single platform where anyone can discover and explore food menus from hotels, restaurants, food shops and snack bars across every province in Sri Lanka.',
+      storyP2:    "Whether you're a tourist looking for a good meal, a local finding a new favourite spot, or a business owner wanting to showcase your menu — Digitolio is built for you.",
+      value1Title: 'Our Mission',        value1Desc: "To make it effortless for anyone in Sri Lanka to find the right food menu — whether you're at a five-star hotel or a roadside snack bar.",
+      value2Title: 'Community First',    value2Desc: 'We empower real customers to share honest reviews, helping others make better food choices every day.',
+      value3Title: 'All 9 Provinces',    value3Desc: 'From Colombo to Jaffna, Kandy to Galle — we cover every province so no food place gets left behind.',
+      value4Title: 'Trusted & Accurate', value4Desc: 'Menus are kept up to date by restaurant owners and verified by our team, so you always see real prices.',
+      ctaHeadline: 'Ready to explore?',
+      ctaSubtitle: 'Find the best food menus near you — from hotels to snack bars, all across Sri Lanka.',
+    },
+    contact: {
+      headline:    'Contact Us',
+      subheadline: "Have a question, feedback, or want to list your food place? We'd love to hear from you.",
+      email:    'hello@digitolio.lk',
+      phone:    '+94 11 234 5678',
+      location: 'Colombo, Sri Lanka',
+      hours:    '9:00 AM – 5:00 PM',
+    },
   }
 
   // ── Boost
@@ -740,9 +790,20 @@ export default function AdminPage() {
     setScLoading(true); setScMsg('')
     try {
       const data = await api.siteContent.get(page)
-      setScFields(data?.content || {})
-    } catch { setScFields({}) }
+      const saved = data?.content || {}
+      const savedKeys = new Set(Object.keys(saved).filter(k => saved[k] !== '' && saved[k] != null))
+      setScSavedKeys(savedKeys)
+      setScFields({ ...(SC_DEFAULTS[page] || {}), ...saved })
+    } catch {
+      setScSavedKeys(new Set())
+      setScFields(SC_DEFAULTS[page] || {})
+    }
     finally { setScLoading(false) }
+  }
+
+  function scResetField(key) {
+    setScFields(f => ({ ...f, [key]: '' }))
+    setScSavedKeys(prev => { const next = new Set(prev); next.delete(key); return next })
   }
 
   async function scSave(e) {
@@ -752,6 +813,8 @@ export default function AdminPage() {
     try {
       await api.siteContent.update(scPage, scFields, token)
       setScMsg('✓ Saved successfully')
+      const savedKeys = new Set(Object.keys(scFields).filter(k => scFields[k] !== '' && scFields[k] != null))
+      setScSavedKeys(savedKeys)
     } catch (err) { setScMsg(`Error: ${err.message}`) }
     finally { setScSaving(false) }
   }
@@ -1973,16 +2036,40 @@ export default function AdminPage() {
                         <div key={section}>
                           <p className="text-[11px] font-black text-[#FF2D55] uppercase tracking-widest mb-3">{section}</p>
                           <div className="space-y-3 pl-3 border-l-2 border-[var(--c-border)]">
-                            {fields.map(({ key, label, type }) => (
-                              <div key={key}>
-                                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">{label}</label>
-                                {type === 'textarea' ? (
-                                  <textarea rows={3} value={scFields[key] || ''} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} resize-none`} />
-                                ) : (
-                                  <input value={scFields[key] || ''} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={inputCls} />
-                                )}
-                              </div>
-                            ))}
+                            {fields.map(({ key, label, type }) => {
+                              const isCustomized = scSavedKeys.has(key)
+                              const placeholder  = SC_DEFAULTS[scPage]?.[key] || ''
+                              return (
+                                <div key={key}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-xs font-semibold text-[var(--c-muted)]">{label}</label>
+                                    <div className="flex items-center gap-1.5">
+                                      {isCustomized ? (
+                                        <>
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                                            Customized
+                                          </span>
+                                          <button type="button" onClick={() => scResetField(key)} className="text-[10px] text-[var(--c-dim)] hover:text-[#FF2D55] transition-colors font-semibold">
+                                            Reset
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-[var(--c-dim)] border border-[var(--c-border)]">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
+                                          Default
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {type === 'textarea' ? (
+                                    <textarea rows={3} value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} resize-none ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
+                                  ) : (
+                                    <input value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       ))}
