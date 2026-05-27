@@ -788,7 +788,7 @@ export default function AdminPage() {
   // ── Site Content handlers ────────────────────────────────────────────────
 
   async function scLoad(page) {
-    setScLoading(true); setScMsg('')
+    setScLoading(true); setScSectionMsg({})
     try {
       const data = await api.siteContent.get(page)
       const saved = data?.content || {}
