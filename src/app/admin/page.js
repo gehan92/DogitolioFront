@@ -271,8 +271,7 @@ export default function AdminPage() {
         { key: 't3Text',     label: 'Review 3 – Quote',    type: 'textarea' },
       ]},
       { section: 'Footer', fields: [
-        { key: 'footerDesc',      label: 'Brand Description', type: 'textarea' },
-        { key: 'footerCopyright', label: 'Copyright Text',    type: 'input'    },
+        { key: 'footerDesc', label: 'Brand Description', type: 'textarea' },
       ]},
     ],
     about: [
