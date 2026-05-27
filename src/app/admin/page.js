@@ -214,12 +214,13 @@ export default function AdminPage() {
   const [miMsg,    setMiMsg]    = useState('')
 
   // ── Site Content
-  const [scPage,    setScPage]    = useState('home')
-  const [scFields,  setScFields]  = useState({})
-  const [scLoading, setScLoading] = useState(false)
-  const [scSaving,  setScSaving]  = useState(false)
-  const [scMsg,     setScMsg]     = useState('')
-  const [scSavedKeys, setScSavedKeys] = useState(new Set())
+  const [scPage,           setScPage]           = useState('home')
+  const [scFields,         setScFields]         = useState({})
+  const [scOriginalFields, setScOriginalFields] = useState({})
+  const [scLoading,        setScLoading]        = useState(false)
+  const [scSavingSection,  setScSavingSection]  = useState(null)
+  const [scSectionMsg,     setScSectionMsg]     = useState({})
+  const [scSavedKeys,      setScSavedKeys]      = useState(new Set())
 
   // ── Theme
   const [activeTheme, setActiveTheme] = useState('warm')
@@ -792,11 +793,15 @@ export default function AdminPage() {
       const data = await api.siteContent.get(page)
       const saved = data?.content || {}
       const savedKeys = new Set(Object.keys(saved).filter(k => saved[k] !== '' && saved[k] != null))
+      const merged = { ...(SC_DEFAULTS[page] || {}), ...saved }
       setScSavedKeys(savedKeys)
-      setScFields({ ...(SC_DEFAULTS[page] || {}), ...saved })
+      setScFields(merged)
+      setScOriginalFields(merged)
     } catch {
+      const defaults = SC_DEFAULTS[page] || {}
       setScSavedKeys(new Set())
-      setScFields(SC_DEFAULTS[page] || {})
+      setScFields(defaults)
+      setScOriginalFields(defaults)
     }
     finally { setScLoading(false) }
   }
@@ -806,17 +811,42 @@ export default function AdminPage() {
     setScSavedKeys(prev => { const next = new Set(prev); next.delete(key); return next })
   }
 
-  async function scSave(e) {
-    e.preventDefault()
-    if (!confirm(`Save changes to the "${scPage}" page?\n\nChanges go live on the website immediately.`)) return
-    setScSaving(true); setScMsg('')
+  async function scSaveSection(sectionName, fields) {
+    if (!confirm(`Save the "${sectionName}" section?\n\nThese changes will go live on the ${scPage} page immediately.`)) return
+    setScSavingSection(sectionName)
+    setScSectionMsg(m => ({ ...m, [sectionName]: '' }))
     try {
-      await api.siteContent.update(scPage, scFields, token)
-      setScMsg('✓ Saved successfully')
-      const savedKeys = new Set(Object.keys(scFields).filter(k => scFields[k] !== '' && scFields[k] != null))
-      setScSavedKeys(savedKeys)
-    } catch (err) { setScMsg(`Error: ${err.message}`) }
-    finally { setScSaving(false) }
+      const sectionKeys = fields.map(f => f.key)
+      const payload = { ...scOriginalFields }
+      sectionKeys.forEach(k => { payload[k] = scFields[k] })
+      await api.siteContent.update(scPage, payload, token)
+      setScOriginalFields(prev => {
+        const next = { ...prev }
+        sectionKeys.forEach(k => { next[k] = scFields[k] })
+        return next
+      })
+      setScSavedKeys(prev => {
+        const next = new Set(prev)
+        sectionKeys.forEach(k => {
+          if (scFields[k] !== '' && scFields[k] != null) next.add(k)
+          else next.delete(k)
+        })
+        return next
+      })
+      setScSectionMsg(m => ({ ...m, [sectionName]: '✓ Saved' }))
+      setTimeout(() => setScSectionMsg(m => ({ ...m, [sectionName]: '' })), 3000)
+    } catch (err) {
+      setScSectionMsg(m => ({ ...m, [sectionName]: `Error: ${err.message}` }))
+    }
+    finally { setScSavingSection(null) }
+  }
+
+  function scCancelSection(fields) {
+    setScFields(f => {
+      const next = { ...f }
+      fields.forEach(({ key }) => { next[key] = scOriginalFields[key] ?? '' })
+      return next
+    })
   }
 
   // ── Boost helpers ────────────────────────────────────────────────────────
@@ -2031,55 +2061,77 @@ export default function AdminPage() {
                     ))}
                   </div>
                   {scLoading ? <div className="flex justify-center py-8"><Spinner size={24} /></div> : (
-                    <form onSubmit={scSave} className="space-y-6">
-                      {(SC_SCHEMAS[scPage] || []).map(({ section, fields }) => (
-                        <div key={section}>
-                          <p className="text-[11px] font-black text-[#FF2D55] uppercase tracking-widest mb-3">{section}</p>
-                          <div className="space-y-3 pl-3 border-l-2 border-[var(--c-border)]">
-                            {fields.map(({ key, label, type }) => {
-                              const isCustomized = scSavedKeys.has(key)
-                              const placeholder  = SC_DEFAULTS[scPage]?.[key] || ''
-                              return (
-                                <div key={key}>
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-semibold text-[var(--c-muted)]">{label}</label>
-                                    <div className="flex items-center gap-1.5">
-                                      {isCustomized ? (
-                                        <>
-                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                                            Customized
+                    <div className="space-y-6">
+                      {(SC_SCHEMAS[scPage] || []).map(({ section, fields }) => {
+                        const isDirty = fields.some(({ key }) => scFields[key] !== scOriginalFields[key])
+                        return (
+                          <div key={section} className={`rounded-2xl p-4 transition-colors ${isDirty ? 'bg-amber-50/60 border border-amber-200' : 'bg-transparent'}`}>
+                            <p className="text-[11px] font-black text-[#FF2D55] uppercase tracking-widest mb-3">{section}</p>
+                            <div className="space-y-3 pl-3 border-l-2 border-[var(--c-border)]">
+                              {fields.map(({ key, label, type }) => {
+                                const isCustomized = scSavedKeys.has(key)
+                                const placeholder  = SC_DEFAULTS[scPage]?.[key] || ''
+                                return (
+                                  <div key={key}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="text-xs font-semibold text-[var(--c-muted)]">{label}</label>
+                                      <div className="flex items-center gap-1.5">
+                                        {isCustomized ? (
+                                          <>
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
+                                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                                              Customized
+                                            </span>
+                                            <button type="button" onClick={() => scResetField(key)} className="text-[10px] text-[var(--c-dim)] hover:text-[#FF2D55] transition-colors font-semibold">
+                                              Reset
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-[var(--c-dim)] border border-[var(--c-border)]">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
+                                            Default
                                           </span>
-                                          <button type="button" onClick={() => scResetField(key)} className="text-[10px] text-[var(--c-dim)] hover:text-[#FF2D55] transition-colors font-semibold">
-                                            Reset
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-[var(--c-dim)] border border-[var(--c-border)]">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
-                                          Default
-                                        </span>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
+                                    {type === 'textarea' ? (
+                                      <textarea rows={3} value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} resize-none ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
+                                    ) : (
+                                      <input value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
+                                    )}
                                   </div>
-                                  {type === 'textarea' ? (
-                                    <textarea rows={3} value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} resize-none ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
-                                  ) : (
-                                    <input value={scFields[key] || ''} placeholder={placeholder} onChange={e => setScFields(f => ({ ...f, [key]: e.target.value }))} className={`${inputCls} ${isCustomized ? 'border-green-300 focus:border-green-400' : ''}`} />
-                                  )}
-                                </div>
-                              )
-                            })}
+                                )
+                              })}
+                            </div>
+                            {isDirty && (
+                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-amber-200">
+                                <button
+                                  type="button"
+                                  onClick={() => scSaveSection(section, fields)}
+                                  disabled={scSavingSection === section}
+                                  className={`${gradientBtn} text-xs px-4 py-2`}
+                                  style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                                >
+                                  {scSavingSection === section ? 'Saving…' : `Save "${section}"`}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => scCancelSection(fields)}
+                                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--c-muted)] border border-[var(--c-border)] bg-white hover:bg-surface-secondary transition-all"
+                                >
+                                  Cancel
+                                </button>
+                                {scSectionMsg[section] && (
+                                  <p className={`text-xs font-medium ${scSectionMsg[section].startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                                    {scSectionMsg[section]}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
-                      <div className="flex items-center gap-3 pt-2 border-t border-[var(--c-border)]">
-                        <button type="submit" disabled={scSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
-                          {scSaving ? 'Saving…' : 'Save changes'}
-                        </button>
-                        {scMsg && <p className={`text-sm font-medium ${scMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{scMsg}</p>}
-                      </div>
-                    </form>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
                 <p className="text-xs text-[var(--c-dim)] text-center">Changes appear live on the website immediately after saving.</p>
