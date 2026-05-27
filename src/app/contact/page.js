@@ -17,6 +17,7 @@ export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [cms, setCms] = useState({})
 
   useEffect(() => {
@@ -47,10 +48,15 @@ export default function ContactPage() {
     e.preventDefault()
     if (!form.name || !form.email || !form.message) return
     setLoading(true)
-    // Simulate send (wire up to real email service later)
-    await new Promise(r => setTimeout(r, 1000))
-    setLoading(false)
-    setSent(true)
+    setSendError('')
+    try {
+      await api.contact.send(form)
+      setSent(true)
+    } catch (err) {
+      setSendError(err.message || 'Failed to send. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -128,7 +134,7 @@ export default function ContactPage() {
                     </div>
                     <h3 className="font-display text-2xl font-black text-[var(--c-text)] mb-2">Message sent!</h3>
                     <p className="text-[var(--c-muted)] text-sm mb-6">Thanks for reaching out. We&apos;ll get back to you within 24 hours.</p>
-                    <button onClick={() => { setSent(false); setForm({ name:'', email:'', subject:'', message:'' }) }}
+                    <button onClick={() => { setSent(false); setSendError(''); setForm({ name:'', email:'', subject:'', message:'' }) }}
                       className="text-sm font-semibold text-[#FF2D55] hover:underline">
                       Send another message
                     </button>
@@ -173,6 +179,9 @@ export default function ContactPage() {
                           <><Send size={15} strokeWidth={2} /> Send Message</>
                         )}
                       </button>
+                      {sendError && (
+                        <p className="text-sm text-red-500 text-center">{sendError}</p>
+                      )}
                     </form>
                   </>
                 )}

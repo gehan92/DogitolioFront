@@ -76,6 +76,10 @@ export const api = {
     delete: (id, token)                      => apiFetch(`/menu-items/item/${id}`, { method: 'DELETE' }, token),
   },
 
+  contact: {
+    send: (data) => apiFetch('/contact', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
   // ── OWNER PORTAL
   owner: {
     me:            (token)         => apiFetch('/owner/me', {}, token),
