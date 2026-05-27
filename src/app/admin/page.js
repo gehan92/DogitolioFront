@@ -7,7 +7,9 @@ import {
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
+  Palette,
 } from 'lucide-react'
+import { THEMES } from '@/lib/themes'
 import Navbar           from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
 import { useAuth }      from '@/hooks/useAuth'
@@ -39,6 +41,7 @@ const ALL_NAV_ITEMS = [
   { key: 'Staff',        label: 'Staff',           icon: UserCheck,       adminOnly: true,  group: 'Admin'      },
   // System — configuration and audit trail
   { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
+  { key: 'Theme',        label: 'Theme',           icon: Palette,         adminOnly: true,  group: 'System'     },
   { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
 ]
 
@@ -217,6 +220,11 @@ export default function AdminPage() {
   const [scSaving,  setScSaving]  = useState(false)
   const [scMsg,     setScMsg]     = useState('')
 
+  // ── Theme
+  const [activeTheme, setActiveTheme] = useState('warm')
+  const [themeSaving, setThemeSaving] = useState(false)
+  const [themeMsg,    setThemeMsg]    = useState('')
+
   const SC_SCHEMAS = {
     home:    ['headline', 'subheadline', 'ctaText'],
     about:   ['headline', 'subheadline', 'storyTitle', 'storyP1', 'storyP2'],
@@ -379,6 +387,7 @@ export default function AdminPage() {
     else if (key === 'Owners')       { loadOwners() }
     else if (key === 'Staff')        { loadStaff(1) }
     else if (key === 'Site Content') { scLoad(scPage) }
+    else if (key === 'Theme')        { loadTheme() }
   }
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -608,6 +617,24 @@ export default function AdminPage() {
     if (!confirm('Delete this menu item?')) return
     await api.menuItems.delete(id, token)
     setMenuItems(items => items.filter(i => i.id !== id))
+  }
+
+  // ── Theme handlers ───────────────────────────────────────────────────────
+
+  async function loadTheme() {
+    try {
+      const data = await api.siteContent.get('settings')
+      setActiveTheme(data?.content?.theme || 'warm')
+    } catch { setActiveTheme('warm') }
+  }
+
+  async function saveTheme() {
+    setThemeSaving(true); setThemeMsg('')
+    try {
+      await api.siteContent.update('settings', { theme: activeTheme }, token)
+      setThemeMsg('✓ Theme applied! Visitors will see it within 60 seconds.')
+    } catch (err) { setThemeMsg(`Error: ${err.message}`) }
+    finally { setThemeSaving(false) }
   }
 
   // ── Site Content handlers ────────────────────────────────────────────────
@@ -1819,6 +1846,77 @@ export default function AdminPage() {
                   )}
                 </div>
                 <p className="text-xs text-[var(--c-dim)] text-center">Changes appear live on the website immediately after saving.</p>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                THEME
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Theme' && (
+              <div className="space-y-5 animate-fade-in">
+                <div className="card p-5">
+                  <h3 className="font-semibold text-[var(--c-text)] mb-1 flex items-center gap-2">
+                    <Palette size={17} /> Site Theme
+                  </h3>
+                  <p className="text-xs text-[var(--c-muted)] mb-6">
+                    Choose a colour theme for the public website. The selected theme is applied to all visitors.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {Object.entries(THEMES).map(([key, theme]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => { setActiveTheme(key); setThemeMsg('') }}
+                        className={`relative p-4 rounded-2xl border-2 text-left transition-all ${
+                          activeTheme === key
+                            ? 'border-[var(--c-brand)] shadow-md bg-[var(--c-surface2)]'
+                            : 'border-[var(--c-border)] hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        {/* colour swatches */}
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="w-5 h-5 rounded-full shrink-0" style={{ background: theme.preview[0] }} />
+                          <span className="w-5 h-5 rounded-full shrink-0 border border-black/10" style={{ background: theme.preview[1] }} />
+                          <span className="w-5 h-5 rounded-full shrink-0 border border-black/10" style={{ background: theme.preview[2] }} />
+                        </div>
+                        <p className="text-sm font-bold text-[var(--c-text)]">{theme.label}</p>
+                        <p className="text-xs text-[var(--c-muted)] mt-0.5">{theme.description}</p>
+                        {theme.dark && (
+                          <span className="mt-1.5 inline-block text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
+                            Dark
+                          </span>
+                        )}
+                        {activeTheme === key && (
+                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[var(--c-brand)] flex items-center justify-center">
+                            <Check size={11} className="text-white" />
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={saveTheme}
+                      disabled={themeSaving}
+                      className={gradientBtn}
+                      style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                    >
+                      {themeSaving ? 'Applying…' : 'Apply Theme'}
+                    </button>
+                    {themeMsg && (
+                      <p className={`text-sm font-medium ${themeMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                        {themeMsg}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-[var(--c-dim)] text-center">
+                  Theme changes are visible to all visitors within 60 seconds of saving.
+                </p>
               </div>
             )}
 

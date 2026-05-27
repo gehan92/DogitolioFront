@@ -1,6 +1,7 @@
 import './globals.css'
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google'
 import { AuthProvider } from '@/hooks/useAuth'
+import { THEMES, buildThemeStyle } from '@/lib/themes'
 
 const jakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -27,12 +28,31 @@ export const metadata = {
   },
 }
 
-export default function RootLayout({ children }) {
+async function getActiveTheme() {
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    const res = await fetch(`${base}/api/site-content/settings`, {
+      next: { revalidate: 60 },
+    })
+    if (!res.ok) return THEMES.warm
+    const data = await res.json()
+    return THEMES[data?.content?.theme] || THEMES.warm
+  } catch {
+    return THEMES.warm
+  }
+}
+
+export default async function RootLayout({ children }) {
+  const theme = await getActiveTheme()
+  const themeStyle = buildThemeStyle(theme)
+
   return (
     <html lang="en" suppressHydrationWarning className={`${jakartaSans.variable} ${inter.variable}`}>
       <head>
+        {/* Injected before stylesheets so CSS vars in globals.css serve as fallback */}
+        <style dangerouslySetInnerHTML={{ __html: themeStyle }} />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <meta name="theme-color" content="#ff2d55" />
+        <meta name="theme-color" content={theme.vars['--c-brand']} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
