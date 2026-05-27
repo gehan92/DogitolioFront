@@ -208,6 +208,7 @@ export default function AdminPage() {
   const [miForm, setMiForm] = useState({
     name: '', description: '', price: '', category: '',
     discount_type: '', discount_value: '', photo: null,
+    ingredients: '', portions: [],
   })
   const [miEditId, setMiEditId] = useState(null)
   const [miSaving, setMiSaving] = useState(false)
@@ -574,15 +575,17 @@ export default function AdminPage() {
     setMiEditId(item.id)
     setMiForm({
       name: item.name, description: item.description || '',
-      price: item.price, category: item.category || '',
+      price: item.price || '', category: item.category || '',
       discount_type: item.discount_type || '', discount_value: item.discount_value || '',
       photo: null,
+      ingredients: item.ingredients || '',
+      portions: Array.isArray(item.portions) ? item.portions.map(p => ({ size: p.size, price: String(p.price) })) : [],
     })
   }
 
   function miReset() {
     setMiEditId(null)
-    setMiForm({ name: '', description: '', price: '', category: '', discount_type: '', discount_value: '', photo: null })
+    setMiForm({ name: '', description: '', price: '', category: '', discount_type: '', discount_value: '', photo: null, ingredients: '', portions: [] })
     setMiMsg('')
   }
 
@@ -598,6 +601,10 @@ export default function AdminPage() {
       fd.append('category',       miForm.category)
       fd.append('discount_type',  miForm.discount_type)
       fd.append('discount_value', miForm.discount_value)
+      fd.append('ingredients',    miForm.ingredients)
+      fd.append('portions',       JSON.stringify(
+        miForm.portions.filter(p => p.size.trim()).map(p => ({ size: p.size.trim(), price: Number(p.price) || 0 }))
+      ))
       if (miForm.photo) fd.append('photo', miForm.photo)
 
       if (miEditId) {
@@ -1724,13 +1731,55 @@ export default function AdminPage() {
                             <input value={miForm.name} onChange={e => setMiForm(f => ({ ...f, name: e.target.value }))} required placeholder="e.g. Margherita Pizza" className={inputCls} />
                           </div>
                           <div>
-                            <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Price (LKR) *</label>
-                            <input type="number" step="0.01" value={miForm.price} onChange={e => setMiForm(f => ({ ...f, price: e.target.value }))} required placeholder="950.00" className={inputCls} />
+                            <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">
+                              Price (LKR){miForm.portions.length === 0 ? ' *' : ' (optional — portions set below)'}
+                            </label>
+                            <input type="number" step="0.01" value={miForm.price} onChange={e => setMiForm(f => ({ ...f, price: e.target.value }))} required={miForm.portions.length === 0} placeholder="950.00" className={inputCls} />
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Description</label>
                           <input value={miForm.description} onChange={e => setMiForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description" className={inputCls} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Ingredients (optional)</label>
+                          <input value={miForm.ingredients} onChange={e => setMiForm(f => ({ ...f, ingredients: e.target.value }))} placeholder="e.g. Chicken, Onion, Garlic, Chili" className={inputCls} />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-semibold text-[var(--c-muted)]">Portion sizes (optional)</label>
+                            <button type="button"
+                              onClick={() => setMiForm(f => ({ ...f, portions: [...f.portions, { size: '', price: '' }] }))}
+                              className="text-xs font-semibold text-[#FF2D55] hover:underline flex items-center gap-1">
+                              <Plus size={12} /> Add portion
+                            </button>
+                          </div>
+                          {miForm.portions.length > 0 && (
+                            <div className="space-y-2">
+                              {miForm.portions.map((p, i) => (
+                                <div key={i} className="flex gap-2 items-center">
+                                  <input
+                                    value={p.size}
+                                    onChange={e => setMiForm(f => { const pp = [...f.portions]; pp[i] = { ...pp[i], size: e.target.value }; return { ...f, portions: pp } })}
+                                    placeholder="e.g. Half / Large"
+                                    className={`${inputCls} flex-1`}
+                                  />
+                                  <input
+                                    type="number"
+                                    value={p.price}
+                                    onChange={e => setMiForm(f => { const pp = [...f.portions]; pp[i] = { ...pp[i], price: e.target.value }; return { ...f, portions: pp } })}
+                                    placeholder="Rs."
+                                    className={`${inputCls} w-28`}
+                                  />
+                                  <button type="button"
+                                    onClick={() => setMiForm(f => ({ ...f, portions: f.portions.filter((_, j) => j !== i) }))}
+                                    className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
@@ -1787,9 +1836,13 @@ export default function AdminPage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="font-semibold text-sm text-[var(--c-text)] truncate">{item.name}</p>
                                   <p className="text-xs text-[var(--c-muted)]">
-                                    Rs {Number(item.price).toFixed(2)}
+                                    {item.portions?.length > 0
+                                      ? item.portions.map(p => `${p.size} Rs.${p.price}`).join(' / ')
+                                      : item.price ? `Rs ${Number(item.price).toFixed(2)}` : 'No price'
+                                    }
                                     {item.category ? ` · ${item.category}` : ''}
                                     {item.discount_type ? ` · ${item.discount_value}${item.discount_type === 'percent' ? '%' : ' LKR'} OFF` : ''}
+                                    {item.ingredients ? ` · ${item.ingredients}` : ''}
                                   </p>
                                 </div>
                                 <div className="flex gap-1 shrink-0">

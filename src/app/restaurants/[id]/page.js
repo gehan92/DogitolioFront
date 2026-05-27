@@ -130,13 +130,30 @@ function MenuSection({ items, brandColor }) {
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-[15px] leading-tight">{item.name}</p>
                     {item.description && (
                       <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>
                     )}
+                    {item.ingredients && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        <span className="font-medium text-gray-500">Ingredients:</span> {item.ingredients}
+                      </p>
+                    )}
+                    {/* Portion rows — shown inline when multiple sizes */}
+                    {Array.isArray(item.portions) && item.portions.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {item.portions.map((p, i) => (
+                          <div key={i} className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-gray-500">{p.size}</span>
+                            <span className="text-[14px] font-bold shrink-0" style={{ color }}>Rs. {Number(p.price).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {item.price && (
+                  {/* Single price — only when no portions defined */}
+                  {(!item.portions || item.portions.length === 0) && item.price && (
                     <div className="text-right shrink-0">
                       {salePrice ? (
                         <>
