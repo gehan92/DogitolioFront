@@ -41,7 +41,6 @@ const ALL_NAV_ITEMS = [
   { key: 'Staff',        label: 'Staff',           icon: UserCheck,       adminOnly: true,  group: 'Admin'      },
   // System — configuration and audit trail
   { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
-  { key: 'Theme',        label: 'Theme',           icon: Palette,         adminOnly: true,  group: 'System'     },
   { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
 ]
 
