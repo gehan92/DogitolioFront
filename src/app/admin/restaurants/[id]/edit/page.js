@@ -5,8 +5,9 @@ import Link from 'next/link'
 import {
   ArrowLeft, UtensilsCrossed, Building2, Coffee, ShoppingBag,
   ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History, Wrench,
-  FileText, Upload, Trash2,
+  FileText, Upload, Trash2, QrCode, Download,
 } from 'lucide-react'
+import { QRCodeCanvas } from 'qrcode.react'
 import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -56,6 +57,17 @@ export default function EditRestaurantPage() {
   const [menuUploading, setMenuUploading] = useState(false)
   const [menuMsg,       setMenuMsg]       = useState('')
   const menuFileRef = useRef()
+  const qrRef = useRef()
+
+  function downloadQR() {
+    const canvas = qrRef.current?.querySelector('canvas')
+    if (!canvas) return
+    const url = canvas.toDataURL('image/png')
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `qr-${form?.name?.replace(/\s+/g, '-').toLowerCase() || id}.png`
+    a.click()
+  }
 
   // Boost state — separate from the main form, saved independently
   const [boost,          setBoost]         = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
@@ -793,6 +805,44 @@ export default function EditRestaurantPage() {
                 <p className="text-xs text-[var(--c-dim)] mt-1">Leave blank to use the default message.</p>
               </div>
             )}
+          </div>
+
+          {/* QR Code */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-sm uppercase tracking-wide flex items-center gap-2" style={{ color: accent }}>
+              <QrCode size={14} /> QR Code
+            </h2>
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
+              Place this QR code at the venue. Customers scan it to open the restaurant page instantly.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div ref={qrRef} className="p-3 bg-white rounded-2xl border border-[var(--c-border)] shadow-sm shrink-0">
+                <QRCodeCanvas
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/restaurants/${id}`}
+                  size={160}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-1">Scan destination</p>
+                  <code className="text-xs text-[var(--c-text)] bg-gray-100 px-2 py-1 rounded-lg break-all">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/restaurants/{id}
+                  </code>
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadQR}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}
+                >
+                  <Download size={14} />
+                  Download PNG
+                </button>
+                <p className="text-xs text-[var(--c-dim)]">Print and place at the counter or entrance.</p>
+              </div>
+            </div>
           </div>
 
           {/* Error */}
