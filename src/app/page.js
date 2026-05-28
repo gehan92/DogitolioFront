@@ -57,15 +57,15 @@ export default async function HomePage() {
   const footerCopyright = cms.footerCopyright || '© 2026 Digitolio. All rights reserved.'
 
   const provinces = [
-    { name: 'Western',       rest: '120+' },
-    { name: 'Southern',      rest: '85+'  },
-    { name: 'Central',       rest: '60+'  },
-    { name: 'Northern',      rest: '40+'  },
-    { name: 'Eastern',       rest: '45+'  },
-    { name: 'North Western', rest: '35+'  },
-    { name: 'North Central', rest: '28+'  },
-    { name: 'Uva',           rest: '22+'  },
-    { name: 'Sabaragamuwa',  rest: '30+'  },
+    { name: 'Western',       shortName: 'Western',     rest: '120+' },
+    { name: 'Southern',      shortName: 'Southern',    rest: '85+'  },
+    { name: 'Central',       shortName: 'Central',     rest: '60+'  },
+    { name: 'Northern',      shortName: 'Northern',    rest: '40+'  },
+    { name: 'Eastern',       shortName: 'Eastern',     rest: '45+'  },
+    { name: 'North Western', shortName: 'N. Western',  rest: '35+'  },
+    { name: 'North Central', shortName: 'N. Central',  rest: '28+'  },
+    { name: 'Uva',           shortName: 'Uva',         rest: '22+'  },
+    { name: 'Sabaragamuwa',  shortName: 'Sabaraga...', rest: '30+'  },
   ]
 
   const categories = [
@@ -212,7 +212,7 @@ export default async function HomePage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {provinces.map(({ name, rest }, i) => {
+              {provinces.map(({ name, shortName, rest }, i) => {
                 const colors = [
                   { from: '#FF2D55', to: '#FF6035' },
                   { from: '#FF6035', to: '#FF9500' },
@@ -232,7 +232,7 @@ export default async function HomePage() {
                       <MapPin size={20} className="text-white" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-gray-900 text-sm leading-tight">{name}</p>
+                      <p className="font-bold text-gray-900 text-sm leading-tight truncate">{shortName}</p>
                       <p className="text-[11px] text-gray-400 mt-0.5">{rest} places</p>
                     </div>
                     <ArrowRight size={15} className="text-gray-300 group-hover:text-[#FF2D55] group-hover:translate-x-1 transition-all duration-200 shrink-0" />
