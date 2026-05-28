@@ -152,10 +152,10 @@ function RestaurantsContent() {
         {activeLocationFilters.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {activeLocationFilters.map(([key, value]) => (
-              <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-sm font-medium">
-                <span className="text-xs capitalize text-brand-500">{key.replace('_', ' ')}:</span>
-                {value}
-                <button onClick={() => removeFilter(key)} className="ml-0.5 hover:text-brand-900 font-bold">×</button>
+              <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-sm font-medium max-w-[200px]">
+                <span className="text-xs capitalize text-brand-500 shrink-0">{key.replace('_', ' ')}:</span>
+                <span className="truncate">{value}</span>
+                <button onClick={() => removeFilter(key)} className="ml-0.5 hover:text-brand-900 font-bold shrink-0">×</button>
               </span>
             ))}
             <button

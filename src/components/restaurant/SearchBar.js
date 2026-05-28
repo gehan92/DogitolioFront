@@ -5,7 +5,17 @@ import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import clsx from 'clsx'
 
-const PROVINCES = ['Western','Central','Southern','Northern','Eastern','North Western','North Central','Uva','Sabaragamuwa']
+const PROVINCES = [
+  { value: 'Western',       label: 'Western' },
+  { value: 'Central',       label: 'Central' },
+  { value: 'Southern',      label: 'Southern' },
+  { value: 'Northern',      label: 'Northern' },
+  { value: 'Eastern',       label: 'Eastern' },
+  { value: 'North Western', label: 'North Western' },
+  { value: 'North Central', label: 'North Central' },
+  { value: 'Uva',           label: 'Uva' },
+  { value: 'Sabaragamuwa',  label: 'Sabaraga...' },
+]
 const PRICE_RANGES = [
   { value: 'budget',  label: '৳ Budget' },
   { value: 'mid',     label: '৳৳ Mid-range' },
@@ -110,7 +120,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
                 <select value={filters.province} onChange={e => setFilters(f => ({...f, province: e.target.value}))}
                   className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-400 bg-white transition-colors">
                   <option value="">All provinces</option>
-                  {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                  {PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
 
