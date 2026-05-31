@@ -80,6 +80,12 @@ export const api = {
     send: (data) => apiFetch('/contact', { method: 'POST', body: JSON.stringify(data) }),
   },
 
+  // ── PROFILE
+  profile: {
+    me:     (token)         => apiFetch('/profile/me', {}, token),
+    update: (data, token)   => apiFetch('/profile/me', { method: 'PATCH', body: JSON.stringify(data) }, token),
+  },
+
   // ── OWNER PORTAL
   owner: {
     me:            (token)         => apiFetch('/owner/me', {}, token),

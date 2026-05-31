@@ -122,27 +122,22 @@ export default function ProfilePage() {
 
   async function saveProfile(e) {
     e.preventDefault()
-    if (!profileForm.name.trim()) { setProfileMsg('Name is required'); return }
+    if (!profileForm.name?.trim()) { setProfileMsg('Name is required'); return }
     setProfileSaving(true)
     setProfileMsg('')
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name:       profileForm.name.trim(),
-          avatar_url: profileForm.avatar_url || null,
-          phone:      profileForm.phone.trim()    || null,
-          whatsapp:   profileForm.whatsapp.trim() || null,
-          address:    profileForm.address.trim()  || null,
-          city:       profileForm.city.trim()     || null,
-          bio:        profileForm.bio.trim()      || null,
-        })
-        .eq('id', user.id)
-      if (error) throw error
+      await api.profile.update({
+        name:       profileForm.name,
+        avatar_url: profileForm.avatar_url || null,
+        phone:      profileForm.phone      || null,
+        whatsapp:   profileForm.whatsapp   || null,
+        address:    profileForm.address    || null,
+        city:       profileForm.city       || null,
+        bio:        profileForm.bio        || null,
+      }, token)
       setProfileMsg('✓ Profile updated')
       setEditingProfile(false)
-      // Reload page so useAuth picks up new profile values
-      setTimeout(() => window.location.reload(), 600)
+      setTimeout(() => window.location.reload(), 800)
     } catch (err) {
       setProfileMsg('Error: ' + err.message)
     } finally {
