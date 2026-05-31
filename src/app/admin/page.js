@@ -1700,7 +1700,11 @@ export default function AdminPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select user</label>
-                        <select value={ownerForm.owner_id} onChange={e => setOwnerForm(f => ({ ...f, owner_id: e.target.value }))} required className={inputCls}>
+                        <select
+                          value={ownerForm.owner_id}
+                          onChange={e => setOwnerForm({ owner_id: e.target.value, restaurant_id: '' })}
+                          required className={inputCls}
+                        >
                           <option value="">— Choose user —</option>
                           {allUsers.map(u => (
                             <option key={u.id} value={u.id}>{u.name}</option>
@@ -1709,10 +1713,24 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select restaurant</label>
-                        <select value={ownerForm.restaurant_id} onChange={e => setOwnerForm(f => ({ ...f, restaurant_id: e.target.value }))} required className={inputCls}>
-                          <option value="">— Choose restaurant —</option>
-                          {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
-                        </select>
+                        {(() => {
+                          const linkedIds = new Set(
+                            owners
+                              .filter(a => a.profiles?.id === ownerForm.owner_id)
+                              .map(a => a.restaurants?.id)
+                              .filter(Boolean)
+                          )
+                          const available = restaurantOptions.filter(r => !linkedIds.has(r.id))
+                          return (
+                            <select value={ownerForm.restaurant_id} onChange={e => setOwnerForm(f => ({ ...f, restaurant_id: e.target.value }))} required className={inputCls}>
+                              <option value="">— Choose restaurant —</option>
+                              {available.map(r => <option key={r.id} value={r.id}>{r.name} — {r.town}</option>)}
+                              {available.length === 0 && ownerForm.owner_id && (
+                                <option disabled value="">All restaurants already assigned</option>
+                              )}
+                            </select>
+                          )
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
