@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown } from 'lucide-react'
+import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown, Building2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui'
 import clsx from 'clsx'
@@ -16,7 +16,7 @@ const navLinks = [
 ]
 
 export default function Navbar() {
-  const { user, profile, isAdmin, loading, signOut } = useAuth()
+  const { user, profile, isAdmin, isOwner, loading, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -95,6 +95,20 @@ export default function Navbar() {
                   Admin
                 </Link>
               )}
+              {isOwner && (
+                <Link
+                  href="/owner"
+                  className={clsx(
+                    'relative px-4 py-2 text-[13px] font-semibold rounded-lg transition-all duration-150 flex items-center gap-1.5',
+                    pathname.startsWith('/owner')
+                      ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                      : 'text-blue-600 hover:bg-blue-50 border border-blue-200'
+                  )}
+                >
+                  <Building2 size={13} />
+                  My Dashboard
+                </Link>
+              )}
             </nav>
 
             {/* Right actions */}
@@ -134,6 +148,12 @@ export default function Navbar() {
                           <Link href="/admin" onClick={() => setMenuOpen(false)}
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-amber-700 hover:bg-amber-50 transition-colors duration-150">
                             <LayoutDashboard size={14} className="shrink-0" /> Admin Dashboard
+                          </Link>
+                        )}
+                        {isOwner && (
+                          <Link href="/owner" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-blue-700 hover:bg-blue-50 transition-colors duration-150">
+                            <Building2 size={14} className="shrink-0" /> My Dashboard
                           </Link>
                         )}
                         <div className="my-1 border-t border-gray-100" />
@@ -194,19 +214,36 @@ export default function Navbar() {
             )
           })}
           {user ? (
-            <Link href="/profile" className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5">
-              <span className={clsx(
-                'w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
-                pathname === '/profile' ? 'bg-[#FF2D55]/10' : ''
-              )}>
-                <User
-                  size={20}
-                  strokeWidth={pathname === '/profile' ? 2.5 : 1.8}
-                  className={pathname === '/profile' ? 'text-[#FF2D55]' : 'text-gray-400'}
-                />
-              </span>
-              <span className={clsx('text-[10px] font-semibold leading-none', pathname === '/profile' ? 'text-[#FF2D55]' : 'text-gray-400')}>Me</span>
-            </Link>
+            <>
+              {isOwner && (
+                <Link href="/owner" className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5">
+                  <span className={clsx(
+                    'w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
+                    pathname.startsWith('/owner') ? 'bg-blue-100' : ''
+                  )}>
+                    <Building2
+                      size={20}
+                      strokeWidth={pathname.startsWith('/owner') ? 2.5 : 1.8}
+                      className={pathname.startsWith('/owner') ? 'text-blue-600' : 'text-gray-400'}
+                    />
+                  </span>
+                  <span className={clsx('text-[10px] font-semibold leading-none', pathname.startsWith('/owner') ? 'text-blue-600' : 'text-gray-400')}>Dashboard</span>
+                </Link>
+              )}
+              <Link href="/profile" className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5">
+                <span className={clsx(
+                  'w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
+                  pathname === '/profile' ? 'bg-[#FF2D55]/10' : ''
+                )}>
+                  <User
+                    size={20}
+                    strokeWidth={pathname === '/profile' ? 2.5 : 1.8}
+                    className={pathname === '/profile' ? 'text-[#FF2D55]' : 'text-gray-400'}
+                  />
+                </span>
+                <span className={clsx('text-[10px] font-semibold leading-none', pathname === '/profile' ? 'text-[#FF2D55]' : 'text-gray-400')}>Me</span>
+              </Link>
+            </>
           ) : (
             <Link href="/auth" className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5">
               <span className="w-10 h-8 flex items-center justify-center rounded-xl">
