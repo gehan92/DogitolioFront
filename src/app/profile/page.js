@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, Star, User, Pencil, Trash2, Check, X, MessageSquare, Clock, Camera, Save } from 'lucide-react'
+import { LogOut, Star, User, Pencil, Trash2, Check, X, MessageSquare, Clock, Camera, Save, Phone, MapPin, Info } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Avatar, Button, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -81,7 +81,15 @@ export default function ProfilePage() {
   }
 
   function openProfileEdit() {
-    setProfileForm({ name: profile?.name || '', avatar_url: profile?.avatar_url || '' })
+    setProfileForm({
+      name:       profile?.name       || '',
+      avatar_url: profile?.avatar_url || '',
+      phone:      profile?.phone      || '',
+      whatsapp:   profile?.whatsapp   || '',
+      address:    profile?.address    || '',
+      city:       profile?.city       || '',
+      bio:        profile?.bio        || '',
+    })
     setAvatarPreview(null)
     setProfileMsg('')
     setEditingProfile(true)
@@ -120,7 +128,15 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ name: profileForm.name.trim(), avatar_url: profileForm.avatar_url || null })
+        .update({
+          name:       profileForm.name.trim(),
+          avatar_url: profileForm.avatar_url || null,
+          phone:      profileForm.phone.trim()    || null,
+          whatsapp:   profileForm.whatsapp.trim() || null,
+          address:    profileForm.address.trim()  || null,
+          city:       profileForm.city.trim()     || null,
+          bio:        profileForm.bio.trim()      || null,
+        })
         .eq('id', user.id)
       if (error) throw error
       setProfileMsg('✓ Profile updated')
@@ -255,6 +271,64 @@ export default function ProfilePage() {
                 />
               </div>
 
+              {/* Contact details */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Contact Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Phone</label>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="+94 77 123 4567"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">WhatsApp</label>
+                    <input
+                      type="tel"
+                      value={profileForm.whatsapp}
+                      onChange={e => setProfileForm(f => ({ ...f, whatsapp: e.target.value }))}
+                      placeholder="+94 77 123 4567"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">City</label>
+                    <input
+                      type="text"
+                      value={profileForm.city}
+                      onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))}
+                      placeholder="Colombo"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Address</label>
+                    <input
+                      type="text"
+                      value={profileForm.address}
+                      onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))}
+                      placeholder="123 Main Street"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Bio</label>
+                  <textarea
+                    value={profileForm.bio}
+                    onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
+                    rows={3}
+                    maxLength={300}
+                    placeholder="Tell us a little about yourself…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300 resize-none"
+                  />
+                </div>
+              </div>
+
               {profileMsg && (
                 <p className={clsx('text-sm font-medium', profileMsg.startsWith('✓') ? 'text-green-600' : 'text-red-600')}>
                   {profileMsg}
@@ -280,29 +354,63 @@ export default function ProfilePage() {
               </div>
             </form>
           ) : (
-            <div className="flex items-center gap-4">
-              <Avatar src={profile?.avatar_url} name={profile?.name || user.email} size={64} />
-              <div className="flex-1 min-w-0">
-                <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{profile?.name || 'User'}</h1>
-                <p className="text-sm text-[var(--c-muted)]">{user.email}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  {profile?.role === 'admin' && (
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">Admin</span>
+            <div>
+              <div className="flex items-center gap-4">
+                <Avatar src={profile?.avatar_url} name={profile?.name || user.email} size={64} />
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{profile?.name || 'User'}</h1>
+                  <p className="text-sm text-[var(--c-muted)]">{user.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {profile?.role === 'admin' && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">Admin</span>
+                    )}
+                    {profile?.role === 'owner' && (
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Owner</span>
+                    )}
+                    {profile?.role === 'staff' && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Staff</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={openProfileEdit}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+              </div>
+
+              {/* Bio */}
+              {profile?.bio && (
+                <div className="mt-3 flex items-start gap-2 text-sm text-gray-600">
+                  <Info size={14} className="shrink-0 mt-0.5 text-gray-400" />
+                  <p className="leading-relaxed">{profile.bio}</p>
+                </div>
+              )}
+
+              {/* Contact info display */}
+              {(profile?.phone || profile?.whatsapp || profile?.city || profile?.address) && (
+                <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {profile?.phone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone size={13} className="shrink-0 text-gray-400" />
+                      <span>{profile.phone}</span>
+                    </div>
                   )}
-                  {profile?.role === 'owner' && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Owner</span>
+                  {profile?.whatsapp && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone size={13} className="shrink-0 text-green-500" />
+                      <span>{profile.whatsapp} <span className="text-xs text-green-600 font-medium">WhatsApp</span></span>
+                    </div>
                   )}
-                  {profile?.role === 'staff' && (
-                    <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Staff</span>
+                  {(profile?.city || profile?.address) && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 sm:col-span-2">
+                      <MapPin size={13} className="shrink-0 text-gray-400" />
+                      <span>{[profile.address, profile.city].filter(Boolean).join(', ')}</span>
+                    </div>
                   )}
                 </div>
-              </div>
-              <button
-                onClick={openProfileEdit}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <Pencil size={13} /> Edit
-              </button>
+              )}
             </div>
           )}
 
