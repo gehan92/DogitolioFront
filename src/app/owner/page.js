@@ -72,6 +72,13 @@ export default function OwnerPage() {
     loadInitial()
   }, [token, isOwner])
 
+  // Auto-select the restaurant when there is only one linked
+  useEffect(() => {
+    if (myRestaurants.length === 1 && !form.restaurant_id) {
+      setForm(f => ({ ...f, restaurant_id: myRestaurants[0].id }))
+    }
+  }, [myRestaurants])
+
   async function loadInitial() {
     setLoading(true)
     try {
@@ -250,12 +257,6 @@ export default function OwnerPage() {
                     </select>
                   </div>
                 )}
-
-                {/* Auto-select if only one restaurant */}
-                {myRestaurants.length === 1 && !form.restaurant_id && (() => {
-                  setTimeout(() => setForm(f => ({ ...f, restaurant_id: myRestaurants[0].id })), 0)
-                  return null
-                })()}
 
                 {/* Request type */}
                 <div>

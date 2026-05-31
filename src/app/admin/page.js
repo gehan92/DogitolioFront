@@ -488,14 +488,15 @@ export default function AdminPage() {
   async function loadOwners() {
     setOwnersLoading(true)
     try {
-      const [ownersData, usersData] = await Promise.all([
+      const [ownersResult, usersResult] = await Promise.allSettled([
         api.admin.owners(token),
-        api.admin.users({ limit: 200 }, token),
+        api.admin.users({ limit: 200, role: 'owner' }, token),
       ])
-      setOwners(ownersData.data || [])
-      setAllUsers(usersData.data || [])
-    } catch (err) { console.error(err) }
-    finally { setOwnersLoading(false) }
+      if (ownersResult.status === 'fulfilled') setOwners(ownersResult.value.data || [])
+      else console.error('Failed to load owner assignments:', ownersResult.reason)
+      if (usersResult.status === 'fulfilled') setAllUsers(usersResult.value.data || [])
+      else console.error('Failed to load users for dropdown:', usersResult.reason)
+    } finally { setOwnersLoading(false) }
   }
 
   async function loadStaff(page = 1) {
@@ -1701,8 +1702,8 @@ export default function AdminPage() {
                         <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Select user</label>
                         <select value={ownerForm.owner_id} onChange={e => setOwnerForm(f => ({ ...f, owner_id: e.target.value }))} required className={inputCls}>
                           <option value="">— Choose user —</option>
-                          {allUsers.filter(u => u.role !== 'admin').map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                          {allUsers.map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
                           ))}
                         </select>
                       </div>
