@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, Star, User, Pencil, Trash2, Check, X, MessageSquare, Clock } from 'lucide-react'
+import { LogOut, Star, User, Pencil, Trash2, Check, X, MessageSquare, Clock, Camera, Save } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import { Avatar, Button, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -47,6 +47,15 @@ export default function ProfilePage() {
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(null)
 
+  // Profile editing
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm,    setProfileForm]    = useState({ name: '', avatar_url: '' })
+  const [profileSaving,  setProfileSaving]  = useState(false)
+  const [profileMsg,     setProfileMsg]     = useState('')
+  const [avatarPreview,  setAvatarPreview]  = useState(null)
+  const [avatarUploading,setAvatarUploading]= useState(false)
+  const fileInputRef = useRef(null)
+
   useEffect(() => {
     if (!loading && !user) router.replace('/auth')
   }, [user, loading])
@@ -69,6 +78,60 @@ export default function ProfilePage() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.replace('/')
+  }
+
+  function openProfileEdit() {
+    setProfileForm({ name: profile?.name || '', avatar_url: profile?.avatar_url || '' })
+    setAvatarPreview(null)
+    setProfileMsg('')
+    setEditingProfile(true)
+  }
+
+  async function handleAvatarFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { setProfileMsg('Image must be under 2 MB'); return }
+
+    setAvatarUploading(true)
+    setProfileMsg('')
+    try {
+      const ext  = file.name.split('.').pop()
+      const path = `avatars/${user.id}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) throw upErr
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      setProfileForm(f => ({ ...f, avatar_url: publicUrl }))
+      setAvatarPreview(publicUrl)
+    } catch (err) {
+      setProfileMsg('Upload failed: ' + err.message)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function saveProfile(e) {
+    e.preventDefault()
+    if (!profileForm.name.trim()) { setProfileMsg('Name is required'); return }
+    setProfileSaving(true)
+    setProfileMsg('')
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: profileForm.name.trim(), avatar_url: profileForm.avatar_url || null })
+        .eq('id', user.id)
+      if (error) throw error
+      setProfileMsg('✓ Profile updated')
+      setEditingProfile(false)
+      // Reload page so useAuth picks up new profile values
+      setTimeout(() => window.location.reload(), 600)
+    } catch (err) {
+      setProfileMsg('Error: ' + err.message)
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   function startEdit(review) {
@@ -122,16 +185,130 @@ export default function ProfilePage() {
 
         {/* Profile header */}
         <div className="card p-6 mb-5">
-          <div className="flex items-center gap-4">
-            <Avatar src={profile?.avatar_url} name={profile?.name || user.email} size={64} />
-            <div>
-              <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{profile?.name || 'User'}</h1>
-              <p className="text-sm text-[var(--c-muted)]">{user.email}</p>
-              {profile?.role === 'admin' && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">Admin</span>
+          {editingProfile ? (
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div className="flex items-center gap-3 mb-1">
+                <User size={16} className="text-brand-500" />
+                <h2 className="font-bold text-[var(--c-text)]">Edit Profile</h2>
+              </div>
+
+              {/* Avatar picker */}
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  <Avatar
+                    src={avatarPreview || profileForm.avatar_url}
+                    name={profileForm.name || user.email}
+                    size={64}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  >
+                    {avatarUploading
+                      ? <Spinner size={12} />
+                      : <Camera size={12} className="text-gray-500" />}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarFile}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Avatar URL</label>
+                  <input
+                    type="url"
+                    value={profileForm.avatar_url}
+                    onChange={e => { setProfileForm(f => ({ ...f, avatar_url: e.target.value })); setAvatarPreview(null) }}
+                    placeholder="https://…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-0.5">Or click the camera icon to upload a photo (max 2 MB)</p>
+                </div>
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Display name *</label>
+                <input
+                  type="text"
+                  required
+                  value={profileForm.name}
+                  onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
+                  maxLength={80}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-300"
+                />
+              </div>
+
+              {/* Email (read-only) */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Email</label>
+                <input
+                  type="text"
+                  value={user.email}
+                  readOnly
+                  className="w-full border border-gray-100 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
+                />
+              </div>
+
+              {profileMsg && (
+                <p className={clsx('text-sm font-medium', profileMsg.startsWith('✓') ? 'text-green-600' : 'text-red-600')}>
+                  {profileMsg}
+                </p>
               )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={profileSaving || avatarUploading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                >
+                  <Save size={14} /> {profileSaving ? 'Saving…' : 'Save changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingProfile(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex items-center gap-4">
+              <Avatar src={profile?.avatar_url} name={profile?.name || user.email} size={64} />
+              <div className="flex-1 min-w-0">
+                <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{profile?.name || 'User'}</h1>
+                <p className="text-sm text-[var(--c-muted)]">{user.email}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {profile?.role === 'admin' && (
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">Admin</span>
+                  )}
+                  {profile?.role === 'owner' && (
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Owner</span>
+                  )}
+                  {profile?.role === 'staff' && (
+                    <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Staff</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={openProfileEdit}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <Pencil size={13} /> Edit
+              </button>
             </div>
-          </div>
+          )}
+
+          {profileMsg && !editingProfile && (
+            <p className="mt-3 text-sm font-medium text-green-600">{profileMsg}</p>
+          )}
         </div>
 
         {/* Quick links */}
