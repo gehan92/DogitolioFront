@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown, Building2, Palette } from 'lucide-react'
+import { Home, Search, UtensilsCrossed, User, LogIn, LayoutDashboard, Info, Phone, ChevronDown, Building2, Palette, Moon, Sun } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
+import { THEMES } from '@/lib/themes'
 import { Avatar, ThemePicker } from '@/components/ui'
 import clsx from 'clsx'
 
@@ -17,10 +19,22 @@ const navLinks = [
 
 export default function Navbar() {
   const { user, profile, isAdmin, isOwner, loading, signOut } = useAuth()
+  const { activeTheme, siteDefault, setTheme } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen,  setMenuOpen]  = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
+
+  // Simple dark/light toggle for normal users
+  function toggleDark() {
+    if (activeTheme.dark) {
+      // Go back to light: use site default if it's light, otherwise warm
+      const siteThemeIsDark = THEMES[siteDefault]?.dark
+      setTheme(siteThemeIsDark ? 'warm' : null)
+    } else {
+      setTheme('midnight')
+    }
+  }
 
   async function handleSignOut() {
     await signOut()
@@ -115,31 +129,49 @@ export default function Navbar() {
             {/* Right actions */}
             <div className="flex items-center gap-2 shrink-0">
 
-              {/* ── Theme picker button */}
-              <div className="relative">
+              {/* ── Theme controls: full palette for admins, dark toggle for everyone else */}
+              {isAdmin ? (
+                /* Admin: full colour theme picker */
+                <div className="relative">
+                  <button
+                    onClick={() => { setThemeOpen(v => !v); setMenuOpen(false) }}
+                    className={clsx(
+                      'w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
+                      themeOpen
+                        ? 'bg-[var(--c-brand-lt)] text-[var(--c-brand)]'
+                        : 'text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface2)]'
+                    )}
+                    title="Change theme"
+                    aria-label="Change theme"
+                  >
+                    <Palette size={17} />
+                  </button>
+
+                  {themeOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setThemeOpen(false)} />
+                      <div className="absolute right-0 top-[calc(100%+8px)] z-20">
+                        <ThemePicker onClose={() => setThemeOpen(false)} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Normal users & guests: simple dark / light toggle */
                 <button
-                  onClick={() => { setThemeOpen(v => !v); setMenuOpen(false) }}
+                  onClick={toggleDark}
                   className={clsx(
                     'w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
-                    themeOpen
+                    activeTheme.dark
                       ? 'bg-[var(--c-brand-lt)] text-[var(--c-brand)]'
                       : 'text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface2)]'
                   )}
-                  title="Change theme"
-                  aria-label="Change theme"
+                  title={activeTheme.dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                  aria-label={activeTheme.dark ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                  <Palette size={17} />
+                  {activeTheme.dark ? <Sun size={17} /> : <Moon size={17} />}
                 </button>
-
-                {themeOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setThemeOpen(false)} />
-                    <div className="absolute right-0 top-[calc(100%+8px)] z-20">
-                      <ThemePicker onClose={() => setThemeOpen(false)} />
-                    </div>
-                  </>
-                )}
-              </div>
+              )}
 
               {loading ? (
                 <div className="w-8 h-8 skeleton rounded-full" />
