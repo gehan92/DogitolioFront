@@ -2201,50 +2201,69 @@ export default function AdminPage() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--c-dim)] mb-3 flex items-center gap-1.5">
                     <Sun size={10} /> Light Themes
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-                    {Object.entries(THEMES).filter(([, t]) => !t.dark).map(([key, theme]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          setActiveTheme(key)
-                          setThemeMsg('')
-                          const root = document.documentElement
-                          Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v))
-                          root.classList.remove('dark')
-                        }}
-                        className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                          activeTheme === key
-                            ? 'border-[var(--c-brand)] shadow-lg'
-                            : 'border-[var(--c-border)] hover:border-[var(--c-border2)]'
-                        }`}
-                        style={{
-                          background: activeTheme === key
-                            ? `linear-gradient(135deg, ${theme.vars['--c-surface']}, ${theme.preview[2]}50)`
-                            : theme.vars['--c-surface2'],
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 mb-2.5">
-                          <span className="w-5 h-5 rounded-full shrink-0 shadow-sm" style={{ background: theme.preview[0], outline: '1.5px solid rgba(0,0,0,.08)' }} />
-                          <span className="w-4 h-4 rounded-full shrink-0" style={{ background: theme.preview[1], outline: '1.5px solid rgba(0,0,0,.08)' }} />
-                          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: theme.preview[2], outline: '1.5px solid rgba(0,0,0,.08)' }} />
-                        </div>
-                        <p className="text-sm font-bold" style={{ color: theme.vars['--c-text'] }}>{theme.label}</p>
-                        <p className="text-xs mt-0.5 truncate" style={{ color: theme.vars['--c-muted'] }}>{theme.description}</p>
-                        {activeTheme === key && (
-                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
-                            style={{ background: theme.vars['--c-brand'] }}>
-                            <Check size={11} className="text-white" />
-                          </span>
-                        )}
-                        {savedThemeKey === key && activeTheme !== key && (
-                          <span className="absolute top-3 right-3 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border"
-                            style={{ color: theme.vars['--c-muted'], borderColor: theme.vars['--c-border2'], background: theme.vars['--c-surface'] }}>
-                            live
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                    {Object.entries(THEMES).filter(([, t]) => !t.dark).map(([key, theme]) => {
+                      const v = theme.vars
+                      const isActive = activeTheme === key
+                      const isLive   = savedThemeKey === key
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setActiveTheme(key); setThemeMsg('')
+                            const root = document.documentElement
+                            Object.entries(v).forEach(([k, val]) => root.style.setProperty(k, val))
+                            root.classList.remove('dark')
+                          }}
+                          className="relative rounded-xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.04] active:scale-[0.97] focus-visible:outline-none"
+                          style={{
+                            boxShadow: isActive
+                              ? `0 0 0 2.5px ${v['--c-brand']}, 0 8px 28px ${v['--c-brand']}33`
+                              : `0 0 0 1.5px ${v['--c-border']}`,
+                          }}
+                        >
+                          {/* header */}
+                          <div className="relative h-[46px] overflow-hidden flex flex-col justify-end"
+                            style={{ background: `linear-gradient(135deg, ${v['--c-brand']} 0%, ${v['--c-brand-dk']} 100%)` }}>
+                            <div className="absolute top-2 left-2.5 flex gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.5 }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.35 }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.25 }} />
+                            </div>
+                            <div className="px-2.5 pb-2 flex items-end gap-1.5">
+                              <span className="w-8 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.6 }} />
+                              <span className="w-5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.35 }} />
+                            </div>
+                          </div>
+                          {/* body */}
+                          <div className="px-2 py-2" style={{ background: v['--c-bg'] }}>
+                            <div className="rounded-md p-1.5 mb-1.5" style={{ background: v['--c-surface'], border: `1px solid ${v['--c-border']}` }}>
+                              <span className="block w-10 h-1.5 rounded-full mb-1" style={{ background: v['--c-brand'], opacity: 0.9 }} />
+                              <span className="block w-full h-1 rounded-full mb-0.5" style={{ background: v['--c-text'], opacity: 0.12 }} />
+                              <span className="block w-3/4 h-1 rounded-full" style={{ background: v['--c-text'], opacity: 0.08 }} />
+                            </div>
+                            <div className="flex gap-1">
+                              <span className="flex-1 h-4 rounded-md" style={{ background: v['--c-surface2'], border: `1px solid ${v['--c-border']}` }} />
+                              <span className="flex-1 h-4 rounded-md" style={{ background: v['--c-surface2'], border: `1px solid ${v['--c-border']}` }} />
+                            </div>
+                          </div>
+                          {/* label */}
+                          <div className="flex items-center justify-between px-2 pb-2" style={{ background: v['--c-bg'] }}>
+                            <p className="text-[11px] font-bold truncate" style={{ color: v['--c-text'] }}>{theme.label}</p>
+                            {isLive && !isActive && (
+                              <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded" style={{ background: v['--c-brand-lt'], color: v['--c-brand'] }}>live</span>
+                            )}
+                          </div>
+                          {isActive && (
+                            <span className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-md"
+                              style={{ background: v['--c-surface'] }}>
+                              <Check size={11} style={{ color: v['--c-brand'] }} />
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
 
                   {/* Dark themes */}
@@ -2252,52 +2271,69 @@ export default function AdminPage() {
                     <Moon size={10} /> Dark Themes
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {Object.entries(THEMES).filter(([, t]) => t.dark).map(([key, theme]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          setActiveTheme(key)
-                          setThemeMsg('')
-                          const root = document.documentElement
-                          Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v))
-                          root.classList.add('dark')
-                        }}
-                        className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                          activeTheme === key
-                            ? 'border-[var(--c-brand)] shadow-lg'
-                            : 'border-[var(--c-border)] hover:border-[var(--c-border2)]'
-                        }`}
-                        style={{
-                          background: activeTheme === key
-                            ? `linear-gradient(135deg, ${theme.vars['--c-surface']}, ${theme.preview[2]}50)`
-                            : theme.vars['--c-surface2'],
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 mb-2.5">
-                          <span className="w-5 h-5 rounded-full shrink-0 shadow-sm" style={{ background: theme.preview[0], outline: '1.5px solid rgba(0,0,0,.2)' }} />
-                          <span className="w-4 h-4 rounded-full shrink-0" style={{ background: theme.preview[1], outline: '1.5px solid rgba(0,0,0,.2)' }} />
-                          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: theme.preview[2], outline: '1.5px solid rgba(0,0,0,.2)' }} />
-                        </div>
-                        <p className="text-sm font-bold" style={{ color: theme.vars['--c-text'] }}>{theme.label}</p>
-                        <p className="text-xs mt-0.5 truncate" style={{ color: theme.vars['--c-muted'] }}>{theme.description}</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
-                          <Moon size={8} /> Dark
-                        </span>
-                        {activeTheme === key && (
-                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
-                            style={{ background: theme.vars['--c-brand'] }}>
-                            <Check size={11} className="text-white" />
-                          </span>
-                        )}
-                        {savedThemeKey === key && activeTheme !== key && (
-                          <span className="absolute top-3 right-3 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border"
-                            style={{ color: theme.vars['--c-muted'], borderColor: theme.vars['--c-border2'], background: theme.vars['--c-surface'] }}>
-                            live
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {Object.entries(THEMES).filter(([, t]) => t.dark).map(([key, theme]) => {
+                      const v = theme.vars
+                      const isActive = activeTheme === key
+                      const isLive   = savedThemeKey === key
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setActiveTheme(key); setThemeMsg('')
+                            const root = document.documentElement
+                            Object.entries(v).forEach(([k, val]) => root.style.setProperty(k, val))
+                            root.classList.add('dark')
+                          }}
+                          className="relative rounded-xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.04] active:scale-[0.97] focus-visible:outline-none"
+                          style={{
+                            boxShadow: isActive
+                              ? `0 0 0 2.5px ${v['--c-brand']}, 0 8px 28px ${v['--c-brand']}33`
+                              : `0 0 0 1.5px ${v['--c-border']}`,
+                          }}
+                        >
+                          {/* header */}
+                          <div className="relative h-[46px] overflow-hidden flex flex-col justify-end"
+                            style={{ background: `linear-gradient(135deg, ${v['--c-brand']} 0%, ${v['--c-brand-dk']} 100%)` }}>
+                            <div className="absolute top-2 left-2.5 flex gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.4 }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.25 }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.15 }} />
+                            </div>
+                            <div className="px-2.5 pb-2 flex items-end gap-1.5">
+                              <span className="w-8 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.5 }} />
+                              <span className="w-5 h-1.5 rounded-full" style={{ background: v['--c-surface'], opacity: 0.3 }} />
+                            </div>
+                          </div>
+                          {/* body */}
+                          <div className="px-2 py-2" style={{ background: v['--c-bg'] }}>
+                            <div className="rounded-md p-1.5 mb-1.5" style={{ background: v['--c-surface'], border: `1px solid ${v['--c-border']}` }}>
+                              <span className="block w-10 h-1.5 rounded-full mb-1" style={{ background: v['--c-brand'], opacity: 0.9 }} />
+                              <span className="block w-full h-1 rounded-full mb-0.5" style={{ background: v['--c-text'], opacity: 0.15 }} />
+                              <span className="block w-3/4 h-1 rounded-full" style={{ background: v['--c-text'], opacity: 0.1 }} />
+                            </div>
+                            <div className="flex gap-1">
+                              <span className="flex-1 h-4 rounded-md" style={{ background: v['--c-surface2'], border: `1px solid ${v['--c-border']}` }} />
+                              <span className="flex-1 h-4 rounded-md" style={{ background: v['--c-surface2'], border: `1px solid ${v['--c-border']}` }} />
+                            </div>
+                          </div>
+                          {/* label */}
+                          <div className="flex items-center justify-between px-2 pb-2" style={{ background: v['--c-bg'] }}>
+                            <p className="text-[11px] font-bold truncate" style={{ color: v['--c-text'] }}>{theme.label}</p>
+                            {isLive && !isActive
+                              ? <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded" style={{ background: v['--c-brand-lt'], color: v['--c-brand'] }}>live</span>
+                              : <span className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#111', color: '#aaa' }}><Moon size={7} />dark</span>
+                            }
+                          </div>
+                          {isActive && (
+                            <span className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-md"
+                              style={{ background: v['--c-surface'] }}>
+                              <Check size={11} style={{ color: v['--c-brand'] }} />
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
 
                   {/* Actions row */}

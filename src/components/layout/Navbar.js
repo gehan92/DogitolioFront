@@ -157,19 +157,36 @@ export default function Navbar() {
                   )}
                 </div>
               ) : (
-                /* Normal users & guests: simple dark / light toggle */
+                /* Normal users & guests — polished pill dark / light toggle */
                 <button
                   onClick={toggleDark}
-                  className={clsx(
-                    'w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-150',
-                    activeTheme.dark
-                      ? 'bg-[var(--c-brand-lt)] text-[var(--c-brand)]'
-                      : 'text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface2)]'
-                  )}
-                  title={activeTheme.dark ? 'Switch to light mode' : 'Switch to dark mode'}
                   aria-label={activeTheme.dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className="relative flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border transition-all duration-300 hover:scale-[1.04] active:scale-[0.97]"
+                  style={{
+                    borderColor: activeTheme.dark ? 'var(--c-border2)' : 'var(--c-border)',
+                    background:  activeTheme.dark ? 'var(--c-surface2)' : 'var(--c-surface2)',
+                  }}
                 >
-                  {activeTheme.dark ? <Sun size={17} /> : <Moon size={17} />}
+                  {/* animated icon bubble */}
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shrink-0"
+                    style={{
+                      background: activeTheme.dark
+                        ? 'linear-gradient(135deg,#6366f1,#818cf8)'
+                        : 'linear-gradient(135deg,#fbbf24,#f59e0b)',
+                    }}
+                  >
+                    {activeTheme.dark
+                      ? <Sun size={12} className="text-white" />
+                      : <Moon size={12} className="text-white" />
+                    }
+                  </span>
+                  <span
+                    className="text-[11px] font-semibold hidden sm:block"
+                    style={{ color: 'var(--c-muted)' }}
+                  >
+                    {activeTheme.dark ? 'Light' : 'Dark'}
+                  </span>
                 </button>
               )}
 
