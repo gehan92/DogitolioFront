@@ -126,7 +126,7 @@ export default function ContactPage() {
               </div>
 
               {/* Right — Form */}
-              <div className="rounded-3xl border border-[var(--c-border)] bg-[#f9f9f9] p-8">
+              <div className="rounded-3xl border border-[var(--c-border)] p-8" style={{ background: 'var(--c-surface2)' }}>
                 {sent ? (
                   <div className="h-full flex flex-col items-center justify-center text-center py-10">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>

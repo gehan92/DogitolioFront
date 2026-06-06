@@ -111,7 +111,7 @@ export default async function AboutPage() {
                   {storyP2}
                 </p>
               </div>
-              <div className="rounded-3xl bg-[#f9f9f9] border border-[var(--c-border)] p-8 grid grid-cols-2 gap-4">
+              <div className="rounded-3xl border border-[var(--c-border)] p-8 grid grid-cols-2 gap-4" style={{ background: 'var(--c-surface2)' }}>
                 {categories.map(({ icon: Icon, label, desc }) => (
                   <div key={label} className="p-4 rounded-2xl bg-white border border-[var(--c-border)] hover:border-[#FF2D55]/25 transition-colors">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
@@ -127,7 +127,7 @@ export default async function AboutPage() {
         </section>
 
         {/* ── VALUES */}
-        <section className="bg-[#f9f9f9] border-t border-[var(--c-border)] py-20">
+        <section className="border-t border-[var(--c-border)] py-20" style={{ background: 'var(--c-surface2)' }}>
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-12">
               <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-3">What drives us</p>

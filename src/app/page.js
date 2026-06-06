@@ -251,7 +251,7 @@ export default async function HomePage() {
 
         {/* ── FEATURED */}
         {featured.length > 0 && (
-          <section className="bg-[#f9f9f9] py-16">
+          <section className="py-16" style={{ background: 'var(--c-surface2)' }}>
             <div className="max-w-6xl mx-auto px-4">
               <div className="flex items-end justify-between mb-10">
                 <div>

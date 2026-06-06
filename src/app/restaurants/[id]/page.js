@@ -546,7 +546,7 @@ export default function RestaurantPage() {
                 </Link>
               </div>
             ) : submitted ? (
-              <div className="p-5 rounded-2xl border text-center" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <div className="p-5 rounded-2xl border border-green-200 text-center bg-green-50">
                 <p className="font-bold text-green-800 mb-1">Review submitted!</p>
                 <p className="text-sm text-green-600">Thank you for sharing your experience.</p>
               </div>
