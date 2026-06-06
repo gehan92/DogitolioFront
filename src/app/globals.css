@@ -46,3 +46,14 @@ h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.1; letter-spacing
 .gradient-text { background: linear-gradient(135deg, #FF2D55 0%, #FF6035 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .react-pdf__Page__canvas { display: block; max-width: 100%; height: auto !important; }
+
+/* Smooth theme colour transitions */
+[data-theme-changing] body,
+[data-theme-changing] .card,
+[data-theme-changing] header,
+[data-theme-changing] nav,
+[data-theme-changing] aside {
+  transition-property: background-color, border-color, color !important;
+  transition-duration: 0.3s !important;
+  transition-timing-function: ease !important;
+}

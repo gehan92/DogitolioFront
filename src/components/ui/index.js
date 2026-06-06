@@ -2,6 +2,8 @@
 import { Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
+export { ThemePicker } from './ThemePicker'
+
 // ── BUTTON ────────────────────────────────────────
 export function Button({ children, variant = 'primary', size = 'md', className, loading, disabled, ...props }) {
   const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:pointer-events-none active:scale-[.97]'

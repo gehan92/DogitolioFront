@@ -113,9 +113,95 @@ export const THEMES = {
       '--c-dim':      '#6b6b85',
     },
   },
+  sunset: {
+    label:       'Sunset',
+    description: 'Amber glow on deep mocha',
+    preview:     ['#f59e0b', '#120d08', '#3d2d1a'],
+    dark:        true,
+    vars: {
+      '--c-brand':    '#f59e0b',
+      '--c-brand-dk': '#d97706',
+      '--c-brand-lt': '#2d1e08',
+      '--c-bg':       '#120d08',
+      '--c-surface':  '#1c1410',
+      '--c-surface2': '#271d12',
+      '--c-border':   '#3d2d1a',
+      '--c-border2':  '#54401f',
+      '--c-text':     '#f5e6cc',
+      '--c-muted':    '#a0845c',
+      '--c-dim':      '#6b5535',
+    },
+  },
+  rose: {
+    label:       'Rose',
+    description: 'Soft pink on cream white',
+    preview:     ['#f43f5e', '#fff9fb', '#fecdd3'],
+    dark:        false,
+    vars: {
+      '--c-brand':    '#f43f5e',
+      '--c-brand-dk': '#e11d48',
+      '--c-brand-lt': '#fff1f4',
+      '--c-bg':       '#fff9fb',
+      '--c-surface':  '#ffffff',
+      '--c-surface2': '#fff0f4',
+      '--c-border':   '#fecdd3',
+      '--c-border2':  '#fda4af',
+      '--c-text':     '#1c0810',
+      '--c-muted':    '#9f3055',
+      '--c-dim':      '#c4748a',
+    },
+  },
+  slate: {
+    label:       'Slate',
+    description: 'Clean steel minimal',
+    preview:     ['#475569', '#f8fafc', '#e2e8f0'],
+    dark:        false,
+    vars: {
+      '--c-brand':    '#475569',
+      '--c-brand-dk': '#334155',
+      '--c-brand-lt': '#f1f5f9',
+      '--c-bg':       '#f8fafc',
+      '--c-surface':  '#ffffff',
+      '--c-surface2': '#f1f5f9',
+      '--c-border':   '#e2e8f0',
+      '--c-border2':  '#cbd5e1',
+      '--c-text':     '#0f172a',
+      '--c-muted':    '#64748b',
+      '--c-dim':      '#94a3b8',
+    },
+  },
+  carbon: {
+    label:       'Carbon',
+    description: 'Ultra dark with teal accent',
+    preview:     ['#2dd4bf', '#060c0c', '#0d1f1f'],
+    dark:        true,
+    vars: {
+      '--c-brand':    '#2dd4bf',
+      '--c-brand-dk': '#14b8a6',
+      '--c-brand-lt': '#042220',
+      '--c-bg':       '#060c0c',
+      '--c-surface':  '#0d1a1a',
+      '--c-surface2': '#112020',
+      '--c-border':   '#1a3030',
+      '--c-border2':  '#234545',
+      '--c-text':     '#e8fafa',
+      '--c-muted':    '#7ab5b5',
+      '--c-dim':      '#4a8585',
+    },
+  },
 }
 
 export function buildThemeStyle(theme) {
   const vars = Object.entries(theme.vars).map(([k, v]) => `${k}:${v}`).join(';')
   return `:root{${vars}}`
+}
+
+/**
+ * Returns a plain-object snapshot safe for JSON.stringify / inline <script>.
+ * Shape: { [key]: { vars: {...}, dark: boolean } }
+ */
+export function buildThemeSnapshot() {
+  return Object.fromEntries(
+    Object.entries(THEMES).map(([k, t]) => [k, { vars: t.vars, dark: t.dark }])
+  )
 }

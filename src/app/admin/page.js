@@ -7,7 +7,7 @@ import {
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
-  Palette,
+  Palette, Moon, Sun,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import Navbar           from '@/components/layout/Navbar'
@@ -223,9 +223,10 @@ export default function AdminPage() {
   const [scSavedKeys,      setScSavedKeys]      = useState(new Set())
 
   // ── Theme
-  const [activeTheme, setActiveTheme] = useState('warm')
-  const [themeSaving, setThemeSaving] = useState(false)
-  const [themeMsg,    setThemeMsg]    = useState('')
+  const [activeTheme,   setActiveTheme]   = useState('warm')
+  const [savedThemeKey, setSavedThemeKey] = useState(null)
+  const [themeSaving,   setThemeSaving]   = useState(false)
+  const [themeMsg,      setThemeMsg]      = useState('')
 
   const SC_SCHEMAS = {
     home: [
@@ -772,14 +773,17 @@ export default function AdminPage() {
   async function loadTheme() {
     try {
       const data = await api.siteContent.get('settings')
-      setActiveTheme(data?.content?.theme || 'warm')
-    } catch { setActiveTheme('warm') }
+      const key = data?.content?.theme || 'warm'
+      setActiveTheme(key)
+      setSavedThemeKey(key)
+    } catch { setActiveTheme('warm'); setSavedThemeKey('warm') }
   }
 
   async function saveTheme() {
     setThemeSaving(true); setThemeMsg('')
     try {
       await api.siteContent.update('settings', { theme: activeTheme }, token)
+      setSavedThemeKey(activeTheme)
       setThemeMsg('✓ Theme applied! Visitors will see it within 60 seconds.')
     } catch (err) { setThemeMsg(`Error: ${err.message}`) }
     finally { setThemeSaving(false) }
@@ -2162,48 +2166,142 @@ export default function AdminPage() {
             {tab === 'Theme' && (
               <div className="space-y-5 animate-fade-in">
                 <div className="card p-5">
-                  <h3 className="font-semibold text-[var(--c-text)] mb-1 flex items-center gap-2">
-                    <Palette size={17} /> Site Theme
-                  </h3>
-                  <p className="text-xs text-[var(--c-muted)] mb-6">
-                    Choose a colour theme for the public website. The selected theme is applied to all visitors.
-                  </p>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {Object.entries(THEMES).map(([key, theme]) => (
+                  {/* Card header */}
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2">
+                        <Palette size={17} /> Site Theme
+                      </h3>
+                      <p className="text-xs text-[var(--c-muted)] mt-1 max-w-sm">
+                        Click a theme to live-preview it, then click “Apply to Site” to make it permanent for all visitors.
+                      </p>
+                    </div>
+                    {savedThemeKey && savedThemeKey !== activeTheme && (
+                      <button
+                        onClick={() => {
+                          const t = THEMES[savedThemeKey]
+                          if (t) {
+                            setActiveTheme(savedThemeKey)
+                            setThemeMsg('')
+                            const root = document.documentElement
+                            Object.entries(t.vars).forEach(([k, v]) => root.style.setProperty(k, v))
+                            if (t.dark) root.classList.add('dark')
+                            else root.classList.remove('dark')
+                          }
+                        }}
+                        className="shrink-0 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--c-brand)] px-3 py-1.5 rounded-lg border border-[var(--c-border)] hover:border-[var(--c-brand)] transition-all"
+                      >
+                        Revert
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Light themes */}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--c-dim)] mb-3 flex items-center gap-1.5">
+                    <Sun size={10} /> Light Themes
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+                    {Object.entries(THEMES).filter(([, t]) => !t.dark).map(([key, theme]) => (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => { setActiveTheme(key); setThemeMsg('') }}
-                        className={`relative p-4 rounded-2xl border-2 text-left transition-all ${
+                        onClick={() => {
+                          setActiveTheme(key)
+                          setThemeMsg('')
+                          const root = document.documentElement
+                          Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v))
+                          root.classList.remove('dark')
+                        }}
+                        className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                           activeTheme === key
-                            ? 'border-[var(--c-brand)] shadow-md bg-[var(--c-surface2)]'
-                            : 'border-[var(--c-border)] hover:border-gray-300 bg-white'
+                            ? 'border-[var(--c-brand)] shadow-lg'
+                            : 'border-[var(--c-border)] hover:border-[var(--c-border2)]'
                         }`}
+                        style={{
+                          background: activeTheme === key
+                            ? `linear-gradient(135deg, ${theme.vars['--c-surface']}, ${theme.preview[2]}50)`
+                            : theme.vars['--c-surface2'],
+                        }}
                       >
-                        {/* colour swatches */}
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className="w-5 h-5 rounded-full shrink-0" style={{ background: theme.preview[0] }} />
-                          <span className="w-5 h-5 rounded-full shrink-0 border border-black/10" style={{ background: theme.preview[1] }} />
-                          <span className="w-5 h-5 rounded-full shrink-0 border border-black/10" style={{ background: theme.preview[2] }} />
+                        <div className="flex items-center gap-1.5 mb-2.5">
+                          <span className="w-5 h-5 rounded-full shrink-0 shadow-sm" style={{ background: theme.preview[0], outline: '1.5px solid rgba(0,0,0,.08)' }} />
+                          <span className="w-4 h-4 rounded-full shrink-0" style={{ background: theme.preview[1], outline: '1.5px solid rgba(0,0,0,.08)' }} />
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: theme.preview[2], outline: '1.5px solid rgba(0,0,0,.08)' }} />
                         </div>
-                        <p className="text-sm font-bold text-[var(--c-text)]">{theme.label}</p>
-                        <p className="text-xs text-[var(--c-muted)] mt-0.5">{theme.description}</p>
-                        {theme.dark && (
-                          <span className="mt-1.5 inline-block text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
-                            Dark
+                        <p className="text-sm font-bold" style={{ color: theme.vars['--c-text'] }}>{theme.label}</p>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: theme.vars['--c-muted'] }}>{theme.description}</p>
+                        {activeTheme === key && (
+                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
+                            style={{ background: theme.vars['--c-brand'] }}>
+                            <Check size={11} className="text-white" />
                           </span>
                         )}
-                        {activeTheme === key && (
-                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[var(--c-brand)] flex items-center justify-center">
-                            <Check size={11} className="text-white" />
+                        {savedThemeKey === key && activeTheme !== key && (
+                          <span className="absolute top-3 right-3 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border"
+                            style={{ color: theme.vars['--c-muted'], borderColor: theme.vars['--c-border2'], background: theme.vars['--c-surface'] }}>
+                            live
                           </span>
                         )}
                       </button>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-6">
+                  {/* Dark themes */}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--c-dim)] mb-3 flex items-center gap-1.5">
+                    <Moon size={10} /> Dark Themes
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {Object.entries(THEMES).filter(([, t]) => t.dark).map(([key, theme]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setActiveTheme(key)
+                          setThemeMsg('')
+                          const root = document.documentElement
+                          Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v))
+                          root.classList.add('dark')
+                        }}
+                        className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                          activeTheme === key
+                            ? 'border-[var(--c-brand)] shadow-lg'
+                            : 'border-[var(--c-border)] hover:border-[var(--c-border2)]'
+                        }`}
+                        style={{
+                          background: activeTheme === key
+                            ? `linear-gradient(135deg, ${theme.vars['--c-surface']}, ${theme.preview[2]}50)`
+                            : theme.vars['--c-surface2'],
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5 mb-2.5">
+                          <span className="w-5 h-5 rounded-full shrink-0 shadow-sm" style={{ background: theme.preview[0], outline: '1.5px solid rgba(0,0,0,.2)' }} />
+                          <span className="w-4 h-4 rounded-full shrink-0" style={{ background: theme.preview[1], outline: '1.5px solid rgba(0,0,0,.2)' }} />
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: theme.preview[2], outline: '1.5px solid rgba(0,0,0,.2)' }} />
+                        </div>
+                        <p className="text-sm font-bold" style={{ color: theme.vars['--c-text'] }}>{theme.label}</p>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: theme.vars['--c-muted'] }}>{theme.description}</p>
+                        <span className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
+                          <Moon size={8} /> Dark
+                        </span>
+                        {activeTheme === key && (
+                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
+                            style={{ background: theme.vars['--c-brand'] }}>
+                            <Check size={11} className="text-white" />
+                          </span>
+                        )}
+                        {savedThemeKey === key && activeTheme !== key && (
+                          <span className="absolute top-3 right-3 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border"
+                            style={{ color: theme.vars['--c-muted'], borderColor: theme.vars['--c-border2'], background: theme.vars['--c-surface'] }}>
+                            live
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Actions row */}
+                  <div className="flex flex-wrap items-center gap-3 mt-6">
                     <button
                       type="button"
                       onClick={saveTheme}
@@ -2211,8 +2309,14 @@ export default function AdminPage() {
                       className={gradientBtn}
                       style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
                     >
-                      {themeSaving ? 'Applying…' : 'Apply Theme'}
+                      {themeSaving ? 'Applying…' : 'Apply to Site'}
                     </button>
+                    {activeTheme !== savedThemeKey && !themeSaving && (
+                      <span className="text-xs text-[var(--c-muted)] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        Previewing — {THEMES[activeTheme]?.label}
+                      </span>
+                    )}
                     {themeMsg && (
                       <p className={`text-sm font-medium ${themeMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
                         {themeMsg}

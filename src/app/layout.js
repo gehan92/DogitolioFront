@@ -1,7 +1,8 @@
 import './globals.css'
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google'
 import { AuthProvider } from '@/hooks/useAuth'
-import { THEMES, buildThemeStyle } from '@/lib/themes'
+import { ThemeProvider } from '@/hooks/useTheme'
+import { THEMES, buildThemeStyle, buildThemeSnapshot } from '@/lib/themes'
 
 const jakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -28,28 +29,53 @@ export const metadata = {
   },
 }
 
-async function getActiveTheme() {
+async function getActiveThemeKey() {
   try {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
     const res = await fetch(`${base}/api/site-content/settings`, {
       next: { revalidate: 60 },
     })
-    if (!res.ok) return THEMES.warm
+    if (!res.ok) return 'warm'
     const data = await res.json()
-    return THEMES[data?.content?.theme] || THEMES.warm
+    const key = data?.content?.theme
+    return THEMES[key] ? key : 'warm'
   } catch {
-    return THEMES.warm
+    return 'warm'
   }
 }
 
 export default async function RootLayout({ children }) {
-  const theme = await getActiveTheme()
-  const themeStyle = buildThemeStyle(theme)
+  const themeKey    = await getActiveThemeKey()
+  const theme       = THEMES[themeKey] || THEMES.warm
+  const themeStyle  = buildThemeStyle(theme)
+  const themeSnapshot = buildThemeSnapshot()
+
+  // Blocking script: runs synchronously before first paint.
+  // Reads localStorage, and if a valid preference exists, overrides the
+  // server-rendered CSS vars immediately — zero flash of wrong theme.
+  const antiFlashScript = `
+(function(){
+  var STORAGE_KEY='user-preferred-theme';
+  var THEMES=${JSON.stringify(themeSnapshot)};
+  try{
+    var key=localStorage.getItem(STORAGE_KEY);
+    if(key&&THEMES[key]){
+      var t=THEMES[key];
+      var r=document.documentElement;
+      var v=t.vars;
+      for(var p in v){if(Object.prototype.hasOwnProperty.call(v,p)){r.style.setProperty(p,v[p]);}}
+      if(t.dark){r.classList.add('dark');}else{r.classList.remove('dark');}
+    }
+  }catch(e){}
+})();
+`.trim()
 
   return (
     <html lang="en" suppressHydrationWarning className={`${jakartaSans.variable} ${inter.variable}`}>
       <head>
-        {/* Injected before stylesheets so CSS vars in globals.css serve as fallback */}
+        {/* Anti-flash: runs before paint, reads localStorage, sets CSS vars instantly */}
+        <script dangerouslySetInnerHTML={{ __html: antiFlashScript }} />
+        {/* Server-rendered theme vars — used when no user preference is stored */}
         <style dangerouslySetInnerHTML={{ __html: themeStyle }} />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="theme-color" content={theme.vars['--c-brand']} />
@@ -59,7 +85,9 @@ export default async function RootLayout({ children }) {
       </head>
       <body className="antialiased">
         <AuthProvider>
-          {children}
+          <ThemeProvider siteDefault={themeKey}>
+            {children}
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>
