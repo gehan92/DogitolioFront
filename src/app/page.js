@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
+import { BannerStrip } from '@/components/ui'
 import { UtensilsCrossed, MapPin, ArrowRight, Building2, Coffee, ShoppingBag, Star, Shield, Zap, BookOpen, RefreshCw, SmilePlus } from 'lucide-react'
 
 export default async function HomePage() {
@@ -137,6 +138,11 @@ export default async function HomePage() {
             ))}
           </div>
         </section>
+
+        {/* ── BANNERS */}
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <BannerStrip placement="home" />
+        </div>
 
         {/* ── WHY DIGITOLIO */}
         <section className="bg-white py-16">

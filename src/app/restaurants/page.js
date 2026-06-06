@@ -5,7 +5,7 @@ import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRi
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
-import { Button, SkeletonCard, EmptyState } from '@/components/ui'
+import { Button, SkeletonCard, EmptyState, BannerStrip } from '@/components/ui'
 import { api } from '@/lib/api'
 import { getCategoryConfig } from '@/lib/venueCategories'
 
@@ -128,7 +128,7 @@ function RestaurantsContent() {
         </div>
 
         {/* Category tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide">
           {CATEGORY_TABS.map(tab => {
             const isActive = filters.category === tab.slug
             return (
@@ -148,7 +148,8 @@ function RestaurantsContent() {
           })}
         </div>
 
-        {/* Active location filter pills */}
+        {/* Listing banners */}
+        <BannerStrip placement="listing" className="mb-5" />
         {activeLocationFilters.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {activeLocationFilters.map(([key, value]) => (

@@ -7,9 +7,10 @@ import {
   Plus, Check, X, Trash2, Shield, Image, FileText, Pencil, Tag,
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
-  Palette, Moon, Sun,
+  Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
+import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
 import Navbar           from '@/components/layout/Navbar'
 import { Button, Badge, Avatar, Spinner } from '@/components/ui'
 import { useAuth }      from '@/hooks/useAuth'
@@ -31,6 +32,7 @@ const ALL_NAV_ITEMS = [
   { key: 'Overview',     label: 'Overview',        icon: LayoutDashboard, adminOnly: false, group: 'Content'    },
   { key: 'Restaurants',  label: 'Restaurants',     icon: UtensilsCrossed, adminOnly: false, group: 'Content'    },
   { key: 'Menu Items',   label: 'Menu Items',      icon: Tag,             adminOnly: false, group: 'Content'    },
+  { key: 'Banners',      label: 'Banners',         icon: Megaphone,       adminOnly: true,  group: 'Content'    },
   // Moderation — things that need regular review or action
   { key: 'Reviews',      label: 'Reviews',         icon: MessageSquare,   adminOnly: false, group: 'Moderation' },
   { key: 'Requests',     label: 'Change Requests', icon: Inbox,           adminOnly: true,  group: 'Moderation' },
@@ -41,6 +43,7 @@ const ALL_NAV_ITEMS = [
   { key: 'Staff',        label: 'Staff',           icon: UserCheck,       adminOnly: true,  group: 'Admin'      },
   // System — configuration and audit trail
   { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
+  { key: 'Theme',        label: 'Theme',           icon: Palette,         adminOnly: true,  group: 'System'     },
   { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
 ]
 
@@ -227,6 +230,15 @@ export default function AdminPage() {
   const [savedThemeKey, setSavedThemeKey] = useState(null)
   const [themeSaving,   setThemeSaving]   = useState(false)
   const [themeMsg,      setThemeMsg]      = useState('')
+
+  // ── Banners
+  const BANNER_EMPTY = { title: '', subtitle: '', image_url: '', cta_text: 'Learn More', cta_link: '', placement: 'home', sort_order: 0, is_active: true }
+  const [banners,        setBanners]        = useState([])
+  const [bannersLoading, setBannersLoading] = useState(false)
+  const [bannerForm,     setBannerForm]     = useState(BANNER_EMPTY)
+  const [bannerEditId,   setBannerEditId]   = useState(null)
+  const [bannerSaving,   setBannerSaving]   = useState(false)
+  const [bannerMsg,      setBannerMsg]      = useState('')
 
   const SC_SCHEMAS = {
     home: [
@@ -531,6 +543,7 @@ export default function AdminPage() {
     else if (key === 'Staff')        { loadStaff(1) }
     else if (key === 'Site Content') { scLoad(scPage) }
     else if (key === 'Theme')        { loadTheme() }
+    else if (key === 'Banners')      { loadBanners() }
   }
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -787,6 +800,69 @@ export default function AdminPage() {
       setThemeMsg('✓ Theme applied! Visitors will see it within 60 seconds.')
     } catch (err) { setThemeMsg(`Error: ${err.message}`) }
     finally { setThemeSaving(false) }
+  }
+
+  // ── Banner handlers ──────────────────────────────────────────────────────
+
+  async function loadBanners() {
+    setBannersLoading(true)
+    try {
+      const data = await adminListBanners()
+      setBanners(data)
+    } catch (err) { console.error(err) }
+    finally { setBannersLoading(false) }
+  }
+
+  async function handleBannerSave(e) {
+    e.preventDefault()
+    if (!bannerForm.title.trim()) { setBannerMsg('Title is required'); return }
+    setBannerSaving(true); setBannerMsg('')
+    try {
+      const payload = { ...bannerForm, sort_order: Number(bannerForm.sort_order) || 0 }
+      if (bannerEditId) payload.id = bannerEditId
+      await adminSaveBanner(payload)
+      setBannerMsg('✓ Banner saved')
+      setBannerEditId(null)
+      setBannerForm(BANNER_EMPTY)
+      await loadBanners()
+    } catch (err) { setBannerMsg(`Error: ${err.message}`) }
+    finally { setBannerSaving(false) }
+  }
+
+  async function handleBannerToggle(id, currentState) {
+    try {
+      await adminToggleBanner(id, !currentState)
+      setBanners(bs => bs.map(b => b.id === id ? { ...b, is_active: !currentState } : b))
+    } catch (err) { alert(err.message) }
+  }
+
+  async function handleBannerDelete(id) {
+    if (!confirm('Delete this banner permanently?')) return
+    try {
+      await adminDeleteBanner(id)
+      setBanners(bs => bs.filter(b => b.id !== id))
+    } catch (err) { alert(err.message) }
+  }
+
+  function startEditBanner(banner) {
+    setBannerEditId(banner.id)
+    setBannerForm({
+      title:      banner.title      || '',
+      subtitle:   banner.subtitle   || '',
+      image_url:  banner.image_url  || '',
+      cta_text:   banner.cta_text   || '',
+      cta_link:   banner.cta_link   || '',
+      placement:  banner.placement  || 'home',
+      sort_order: banner.sort_order ?? 0,
+      is_active:  banner.is_active  ?? true,
+    })
+    setBannerMsg('')
+  }
+
+  function cancelBannerEdit() {
+    setBannerEditId(null)
+    setBannerForm(BANNER_EMPTY)
+    setBannerMsg('')
   }
 
   // ── Site Content handlers ────────────────────────────────────────────────
@@ -2364,6 +2440,257 @@ export default function AdminPage() {
                 <p className="text-xs text-[var(--c-dim)] text-center">
                   Theme changes are visible to all visitors within 60 seconds of saving.
                 </p>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                BANNERS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Banners' && (
+              <div className="space-y-5 animate-fade-in">
+
+                {/* ── Create / Edit form ── */}
+                <div className="card p-5">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2 mb-4">
+                    <Megaphone size={16} className="text-[#FF2D55]" />
+                    {bannerEditId ? 'Edit Banner' : 'New Banner'}
+                  </h3>
+                  <form onSubmit={handleBannerSave} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Title <span className="text-[#FF2D55]">*</span></label>
+                        <input
+                          className={inputCls}
+                          placeholder="e.g. Grand Hotel — 20% off this weekend"
+                          value={bannerForm.title}
+                          onChange={e => setBannerForm(f => ({ ...f, title: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Subtitle</label>
+                        <input
+                          className={inputCls}
+                          placeholder="Supporting text (optional)"
+                          value={bannerForm.subtitle}
+                          onChange={e => setBannerForm(f => ({ ...f, subtitle: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Image URL</label>
+                        <input
+                          className={inputCls}
+                          placeholder="https://… (optional)"
+                          value={bannerForm.image_url}
+                          onChange={e => setBannerForm(f => ({ ...f, image_url: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">CTA Button Text</label>
+                        <input
+                          className={inputCls}
+                          placeholder="e.g. View Menu"
+                          value={bannerForm.cta_text}
+                          onChange={e => setBannerForm(f => ({ ...f, cta_text: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">CTA Link</label>
+                        <input
+                          className={inputCls}
+                          placeholder="/restaurants/123 or https://…"
+                          value={bannerForm.cta_link}
+                          onChange={e => setBannerForm(f => ({ ...f, cta_link: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Placement</label>
+                        <select
+                          className={inputCls}
+                          value={bannerForm.placement}
+                          onChange={e => setBannerForm(f => ({ ...f, placement: e.target.value }))}
+                        >
+                          <option value="home">Home page only</option>
+                          <option value="listing">Restaurant listing only</option>
+                          <option value="all">All pages</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Sort Order</label>
+                        <input
+                          type="number"
+                          className={inputCls}
+                          placeholder="0 = first"
+                          value={bannerForm.sort_order}
+                          onChange={e => setBannerForm(f => ({ ...f, sort_order: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <button
+                            type="button"
+                            onClick={() => setBannerForm(f => ({ ...f, is_active: !f.is_active }))}
+                            className="transition-colors"
+                          >
+                            {bannerForm.is_active
+                              ? <ToggleRight size={28} className="text-[#FF2D55]" />
+                              : <ToggleLeft  size={28} className="text-[var(--c-dim)]" />}
+                          </button>
+                          <span className="text-sm font-semibold text-[var(--c-text)]">
+                            {bannerForm.is_active ? 'Active (visible)' : 'Inactive (hidden)'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {bannerMsg && (
+                      <p className={`text-sm font-medium ${bannerMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+                        {bannerMsg}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={bannerSaving}
+                        className={`${gradientBtn} flex items-center gap-2`}
+                        style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                      >
+                        {bannerSaving ? <Spinner size={14} /> : <Check size={14} />}
+                        {bannerEditId ? 'Save Changes' : 'Create Banner'}
+                      </button>
+                      {bannerEditId && (
+                        <button
+                          type="button"
+                          onClick={cancelBannerEdit}
+                          className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-[var(--c-border)] text-[var(--c-muted)] hover:bg-[var(--c-surface2)] transition-all"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                {/* ── Banner list ── */}
+                <div className="card overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--c-border)]">
+                    <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2">
+                      <Megaphone size={15} /> All Banners
+                      {banners.length > 0 && (
+                        <span className="text-xs font-normal text-[var(--c-muted)]">({banners.length})</span>
+                      )}
+                    </h3>
+                    <button
+                      onClick={loadBanners}
+                      disabled={bannersLoading}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--c-border)] text-[var(--c-muted)] hover:bg-[var(--c-surface2)] transition-all disabled:opacity-50"
+                    >
+                      {bannersLoading ? 'Loading…' : 'Refresh'}
+                    </button>
+                  </div>
+
+                  {bannersLoading ? (
+                    <div className="flex justify-center py-12"><Spinner size={24} /></div>
+                  ) : banners.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <Megaphone size={28} className="mx-auto mb-3 text-[var(--c-dim)]" />
+                      <p className="text-sm text-[var(--c-muted)]">No banners yet. Create your first one above.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[var(--c-border)]">
+                      {banners.map(b => (
+                        <div key={b.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[var(--c-surface2)] transition-colors">
+
+                          {/* Thumbnail */}
+                          {b.image_url ? (
+                            <div className="shrink-0 w-12 h-10 rounded-lg overflow-hidden border border-[var(--c-border)]">
+                              <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="shrink-0 w-12 h-10 rounded-lg flex items-center justify-center"
+                              style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
+                              <Megaphone size={16} className="text-white" />
+                            </div>
+                          )}
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[var(--c-text)] truncate">{b.title}</p>
+                            {b.subtitle && (
+                              <p className="text-xs text-[var(--c-muted)] truncate">{b.subtitle}</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-px rounded bg-[var(--c-surface2)] text-[var(--c-muted)]">
+                                {b.placement}
+                              </span>
+                              {b.cta_link && (
+                                <span className="text-[10px] text-[var(--c-dim)] truncate max-w-[140px]">
+                                  → {b.cta_link}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Sort order */}
+                          <span className="text-xs text-[var(--c-dim)] shrink-0 w-6 text-center">#{b.sort_order}</span>
+
+                          {/* Active toggle */}
+                          <button
+                            onClick={() => handleBannerToggle(b.id, b.is_active)}
+                            title={b.is_active ? 'Click to deactivate' : 'Click to activate'}
+                            className="shrink-0 transition-colors"
+                          >
+                            {b.is_active
+                              ? <ToggleRight size={26} className="text-[#FF2D55]" />
+                              : <ToggleLeft  size={26} className="text-[var(--c-dim)]" />}
+                          </button>
+
+                          {/* Edit */}
+                          <button
+                            onClick={() => startEditBanner(b)}
+                            className="shrink-0 p-1.5 rounded-lg text-[var(--c-dim)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface2)] transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+
+                          {/* Delete */}
+                          <button
+                            onClick={() => handleBannerDelete(b.id)}
+                            className="shrink-0 p-1.5 rounded-lg text-[var(--c-dim)] hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── SQL setup notice ── */}
+                <div className="card p-4 border-amber-200 bg-amber-50">
+                  <p className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1.5">
+                    <AlertCircle size={13} /> Supabase table required
+                  </p>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Run this SQL in your Supabase SQL Editor to enable banners:
+                  </p>
+                  <pre className="mt-2 text-[10px] text-amber-900 bg-amber-100 rounded-lg p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS banners (
+  id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title      text NOT NULL,
+  subtitle   text,
+  image_url  text,
+  cta_text   text DEFAULT 'Learn More',
+  cta_link   text,
+  placement  text DEFAULT 'home' CHECK (placement IN ('home','listing','all')),
+  is_active  boolean DEFAULT false,
+  sort_order int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read"  ON banners FOR SELECT USING (is_active = true);
+CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenticated');`}</pre>
+                </div>
               </div>
             )}
 
