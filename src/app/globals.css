@@ -48,12 +48,57 @@ h1,h2,h3,h4 { font-family: var(--font-display); line-height: 1.1; letter-spacing
 .react-pdf__Page__canvas { display: block; max-width: 100%; height: auto !important; }
 
 /* Smooth theme colour transitions */
-[data-theme-changing] body,
-[data-theme-changing] .card,
-[data-theme-changing] header,
-[data-theme-changing] nav,
-[data-theme-changing] aside {
-  transition-property: background-color, border-color, color !important;
-  transition-duration: 0.3s !important;
-  transition-timing-function: ease !important;
+[data-theme-changing] *,
+[data-theme-changing] *::before,
+[data-theme-changing] *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME COLOUR OVERRIDES
+   Written OUTSIDE @layer so they beat all Tailwind utilities in the cascade.
+   Every hardcoded Tailwind gray/white class maps to the active CSS var so
+   the entire app responds to theme changes without touching component files.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backgrounds */
+.bg-white                { background-color: var(--c-surface)  ; }
+.bg-gray-50              { background-color: var(--c-surface2) ; }
+.bg-gray-100             { background-color: var(--c-surface2) ; }
+.bg-gray-200             { background-color: var(--c-border)   ; }
+.hover\:bg-gray-50:hover  { background-color: var(--c-surface2) ; }
+.hover\:bg-gray-100:hover { background-color: var(--c-surface2) ; }
+.hover\:bg-gray-200:hover { background-color: var(--c-border)   ; }
+
+/* ── Text */
+.text-gray-900 { color: var(--c-text)  ; }
+.text-gray-800 { color: var(--c-text)  ; }
+.text-gray-700 { color: var(--c-text)  ; }
+.text-gray-600 { color: var(--c-muted) ; }
+.text-gray-500 { color: var(--c-muted) ; }
+.text-gray-400 { color: var(--c-dim)   ; }
+.text-gray-300 { color: var(--c-dim)   ; }
+.hover\:text-gray-900:hover { color: var(--c-text)  ; }
+.hover\:text-gray-700:hover { color: var(--c-text)  ; }
+
+/* ── Borders */
+.border-gray-50  { border-color: var(--c-border)  ; }
+.border-gray-100 { border-color: var(--c-border)  ; }
+.border-gray-200 { border-color: var(--c-border2) ; }
+.border-gray-300 { border-color: var(--c-border2) ; }
+.hover\:border-gray-300:hover { border-color: var(--c-border2) ; }
+
+/* ── Inputs & textareas */
+input.bg-white, textarea.bg-white, select.bg-white,
+input.bg-gray-50, textarea.bg-gray-50, select.bg-gray-50 {
+  background-color: var(--c-surface2) ;
+  color:            var(--c-text)     ;
+  border-color:     var(--c-border)   ;
+}
+
+/* ── Inline-style overrides for page section backgrounds */
+section.bg-white, section[class*="bg-white"] { background-color: var(--c-bg) ; }
+
+/* ── Star rating empty state */
+.fill-gray-200 { fill: var(--c-border2) ; }
+.text-gray-200 { color: var(--c-border2) ; }
