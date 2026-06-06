@@ -340,13 +340,13 @@ export default function RestaurantPage() {
 
         {/* Rating summary */}
         {avgRating > 0 && (
-          <div className="flex items-center gap-5 p-4 rounded-2xl bg-white border border-gray-100 mb-5" style={{ boxShadow: '0 2px 16px rgba(0,0,0,.06)' }}>
+          <div className="flex items-center gap-5 p-4 rounded-2xl border mb-5" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', boxShadow: '0 2px 16px rgba(0,0,0,.06)' }}>
             <div className="text-center shrink-0 px-2">
-              <div className="text-5xl font-black text-gray-900 leading-none mb-1.5">{Number(avgRating).toFixed(1)}</div>
+            <div className="text-5xl font-black leading-none mb-1.5" style={{ color: 'var(--c-text)' }}>{Number(avgRating).toFixed(1)}</div>
               <Stars rating={Math.round(avgRating)} size={14} />
               <p className="text-[11px] text-gray-400 mt-1.5">{reviews.length || reviewCount} reviews</p>
             </div>
-            <div className="w-px h-16 bg-gray-100 shrink-0" />
+            <div className="w-px h-16 shrink-0" style={{ background: 'var(--c-border)' }} />
             <div className="flex-1 space-y-1.5 min-w-0">
               {[5, 4, 3, 2, 1].map(n => (
                 <RatingBar key={n} label={n} count={dist[n]} total={reviews.length || 1} />
@@ -356,7 +356,7 @@ export default function RestaurantPage() {
         )}
 
         {/* Tab switcher */}
-        <div className="flex gap-1 p-1 rounded-2xl mb-6" style={{ background: '#f5f5f5' }}>
+        <div className="flex gap-1 p-1 rounded-2xl mb-6" style={{ background: 'var(--c-surface2)' }}>
           {TABS.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)}
               className={clsx(
@@ -398,8 +398,7 @@ export default function RestaurantPage() {
               <h2 className="font-bold text-gray-900">Contact &amp; Hours</h2>
               {open_hours && (
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
-                    <Clock size={16} style={{ color }} />
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--c-brand-lt)' }}>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Opening hours</p>
@@ -409,7 +408,7 @@ export default function RestaurantPage() {
               )}
               {phone && (
                 <a href={`tel:${phone}`} className="flex items-start gap-3 group">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--c-brand-lt)' }}>
                     <Phone size={16} style={{ color }} />
                   </div>
                   <div>
@@ -420,7 +419,7 @@ export default function RestaurantPage() {
               )}
               {website && (
                 <a href={website} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 group">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--c-brand-lt)' }}>
                     <Globe size={16} style={{ color }} />
                   </div>
                   <div>
@@ -430,7 +429,7 @@ export default function RestaurantPage() {
                 </a>
               )}
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff0f3' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--c-brand-lt)' }}>
                   <MapPin size={16} style={{ color }} />
                 </div>
                 <div>
@@ -534,8 +533,8 @@ export default function RestaurantPage() {
 
             {/* Write a review */}
             {!user ? (
-              <div className="p-6 rounded-2xl bg-white border border-gray-100 text-center">
-                <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: '#fff0f3' }}>
+              <div className="p-6 rounded-2xl border text-center" style={{ background: 'var(--c-surface2)', borderColor: 'var(--c-border)' }}>
+                <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--c-brand-lt)' }}>
                   <MessageSquare size={22} style={{ color: '#FF2D55' }} />
                 </div>
                 <p className="font-bold text-gray-900 mb-1">Sign in to leave a review</p>

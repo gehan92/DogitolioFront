@@ -83,7 +83,7 @@ function AuthInner() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg,#fff5f7 0%,#f9f9f9 100%)' }}>
+    <div className="min-h-screen flex" style={{ background: 'var(--c-bg)' }}>
 
       {/* Left decorative panel — hidden on mobile */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 p-10 relative overflow-hidden"
@@ -125,7 +125,7 @@ function AuthInner() {
           </p>
 
           {/* Tab switcher */}
-          <div className="flex p-1 rounded-xl mb-6" style={{ background: '#f3f4f6' }}>
+          <div className="flex p-1 rounded-xl mb-6" style={{ background: 'var(--c-surface2)' }}>
             {[['signin','Sign In'],['signup','Sign Up']].map(([key, label]) => (
               <button key={key} onClick={() => { setTab(key); reset() }}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-150 ${

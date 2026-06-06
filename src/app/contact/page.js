@@ -84,7 +84,7 @@ export default function ContactPage() {
         </section>
 
         {/* ── CONTACT CARDS + FORM */}
-        <section className="bg-white py-20">
+        <section className="py-20" style={{ background: 'var(--c-bg)' }}>
           <div className="max-w-6xl mx-auto px-4">
             <div className="grid md:grid-cols-2 gap-10">
 
@@ -97,7 +97,7 @@ export default function ContactPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {contactInfo.map(({ icon: Icon, label, value, desc, href }) => {
                     const Inner = (
-                      <div className={`flex gap-4 p-5 rounded-2xl border border-[var(--c-border)] bg-[#f9f9f9] transition-all duration-200 ${href ? 'hover:border-[#FF2D55]/30 hover:bg-[#FF2D55]/[0.03] cursor-pointer' : ''}`}>
+                      <div className={`flex gap-4 p-5 rounded-2xl border border-[var(--c-border)] transition-all duration-200 ${href ? 'hover:border-[var(--c-brand)]/30 cursor-pointer' : ''}`} style={{ background: 'var(--c-surface2)' }}>
                         <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                           <Icon size={18} className="text-white" strokeWidth={2} />
                         </div>

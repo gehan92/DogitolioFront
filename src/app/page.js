@@ -166,7 +166,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── CUISINE TYPES */}
-        <section className="py-16" style={{ background: 'linear-gradient(180deg,#fff5f7 0%,#fff 100%)' }}>
+        <section className="py-16" style={{ background: 'var(--c-bg)' }}>
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-10">
               <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-2">Explore by type</p>
