@@ -19,12 +19,12 @@ const inter = Inter({
 })
 
 export const metadata = {
-  title:       { default: 'Digitolio — Find Food Menus Near You', template: '%s | Digitolio' },
-  description: 'Digitolio helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
+  title:       { default: 'MealHear — Find Food Menus Near You', template: '%s | MealHear' },
+  description: 'MealHear helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
   openGraph: {
     type:  'website',
-    title: 'Digitolio — Find Food Menus Near You',
+    title: 'MealHear — Find Food Menus Near You',
     description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
   },
 }

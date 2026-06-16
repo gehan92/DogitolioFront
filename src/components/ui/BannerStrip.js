@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { X, ExternalLink, Megaphone } from 'lucide-react'
 import { getBanners } from '@/lib/banners'
 
-const DISMISS_KEY = 'digitolio_dismissed_banners'
+const DISMISS_KEY = 'mealhear_dismissed_banners'
 
 function getDismissed() {
   try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]') }

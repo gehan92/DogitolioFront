@@ -56,7 +56,7 @@ export default function Navbar() {
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
               <img
                 src="/logo.svg"
-                alt="Digitolio"
+                alt="MealHear"
                 className="w-8 h-8 rounded-xl transition-transform duration-200 group-hover:scale-105"
               />
               <span
@@ -68,8 +68,8 @@ export default function Navbar() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                }}>Digi</span>
-                <span style={{ color: 'var(--c-text)' }}>tolio</span>
+                }}>Meal</span>
+                <span style={{ color: 'var(--c-text)' }}>Hear</span>
               </span>
             </Link>
 
