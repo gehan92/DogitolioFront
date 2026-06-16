@@ -365,7 +365,7 @@ export default async function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2.5 mb-4">
-                  <img src="/digtolio_logo.jpg" alt="Digitolio" className="w-9 h-9 rounded-xl" />
+                  <img src="/logo.svg" alt="Digitolio" className="w-9 h-9 rounded-xl" />
                   <span className="font-bold text-white text-lg tracking-tight">Digitolio</span>
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed max-w-xs">
