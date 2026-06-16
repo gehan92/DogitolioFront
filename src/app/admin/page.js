@@ -378,7 +378,7 @@ export default function AdminPage() {
     contact: {
       headline:    'Contact Us',
       subheadline: "Have a question, feedback, or want to list your food place? We'd love to hear from you.",
-      email:    'hello@digitolio.lk',
+      email:    'hello@mealhear.lk',
       phone:    '+94 11 234 5678',
       location: 'Colombo, Sri Lanka',
       hours:    '9:00 AM – 5:00 PM',
