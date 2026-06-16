@@ -394,8 +394,9 @@ export default function AdminPage() {
 
   // ── Auth guard: allow admin or staff
   useEffect(() => {
-    if (!authLoading && user && profile && !isAdmin && !isStaff) router.replace('/')
-    if (!authLoading && !user) router.replace('/')
+    if (authLoading) return
+    if (!user) { router.replace('/auth'); return }
+    if (profile && !isAdmin && !isStaff) router.replace('/')
   }, [user, profile, isAdmin, isStaff, authLoading])
 
   // ── Initial load
