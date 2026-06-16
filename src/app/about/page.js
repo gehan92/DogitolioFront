@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 
 export const metadata = {
   title: 'About Us',
-  description: 'Learn about MealHear — Sri Lanka\'s food discovery platform for hotels, restaurants, food shops and snack bars.',
+  description: 'Learn about MealHere — Sri Lanka\'s food discovery platform for hotels, restaurants, food shops and snack bars.',
 }
 
 const VALUE_ICONS = [Target, Users, MapPin, ShieldCheck]
@@ -25,8 +25,8 @@ export default async function AboutPage() {
   } catch {}
 
   // ── Hero
-  const headline    = cms.headline    || 'About MealHear'
-  const subheadline = cms.subheadline || "We built MealHear to solve a simple problem — finding food menus across Sri Lanka was hard. We made it easy."
+  const headline    = cms.headline    || 'About MealHere'
+  const subheadline = cms.subheadline || "We built MealHere to solve a simple problem — finding food menus across Sri Lanka was hard. We made it easy."
 
   // ── Stats
   const stat1Value = cms.stat1Value || '500+'
@@ -40,8 +40,8 @@ export default async function AboutPage() {
 
   // ── Story
   const storyTitle = cms.storyTitle || "Sri Lanka's food discovery platform"
-  const storyP1    = cms.storyP1    || "MealHear started with a simple question: \"Where can I find the menu before I go?\" We built the answer — a single platform where anyone can discover and explore food menus from hotels, restaurants, food shops and snack bars across every province in Sri Lanka."
-  const storyP2    = cms.storyP2    || "Whether you're a tourist looking for a good meal, a local finding a new favourite spot, or a business owner wanting to showcase your menu — MealHear is built for you."
+  const storyP1    = cms.storyP1    || "MealHere started with a simple question: \"Where can I find the menu before I go?\" We built the answer — a single platform where anyone can discover and explore food menus from hotels, restaurants, food shops and snack bars across every province in Sri Lanka."
+  const storyP2    = cms.storyP2    || "Whether you're a tourist looking for a good meal, a local finding a new favourite spot, or a business owner wanting to showcase your menu — MealHere is built for you."
 
   // ── Values
   const values = [

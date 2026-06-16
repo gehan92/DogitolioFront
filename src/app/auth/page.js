@@ -91,8 +91,8 @@ function AuthInner() {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 30% 70%, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="relative z-10">
-          <img src="/logo.svg" alt="MealHear" className="w-12 h-12 rounded-2xl mb-3" />
-          <span className="text-white font-black text-2xl tracking-tight">MealHear</span>
+          <img src="/logo.svg" alt="MealHere" className="w-12 h-12 rounded-2xl mb-3" />
+          <span className="text-white font-black text-2xl tracking-tight">MealHere</span>
         </div>
         <div className="relative z-10 space-y-7">
           {["Browse menus from every restaurant","See real prices before you go","Read & write trusted reviews"].map((t, i) => (
@@ -113,8 +113,8 @@ function AuthInner() {
 
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <img src="/logo.svg" alt="MealHear" className="w-14 h-14 mx-auto rounded-2xl mb-3" />
-            <h1 className="font-black text-2xl" style={{ background: 'linear-gradient(90deg,#FF2D55,#FF6035)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>MealHear</h1>
+            <img src="/logo.svg" alt="MealHere" className="w-14 h-14 mx-auto rounded-2xl mb-3" />
+            <h1 className="font-black text-2xl" style={{ background: 'linear-gradient(90deg,#FF2D55,#FF6035)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>MealHere</h1>
           </div>
 
           <h2 className="text-2xl font-black text-gray-900 mb-1">

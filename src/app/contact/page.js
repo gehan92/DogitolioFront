@@ -7,7 +7,7 @@ import { Button } from '@/components/ui'
 import { api } from '@/lib/api'
 
 const defaultContactInfo = [
-  { icon: Mail,  label: 'Email Us',     value: 'hello@mealhear.lk', desc: 'We reply within 24 hours',  href: 'mailto:hello@mealhear.lk' },
+  { icon: Mail,  label: 'Email Us',     value: 'hello@mealhere.lk', desc: 'We reply within 24 hours',  href: 'mailto:hello@mealhere.lk' },
   { icon: Phone, label: 'Call Us',      value: '+94 11 234 5678',    desc: 'Mon – Fri, 9am – 5pm',       href: 'tel:+94112345678' },
   { icon: MapPin,label: 'Location',     value: 'Colombo, Sri Lanka', desc: 'Serving all 9 provinces',    href: null },
   { icon: Clock, label: 'Office Hours', value: 'Mon – Fri',          desc: '9:00 AM – 5:00 PM',          href: null },
@@ -26,7 +26,7 @@ export default function ContactPage() {
       .catch(() => {})
   }, [])
 
-  const email    = cms.email    || 'hello@mealhear.lk'
+  const email    = cms.email    || 'hello@mealhere.lk'
   const phone    = cms.phone    || '+94 11 234 5678'
   const location = cms.location || 'Colombo, Sri Lanka'
   const hours    = cms.hours    || '9:00 AM – 5:00 PM'
@@ -115,9 +115,9 @@ export default function ContactPage() {
                 {/* CTA */}
                 <div className="mt-8 p-6 rounded-2xl bg-[#080808] text-white">
                   <p className="text-xs font-bold text-[#FF2D55] uppercase tracking-widest mb-2">Own a food place?</p>
-                  <h3 className="font-display text-xl font-black mb-2">List your menu on MealHear</h3>
+                  <h3 className="font-display text-xl font-black mb-2">List your menu on MealHere</h3>
                   <p className="text-white/40 text-sm mb-5 leading-relaxed">Reach thousands of food lovers across Sri Lanka. It&apos;s free to get started.</p>
-                  <a href="mailto:hello@mealhear.lk?subject=List My Place"
+                  <a href="mailto:hello@mealhere.lk?subject=List My Place"
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
                     Get Listed <ArrowRight size={14} />

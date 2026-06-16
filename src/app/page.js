@@ -31,9 +31,9 @@ export default async function HomePage() {
   const stat3Label = cms.stat3Label || 'Reviews'
 
   const whyTitle    = cms.whyTitle    || 'Everything you need to find great food'
-  const whySubtitle = cms.whySubtitle || 'MealHear makes it easy to discover, explore and review every food place across Sri Lanka.'
+  const whySubtitle = cms.whySubtitle || 'MealHere makes it easy to discover, explore and review every food place across Sri Lanka.'
 
-  const howTitle   = cms.howTitle   || 'How MealHear works'
+  const howTitle   = cms.howTitle   || 'How MealHere works'
   const step1Title = cms.step1Title || 'Search'
   const step1Desc  = cms.step1Desc  || 'Find food menus at hotels, restaurants, food shops and snack bars by name, price or location.'
   const step2Title = cms.step2Title || 'View Menu'
@@ -55,7 +55,7 @@ export default async function HomePage() {
   const t3Text     = cms.t3Text     || 'Great app for finding local food spots. Discovered so many new places near my home.'
 
   const footerDesc      = cms.footerDesc      || "Sri Lanka's food discovery platform. Find menus from hotels, restaurants, food shops and snack bars — all in one place."
-  const footerCopyright = cms.footerCopyright || '© 2026 MealHear. All rights reserved.'
+  const footerCopyright = cms.footerCopyright || '© 2026 MealHere. All rights reserved.'
 
   const provinces = [
     { name: 'Western',       shortName: 'Western',     rest: '120+' },
@@ -365,8 +365,8 @@ export default async function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2.5 mb-4">
-                  <img src="/logo.svg" alt="MealHear" className="w-9 h-9 rounded-xl" />
-                  <span className="font-bold text-white text-lg tracking-tight">MealHear</span>
+                  <img src="/logo.svg" alt="MealHere" className="w-9 h-9 rounded-xl" />
+                  <span className="font-bold text-white text-lg tracking-tight">MealHere</span>
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed max-w-xs">
                   {footerDesc}
