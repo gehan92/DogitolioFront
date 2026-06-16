@@ -10,21 +10,31 @@ export async function middleware(req) {
 
   const { pathname } = req.nextUrl
 
-  // Protect /admin routes — redirect to home if not logged in
-  if (pathname.startsWith('/admin')) {
+  const needsAdmin      = pathname.startsWith('/admin')
+  const needsSuperadmin = pathname.startsWith('/superadmin')
+
+  if (needsAdmin || needsSuperadmin) {
     if (!session) {
       return NextResponse.redirect(new URL('/auth', req.url))
     }
 
-    // Check admin role in profiles table
+    // Fetch role once for both admin and superadmin checks
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', session.user.id)
       .single()
 
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', req.url))
+    if (needsSuperadmin) {
+      // Only superusers may access /superadmin
+      if (!profile || profile.role !== 'superuser') {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
+    } else if (needsAdmin) {
+      // Admins and superusers may access /admin
+      if (!profile || !['admin', 'superuser'].includes(profile.role)) {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
     }
   }
 

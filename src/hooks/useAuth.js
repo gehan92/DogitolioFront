@@ -81,10 +81,11 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const isAdmin = profile?.role === 'admin'
-  const isStaff = profile?.role === 'staff'
-  const isOwner = profile?.role === 'owner'
-  const token   = session?.access_token ?? null
+  const isSuperuser = profile?.role === 'superuser'
+  const isAdmin      = profile?.role === 'admin' || isSuperuser
+  const isStaff      = profile?.role === 'staff'
+  const isOwner      = profile?.role === 'owner'
+  const token        = session?.access_token ?? null
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -94,7 +95,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, isStaff, isOwner, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, isStaff, isOwner, isSuperuser, signOut }}>
       {children}
     </AuthContext.Provider>
   )

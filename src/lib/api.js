@@ -130,4 +130,13 @@ export const api = {
       token
     ),
   },
+
+  // ── SUPERADMIN — dedicated /superadmin/* backend routes (requireSuperuser)
+  superadmin: {
+    stats:      (token)           => apiFetch('/superadmin/stats', {}, token),
+    users:      (params, token)   => apiFetch('/superadmin/users?' + new URLSearchParams(params), {}, token),
+    patchUser:  (id, data, token) => apiFetch(`/superadmin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+    auditLogs:  (params, token)   => apiFetch('/superadmin/audit-logs?' + new URLSearchParams(params), {}, token),
+    writeLog:   (data, token)     => apiFetch('/superadmin/audit-logs', { method: 'POST', body: JSON.stringify(data) }, token),
+  },
 }
