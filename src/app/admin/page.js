@@ -233,12 +233,13 @@ export default function AdminPage() {
 
   // ── Banners
   const BANNER_EMPTY = { title: '', subtitle: '', image_url: '', cta_text: 'Learn More', cta_link: '', placement: 'home', sort_order: 0, is_active: true }
-  const [banners,        setBanners]        = useState([])
-  const [bannersLoading, setBannersLoading] = useState(false)
-  const [bannerForm,     setBannerForm]     = useState(BANNER_EMPTY)
-  const [bannerEditId,   setBannerEditId]   = useState(null)
-  const [bannerSaving,   setBannerSaving]   = useState(false)
-  const [bannerMsg,      setBannerMsg]      = useState('')
+  const [banners,             setBanners]             = useState([])
+  const [bannersLoading,      setBannersLoading]      = useState(false)
+  const [bannersTableMissing, setBannersTableMissing] = useState(false)
+  const [bannerForm,          setBannerForm]          = useState(BANNER_EMPTY)
+  const [bannerEditId,        setBannerEditId]        = useState(null)
+  const [bannerSaving,        setBannerSaving]        = useState(false)
+  const [bannerMsg,           setBannerMsg]           = useState('')
 
   const SC_SCHEMAS = {
     home: [
@@ -810,7 +811,11 @@ export default function AdminPage() {
     try {
       const data = await adminListBanners()
       setBanners(data)
-    } catch (err) { console.error(err) }
+      setBannersTableMissing(false)
+    } catch (err) {
+      console.error(err)
+      setBannersTableMissing(true)
+    }
     finally { setBannersLoading(false) }
   }
 
@@ -2668,15 +2673,16 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* ── SQL setup notice ── */}
-                <div className="card p-4 border-amber-200 bg-amber-50">
-                  <p className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1.5">
-                    <AlertCircle size={13} /> Supabase table required
-                  </p>
-                  <p className="text-xs text-amber-700 leading-relaxed">
-                    Run this SQL in your Supabase SQL Editor to enable banners:
-                  </p>
-                  <pre className="mt-2 text-[10px] text-amber-900 bg-amber-100 rounded-lg p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS banners (
+                {/* ── SQL setup notice — only shown when banners table is missing ── */}
+                {bannersTableMissing && (
+                  <div className="card p-4 border-amber-200 bg-amber-50">
+                    <p className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1.5">
+                      <AlertCircle size={13} /> Supabase table required
+                    </p>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Run this SQL in your Supabase SQL Editor to enable banners:
+                    </p>
+                    <pre className="mt-2 text-[10px] text-amber-900 bg-amber-100 rounded-lg p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS banners (
   id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title      text NOT NULL,
   subtitle   text,
@@ -2691,7 +2697,8 @@ export default function AdminPage() {
 ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"  ON banners FOR SELECT USING (is_active = true);
 CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenticated');`}</pre>
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
