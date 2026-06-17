@@ -2056,11 +2056,12 @@ export default function AdminPage() {
                     )}>{usersMsg}</p>
                   )}
                   {[
-                    { value: '',       label: 'All',   countKey: 'total' },
-                    { value: 'admin',  label: 'Admin', countKey: 'admin' },
-                    { value: 'staff',  label: 'Staff', countKey: 'staff' },
-                    { value: 'owner',  label: 'Owner', countKey: 'owner' },
-                    { value: 'user',   label: 'User',  countKey: 'user'  },
+                    { value: '',          label: 'All',       countKey: 'total'     },
+                    { value: 'admin',     label: 'Admin',     countKey: 'admin'     },
+                    { value: 'staff',     label: 'Staff',     countKey: 'staff'     },
+                    { value: 'owner',     label: 'Owner',     countKey: 'owner'     },
+                    { value: 'user',      label: 'User',      countKey: 'user'      },
+                    { value: 'superuser', label: 'Superuser', countKey: 'superuser' },
                   ].map(r => {
                     const isActive = usersRoleFilter === r.value
                     const count    = userRoleCounts?.[r.countKey]
@@ -2187,7 +2188,7 @@ export default function AdminPage() {
                               >
                                 Activity
                               </button>
-                              {u.id !== user?.id && (
+                              {u.id !== user?.id && u.role !== 'superuser' && (
                                 <>
                                   <select
                                     value={u.role}
