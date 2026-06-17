@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, createContext, useContext } from 'react'
 import { supabase } from '@/lib/supabase'
+import { api }      from '@/lib/api'
 
 const AuthContext = createContext(null)
 
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
         // Create profile on first login
         if (event === 'SIGNED_IN') {
           await ensureProfile(session.user)
+          api.history.recordLogin(session.access_token).catch(() => {})
         }
       } else {
         setProfile(null)

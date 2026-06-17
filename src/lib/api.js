@@ -158,6 +158,7 @@ export const api = {
     logins:          (params, token) => apiFetch('/history/login?' + new URLSearchParams(params), {}, token),
     bans:            (params, token) => apiFetch('/history/bans?' + new URLSearchParams(params), {}, token),
     roleChanges:     (params, token) => apiFetch('/history/role-changes?' + new URLSearchParams(params), {}, token),
+    recordLogin:     (token)         => apiFetch('/history/login', { method: 'POST' }, token),
   },
 
   // ── NOTIFICATIONS
