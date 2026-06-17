@@ -8,6 +8,8 @@ import {
   Menu, Clock, Home, ChevronRight, ChevronLeft, Zap, ZapOff, History,
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
   Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
+  Bell, BarChart2, HelpCircle, DollarSign, ClipboardCheck,
+  Ticket, ListTodo, Send, ChevronUp,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
@@ -23,25 +25,35 @@ const PAGE_SIZE = 12
 // Sections staff can have access toggled for (admin-only sections excluded)
 const STAFF_SECTIONS = [
   'Overview', 'Restaurants', 'Boost', 'Reviews',
-  'Menu Items', 'Site Content', 'History',
+  'Menu Items', 'Site Content', 'History', 'Gallery', 'Tasks', 'Tickets',
 ]
 
 // All nav items — staff sees a filtered subset based on their permissions
 const ALL_NAV_ITEMS = [
-  // Content — primary entities and their direct tools
+  // Content
   { key: 'Overview',     label: 'Overview',        icon: LayoutDashboard, adminOnly: false, group: 'Content'    },
+  { key: 'Analytics',    label: 'Analytics',       icon: BarChart2,       adminOnly: true,  group: 'Content'    },
   { key: 'Restaurants',  label: 'Restaurants',     icon: UtensilsCrossed, adminOnly: false, group: 'Content'    },
+  { key: 'Approval',     label: 'Approval Queue',  icon: ClipboardCheck,  adminOnly: true,  group: 'Content'    },
   { key: 'Menu Items',   label: 'Menu Items',      icon: Tag,             adminOnly: false, group: 'Content'    },
+  { key: 'Gallery',      label: 'Gallery',         icon: Image,           adminOnly: false, group: 'Content'    },
   { key: 'Banners',      label: 'Banners',         icon: Megaphone,       adminOnly: true,  group: 'Content'    },
-  // Moderation — things that need regular review or action
+  { key: 'FAQs',         label: 'FAQs',            icon: HelpCircle,      adminOnly: true,  group: 'Content'    },
+  // Moderation
   { key: 'Reviews',      label: 'Reviews',         icon: MessageSquare,   adminOnly: false, group: 'Moderation' },
   { key: 'Requests',     label: 'Change Requests', icon: Inbox,           adminOnly: true,  group: 'Moderation' },
   { key: 'Boost',        label: 'Boost',           icon: Zap,             adminOnly: false, group: 'Moderation' },
-  // Admin — people and access management
+  { key: 'Tickets',      label: 'Support Tickets', icon: Ticket,          adminOnly: false, group: 'Moderation' },
+  // Admin
   { key: 'Users',        label: 'Users',           icon: Users,           adminOnly: true,  group: 'Admin'      },
   { key: 'Owners',       label: 'Owners',          icon: Building2,       adminOnly: true,  group: 'Admin'      },
   { key: 'Staff',        label: 'Staff',           icon: UserCheck,       adminOnly: true,  group: 'Admin'      },
-  // System — configuration and audit trail
+  { key: 'Tasks',        label: 'Staff Tasks',     icon: ListTodo,        adminOnly: false, group: 'Admin'      },
+  { key: 'Announcements',label: 'Announcements',   icon: Bell,            adminOnly: true,  group: 'Admin'      },
+  // Finance
+  { key: 'Revenue',      label: 'Revenue',         icon: DollarSign,      adminOnly: true,  group: 'Finance'    },
+  // System
+  { key: 'Notifications',label: 'Notifications',   icon: Bell,            adminOnly: true,  group: 'System'     },
   { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
   { key: 'Theme',        label: 'Theme',           icon: Palette,         adminOnly: true,  group: 'System'     },
   { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
@@ -240,6 +252,113 @@ export default function AdminPage() {
   const [bannerEditId,        setBannerEditId]        = useState(null)
   const [bannerSaving,        setBannerSaving]        = useState(false)
   const [bannerMsg,           setBannerMsg]           = useState('')
+
+  // ── Analytics
+  const [analyticsData,    setAnalyticsData]    = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // ── Approval Queue
+  const [pendingRests,        setPendingRests]        = useState([])
+  const [pendingRestsLoading, setPendingRestsLoading] = useState(false)
+  const [approvalMsg,         setApprovalMsg]         = useState('')
+
+  // ── History tab
+  const [historySubTab,      setHistorySubTab]      = useState('audit')
+  const [editHistory,        setEditHistory]        = useState([])
+  const [editHistoryLoading, setEditHistoryLoading] = useState(false)
+  const [editHistoryTotal,   setEditHistoryTotal]   = useState(0)
+  const [editHistoryPages,   setEditHistoryPages]   = useState(1)
+  const [editHistoryPage,    setEditHistoryPage]    = useState(1)
+  const [loginHistory,       setLoginHistory]       = useState([])
+  const [loginHistLoading,   setLoginHistLoading]   = useState(false)
+  const [loginHistTotal,     setLoginHistTotal]     = useState(0)
+  const [loginHistPages,     setLoginHistPages]     = useState(1)
+  const [loginHistPage,      setLoginHistPage]      = useState(1)
+  const [banHistory,         setBanHistory]         = useState([])
+  const [banHistLoading,     setBanHistLoading]     = useState(false)
+  const [roleHistory,        setRoleHistory]        = useState([])
+  const [roleHistLoading,    setRoleHistLoading]    = useState(false)
+
+  // ── User activity modal
+  const [activityUserId,   setActivityUserId]   = useState(null)
+  const [activityUser,     setActivityUser]     = useState(null)
+  const [activityData,     setActivityData]     = useState(null)
+  const [activityLoading,  setActivityLoading]  = useState(false)
+
+  // ── Staff notes/warnings
+  const [staffNotesMap,    setStaffNotesMap]    = useState({})
+  const [staffNoteInput,   setStaffNoteInput]   = useState({})
+  const [staffWarnsMap,    setStaffWarnsMap]    = useState({})
+  const [staffWarnInput,   setStaffWarnInput]   = useState({})
+  const [staffWarnSaving,  setStaffWarnSaving]  = useState(false)
+  const [staffExtMsg,      setStaffExtMsg]      = useState({})
+
+  // ── Bulk select (Restaurants)
+  const [selectedRests,    setSelectedRests]    = useState(new Set())
+  const [bulkAction,       setBulkAction]       = useState('')
+  const [bulkLoading,      setBulkLoading]      = useState(false)
+  const [bulkMsg,          setBulkMsg]          = useState('')
+
+  // ── FAQs
+  const [faqs,        setFaqs]        = useState([])
+  const [faqsLoading, setFaqsLoading] = useState(false)
+  const [faqForm,     setFaqForm]     = useState({ question: '', answer: '', category: 'general', sort_order: 0 })
+  const [faqEditId,   setFaqEditId]   = useState(null)
+  const [faqSaving,   setFaqSaving]   = useState(false)
+  const [faqMsg,      setFaqMsg]      = useState('')
+
+  // ── Gallery
+  const [galleryRestId,  setGalleryRestId]  = useState('')
+  const [galleryImages,  setGalleryImages]  = useState([])
+  const [galleryLoading, setGalleryLoading] = useState(false)
+  const [galleryFile,    setGalleryFile]    = useState(null)
+  const [galleryCaption, setGalleryCaption] = useState('')
+  const [galleryMsg,     setGalleryMsg]     = useState('')
+  const [galleryUploading, setGalleryUploading] = useState(false)
+
+  // ── Staff Tasks
+  const [tasks,         setTasks]         = useState([])
+  const [tasksLoading,  setTasksLoading]  = useState(false)
+  const [tasksTotal,    setTasksTotal]    = useState(0)
+  const [tasksPage,     setTasksPage]     = useState(1)
+  const [tasksTotalPgs, setTasksTotalPgs] = useState(1)
+  const [taskForm,      setTaskForm]      = useState({ assigned_to: '', title: '', description: '', priority: 'medium', due_date: '' })
+  const [taskSaving,    setTaskSaving]    = useState(false)
+  const [taskMsg,       setTaskMsg]       = useState('')
+
+  // ── Announcements
+  const [announcements,        setAnnouncements]        = useState([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false)
+  const [annForm,              setAnnForm]              = useState({ title: '', message: '', type: 'info', target: 'all', expires_at: '' })
+  const [annEditId,            setAnnEditId]            = useState(null)
+  const [annSaving,            setAnnSaving]            = useState(false)
+  const [annMsg,               setAnnMsg]               = useState('')
+
+  // ── Support Tickets
+  const [tickets,         setTickets]         = useState([])
+  const [ticketsLoading,  setTicketsLoading]  = useState(false)
+  const [ticketsTotal,    setTicketsTotal]    = useState(0)
+  const [ticketsPage,     setTicketsPage]     = useState(1)
+  const [ticketsTotalPgs, setTicketsTotalPgs] = useState(1)
+  const [ticketFilter,    setTicketFilter]    = useState('')
+  const [expandedTicket,  setExpandedTicket]  = useState(null)
+  const [ticketReply,     setTicketReply]     = useState('')
+  const [ticketReplying,  setTicketReplying]  = useState(false)
+
+  // ── Revenue / Payments
+  const [payments,        setPayments]        = useState([])
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [paymentsTotal,   setPaymentsTotal]   = useState(0)
+  const [paymentsPage,    setPaymentsPage]    = useState(1)
+  const [paymentsTotalPgs,setPaymentsTotalPgs]= useState(1)
+  const [payForm,         setPayForm]         = useState({ restaurant_id: '', amount: '', plan_type: 'monthly', payment_date: '', notes: '' })
+  const [paySaving,       setPaySaving]       = useState(false)
+  const [payMsg,          setPayMsg]          = useState('')
+
+  // ── Notifications (admin send panel)
+  const [notifForm,    setNotifForm]    = useState({ role: 'all', title: '', message: '', type: 'info' })
+  const [notifSaving,  setNotifSaving]  = useState(false)
+  const [notifMsg,     setNotifMsg]     = useState('')
 
   const SC_SCHEMAS = {
     home: [
@@ -526,6 +645,195 @@ export default function AdminPage() {
     finally { setStaffLoading(false) }
   }
 
+  // ── New load functions ──────────────────────────────────────────────────
+  async function loadAnalytics() {
+    setAnalyticsLoading(true)
+    try { const d = await api.analytics.overview(token); setAnalyticsData(d) }
+    catch (err) { console.error(err) }
+    finally { setAnalyticsLoading(false) }
+  }
+
+  async function loadPendingApproval() {
+    setPendingRestsLoading(true)
+    try {
+      const d = await api.restaurants.list({ showAll: true, page: 1, limit: 50 }, token)
+      setPendingRests((d.data || []).filter(r => r.is_pending_approval))
+    } catch (err) { console.error(err) }
+    finally { setPendingRestsLoading(false) }
+  }
+
+  async function loadEditHistory(page = 1) {
+    setEditHistoryLoading(true)
+    try {
+      const d = await api.history.restaurantEdits({ page, limit: 20 }, token)
+      setEditHistory(d.data || [])
+      setEditHistoryTotal(d.total || 0)
+      setEditHistoryPage(page)
+      setEditHistoryPages(d.totalPages || 1)
+    } catch (err) { console.error(err) }
+    finally { setEditHistoryLoading(false) }
+  }
+
+  async function loadLoginHistory(page = 1) {
+    setLoginHistLoading(true)
+    try {
+      const d = await api.history.logins({ page, limit: 20 }, token)
+      setLoginHistory(d.data || [])
+      setLoginHistTotal(d.total || 0)
+      setLoginHistPage(page)
+      setLoginHistPages(d.totalPages || 1)
+    } catch (err) { console.error(err) }
+    finally { setLoginHistLoading(false) }
+  }
+
+  async function loadBanHistory() {
+    setBanHistLoading(true)
+    try { const d = await api.history.bans({ limit: 50 }, token); setBanHistory(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setBanHistLoading(false) }
+  }
+
+  async function loadRoleHistory() {
+    setRoleHistLoading(true)
+    try { const d = await api.history.roleChanges({ limit: 50 }, token); setRoleHistory(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setRoleHistLoading(false) }
+  }
+
+  async function loadUserActivity(uid, uName) {
+    setActivityUserId(uid)
+    setActivityUser(uName)
+    setActivityData(null)
+    setActivityLoading(true)
+    try { const d = await api.admin.userActivity(uid, token); setActivityData(d) }
+    catch (err) { console.error(err) }
+    finally { setActivityLoading(false) }
+  }
+
+  async function loadStaffNotes(staffId) {
+    try {
+      const d = await api.staffExtended.getMemberNotes(staffId, token)
+      setStaffNotesMap(prev => ({ ...prev, [staffId]: d.data || [] }))
+    } catch (err) { console.error(err) }
+  }
+
+  async function addStaffNote(staffId) {
+    const note = staffNoteInput[staffId]?.trim()
+    if (!note) return
+    try {
+      await api.staffExtended.addMemberNote(staffId, { note }, token)
+      setStaffNoteInput(prev => ({ ...prev, [staffId]: '' }))
+      loadStaffNotes(staffId)
+    } catch (err) { console.error(err) }
+  }
+
+  async function deleteStaffNote(noteId, staffId) {
+    try {
+      await api.staffExtended.deleteMemberNote(noteId, token)
+      loadStaffNotes(staffId)
+    } catch (err) { console.error(err) }
+  }
+
+  async function loadStaffWarnings(staffId) {
+    try {
+      const d = await api.staffExtended.getWarnings(staffId, token)
+      setStaffWarnsMap(prev => ({ ...prev, [staffId]: d.data || [] }))
+    } catch (err) { console.error(err) }
+  }
+
+  async function issueWarning(staffId) {
+    const reason = staffWarnInput[staffId]?.trim()
+    if (!reason) return
+    setStaffWarnSaving(true)
+    try {
+      await api.staffExtended.issueWarning({ staff_id: staffId, reason }, token)
+      setStaffWarnInput(prev => ({ ...prev, [staffId]: '' }))
+      setStaffExtMsg(prev => ({ ...prev, [staffId]: '✓ Warning issued' }))
+      setTimeout(() => setStaffExtMsg(prev => ({ ...prev, [staffId]: '' })), 3000)
+      loadStaffWarnings(staffId)
+    } catch (err) {
+      setStaffExtMsg(prev => ({ ...prev, [staffId]: 'Error issuing warning' }))
+    }
+    finally { setStaffWarnSaving(false) }
+  }
+
+  async function executeBulkAction() {
+    if (!bulkAction || selectedRests.size === 0) return
+    const ids = [...selectedRests]
+    setBulkLoading(true)
+    try {
+      await api.restaurants.bulk({ action: bulkAction, ids }, token)
+      setBulkMsg(`✓ ${bulkAction} applied to ${ids.length} restaurant(s)`)
+      setSelectedRests(new Set())
+      setBulkAction('')
+      loadRestaurants(restPage)
+      setTimeout(() => setBulkMsg(''), 3000)
+    } catch (err) {
+      setBulkMsg('Error: ' + err.message)
+    }
+    finally { setBulkLoading(false) }
+  }
+
+  async function loadFaqs() {
+    setFaqsLoading(true)
+    try { const d = await api.faqs.admin({}, token); setFaqs(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setFaqsLoading(false) }
+  }
+
+  async function loadGallery(restId) {
+    if (!restId) return
+    setGalleryLoading(true)
+    try { const d = await api.gallery.list(restId); setGalleryImages(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setGalleryLoading(false) }
+  }
+
+  async function loadTasks(page = 1) {
+    setTasksLoading(true)
+    try {
+      const d = await api.staffExtended.getTasks({ page, limit: 20 }, token)
+      setTasks(d.data || [])
+      setTasksTotal(d.total || 0)
+      setTasksPage(page)
+      setTasksTotalPgs(d.totalPages || 1)
+    } catch (err) { console.error(err) }
+    finally { setTasksLoading(false) }
+  }
+
+  async function loadAnnouncements() {
+    setAnnouncementsLoading(true)
+    try { const d = await api.announcements.all({}, token); setAnnouncements(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setAnnouncementsLoading(false) }
+  }
+
+  async function loadTickets(page = 1, status = ticketFilter) {
+    setTicketsLoading(true)
+    try {
+      const params = { page, limit: 20 }
+      if (status) params.status = status
+      const d = await api.tickets.list(params, token)
+      setTickets(d.data || [])
+      setTicketsTotal(d.total || 0)
+      setTicketsPage(page)
+      setTicketsTotalPgs(d.totalPages || 1)
+    } catch (err) { console.error(err) }
+    finally { setTicketsLoading(false) }
+  }
+
+  async function loadPayments(page = 1) {
+    setPaymentsLoading(true)
+    try {
+      const d = await api.payments.list({ page, limit: 20 }, token)
+      setPayments(d.data || [])
+      setPaymentsTotal(d.total || 0)
+      setPaymentsPage(page)
+      setPaymentsTotalPgs(d.totalPages || 1)
+    } catch (err) { console.error(err) }
+    finally { setPaymentsLoading(false) }
+  }
+
   // ── Lazy tab navigation ─────────────────────────────────────────────────
   function navigate(key) {
     setTab(key)
@@ -537,15 +845,24 @@ export default function AdminPage() {
     if ((key === 'Restaurants' || key === 'Boost') &&
         !tabsLoaded.has('Restaurants') && !tabsLoaded.has('Boost')) {
       loadRestaurants(1)
-    } else if (key === 'Reviews')  { loadReviews(1) }
-    else if (key === 'Users')      { loadUsers(1, '', true) }
-    else if (key === 'History')    { loadAuditLogs(1) }
-    else if (key === 'Requests')   { loadChangeRequests(1) }
-    else if (key === 'Owners')       { loadOwners() }
-    else if (key === 'Staff')        { loadStaff(1) }
-    else if (key === 'Site Content') { scLoad(scPage) }
-    else if (key === 'Theme')        { loadTheme() }
-    else if (key === 'Banners')      { loadBanners() }
+    } else if (key === 'Reviews')       { loadReviews(1) }
+    else if (key === 'Users')           { loadUsers(1, '', true) }
+    else if (key === 'History')         { loadAuditLogs(1); loadEditHistory(1); loadLoginHistory(1); loadBanHistory(); loadRoleHistory() }
+    else if (key === 'Requests')        { loadChangeRequests(1) }
+    else if (key === 'Owners')          { loadOwners() }
+    else if (key === 'Staff')           { loadStaff(1) }
+    else if (key === 'Site Content')    { scLoad(scPage) }
+    else if (key === 'Theme')           { loadTheme() }
+    else if (key === 'Banners')         { loadBanners() }
+    else if (key === 'Analytics')       { loadAnalytics() }
+    else if (key === 'Approval')        { loadPendingApproval() }
+    else if (key === 'FAQs')           { loadFaqs() }
+    else if (key === 'Tasks')           { loadTasks(1) }
+    else if (key === 'Announcements')   { loadAnnouncements() }
+    else if (key === 'Tickets')         { loadTickets(1) }
+    else if (key === 'Revenue')         { loadPayments(1) }
+    else if (key === 'Gallery')         { /* user picks restaurant first */ }
+    else if (key === 'Notifications')   { /* send panel, no load needed */ }
   }
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -681,17 +998,19 @@ export default function AdminPage() {
   async function expandStaff(staffId) {
     if (expandedStaffId === staffId) { setExpandedStaffId(null); return }
     setExpandedStaffId(staffId)
-    if (staffPermsMap[staffId]) return
-    setStaffPermsLoading(true)
-    try {
-      const data = await api.admin.staffPermissions(staffId, token)
-      const permMap = {}
-      // Default all sections to true if no record exists
-      STAFF_SECTIONS.forEach(s => { permMap[s] = true })
-      ;(data.data || []).forEach(p => { permMap[p.section] = p.can_access })
-      setStaffPermsMap(m => ({ ...m, [staffId]: permMap }))
-    } catch (err) { console.error(err) }
-    finally { setStaffPermsLoading(false) }
+    if (!staffPermsMap[staffId]) {
+      setStaffPermsLoading(true)
+      try {
+        const data = await api.admin.staffPermissions(staffId, token)
+        const permMap = {}
+        STAFF_SECTIONS.forEach(s => { permMap[s] = true })
+        ;(data.data || []).forEach(p => { permMap[p.section] = p.can_access })
+        setStaffPermsMap(m => ({ ...m, [staffId]: permMap }))
+      } catch (err) { console.error(err) }
+      finally { setStaffPermsLoading(false) }
+    }
+    loadStaffNotes(staffId)
+    loadStaffWarnings(staffId)
   }
 
   function toggleStaffPerm(staffId, section) {
@@ -1262,15 +1581,49 @@ export default function AdminPage() {
                       </Link>
                     )}
                   </div>
+
+                  {/* Bulk action bar */}
+                  {isAdmin && selectedRests.size > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                      <span className="text-xs font-semibold text-blue-700">{selectedRests.size} selected</span>
+                      <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
+                        className="text-xs border border-blue-200 rounded-lg px-2 py-1.5 bg-white outline-none">
+                        <option value="">— Choose action —</option>
+                        <option value="activate">Activate all</option>
+                        <option value="deactivate">Deactivate all</option>
+                        <option value="delete">Delete all</option>
+                      </select>
+                      <button onClick={executeBulkAction} disabled={!bulkAction || bulkLoading}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        {bulkLoading ? 'Working…' : 'Apply'}
+                      </button>
+                      <button onClick={() => setSelectedRests(new Set())} className="text-xs text-blue-500 hover:underline">Clear</button>
+                      {bulkMsg && <p className={clsx('text-xs font-semibold ml-2', bulkMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>{bulkMsg}</p>}
+                    </div>
+                  )}
+
                   {restsLoading ? <TabSpinner /> : restaurants.length === 0 ? (
                     <p className="text-sm text-[var(--c-muted)] text-center py-10">No restaurants yet.</p>
                   ) : (
                     <>
                       <div className="divide-y divide-[var(--c-border)]">
                         {restaurants.map(r => (
-                          <div key={r.id} className={clsx('flex items-center justify-between px-4 py-3 hover:bg-surface-secondary transition-colors', !r.is_active && 'opacity-60 bg-gray-50/60')}>
+                          <div key={r.id} className={clsx('flex items-center gap-3 px-4 py-3 hover:bg-surface-secondary transition-colors', !r.is_active && 'opacity-60 bg-gray-50/60')}>
+                            {/* Bulk checkbox */}
+                            {isAdmin && (
+                              <input type="checkbox" checked={selectedRests.has(r.id)}
+                                onChange={e => {
+                                  setSelectedRests(prev => {
+                                    const next = new Set(prev)
+                                    e.target.checked ? next.add(r.id) : next.delete(r.id)
+                                    return next
+                                  })
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 text-[#FF2D55] shrink-0 cursor-pointer"
+                              />
+                            )}
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 mb-0.5">
+                              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                                 <p className="font-medium text-sm text-[var(--c-text)] truncate">{r.name}</p>
                                 {!r.is_active && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-500 shrink-0">
@@ -1280,7 +1633,17 @@ export default function AdminPage() {
                                 {r.is_active && isBoostActive(r) && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
                                     style={{ background: 'linear-gradient(135deg,#F59E0B,#EF4444)' }}>
-                                    <Zap size={8} className="fill-white" /> Featured
+                                    <Zap size={8} className="fill-white" /> Boosted
+                                  </span>
+                                )}
+                                {r.is_verified && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 shrink-0">
+                                    <Check size={8} /> Verified
+                                  </span>
+                                )}
+                                {r.is_featured && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shrink-0">
+                                    <Zap size={8} /> Featured
                                   </span>
                                 )}
                               </div>
@@ -1293,7 +1656,7 @@ export default function AdminPage() {
                                 )}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <Link href={`/admin/restaurants/${r.id}/edit`}>
                                 <Button size="sm" variant="secondary" className="text-xs"><Pencil size={12} /> Edit</Button>
                               </Link>
@@ -1303,20 +1666,34 @@ export default function AdminPage() {
                                 </Link>
                               )}
                               {isAdmin && (
-                                <button
-                                  onClick={() => toggleVisibility(r)}
-                                  title={r.is_active ? 'Hide from public' : 'Show to public'}
-                                  className={clsx('p-1.5 rounded-lg transition-colors', r.is_active ? 'hover:bg-amber-50 text-amber-400 hover:text-amber-600' : 'hover:bg-green-50 text-green-400 hover:text-green-600')}
-                                >
-                                  {r.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button onClick={() => deleteRestaurant(r.id, r.name)}
-                                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
-                                  title="Permanently hide">
-                                  <Trash2 size={14} />
-                                </button>
+                                <>
+                                  <button
+                                    onClick={async () => { try { await api.restaurants.verify(r.id, { is_verified: !r.is_verified }, token); loadRestaurants(restPage) } catch(e){} }}
+                                    title={r.is_verified ? 'Remove verified badge' : 'Mark as verified'}
+                                    className={clsx('p-1.5 rounded-lg transition-colors text-xs', r.is_verified ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'hover:bg-blue-50 text-blue-300 hover:text-blue-600')}
+                                  >
+                                    <Check size={13}/>
+                                  </button>
+                                  <button
+                                    onClick={async () => { try { await api.restaurants.feature(r.id, { is_featured: !r.is_featured }, token); loadRestaurants(restPage) } catch(e){} }}
+                                    title={r.is_featured ? 'Remove featured' : 'Mark as featured'}
+                                    className={clsx('p-1.5 rounded-lg transition-colors', r.is_featured ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'hover:bg-amber-50 text-amber-300 hover:text-amber-600')}
+                                  >
+                                    <Zap size={13}/>
+                                  </button>
+                                  <button
+                                    onClick={() => toggleVisibility(r)}
+                                    title={r.is_active ? 'Hide from public' : 'Show to public'}
+                                    className={clsx('p-1.5 rounded-lg transition-colors', r.is_active ? 'hover:bg-amber-50 text-amber-400 hover:text-amber-600' : 'hover:bg-green-50 text-green-400 hover:text-green-600')}
+                                  >
+                                    {r.is_active ? <EyeOff size={14}/> : <Eye size={14}/>}
+                                  </button>
+                                  <button onClick={() => deleteRestaurant(r.id, r.name)}
+                                    className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                                    title="Delete">
+                                    <Trash2 size={14}/>
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -1711,12 +2088,72 @@ export default function AdminPage() {
                   })}
                 </div>
 
+                {/* User activity modal */}
+                {activityUserId && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setActivityUserId(null); setActivityData(null) }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-[var(--c-text)]">Activity — {activityUser}</h4>
+                        <button onClick={() => { setActivityUserId(null); setActivityData(null) }} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+                          <X size={16}/>
+                        </button>
+                      </div>
+                      {activityLoading ? (
+                        <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                      ) : !activityData ? (
+                        <p className="text-sm text-[var(--c-muted)] text-center py-4">No data.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { label: 'Reviews', value: activityData.reviewCount ?? 0 },
+                              { label: 'Requests', value: activityData.requestCount ?? 0 },
+                              { label: 'Logins', value: activityData.profile?.login_count ?? activityData.recentLogins?.length ?? 0 },
+                            ].map(s => (
+                              <div key={s.label} className="text-center p-3 rounded-xl bg-gray-50">
+                                <p className="text-xl font-bold text-[var(--c-text)]">{s.value}</p>
+                                <p className="text-xs text-[var(--c-muted)]">{s.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {activityData.recentLogins?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-[var(--c-muted)] mb-2 uppercase tracking-wide">Recent logins</p>
+                              <div className="space-y-1">
+                                {activityData.recentLogins.slice(0, 5).map((l, i) => (
+                                  <p key={i} className="text-xs text-[var(--c-muted)]">
+                                    {new Date(l.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    {l.ip_address && <span className="ml-2 text-[var(--c-dim)]">{l.ip_address}</span>}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="card overflow-hidden">
-                  <div className="p-4 border-b border-[var(--c-border)]">
+                  <div className="flex items-center justify-between p-4 border-b border-[var(--c-border)]">
                     <h3 className="font-semibold text-[var(--c-text)]">
                       {usersRoleFilter ? `${usersRoleFilter.charAt(0).toUpperCase() + usersRoleFilter.slice(1)}s` : 'All users'}
                       {usersTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({usersTotal})</span>}
                     </h3>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const d = await api.admin.exportUsers({ role: usersRoleFilter }, token)
+                          const rows = [['Name','Email','Role','Banned','Joined'], ...(d.data||[]).map(u => [u.name||'',u.email||'',u.role,u.is_banned?'Yes':'No',u.created_at?.slice(0,10)||''])]
+                          const csv = rows.map(r => r.join(',')).join('\n')
+                          const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='users.csv'; a.click()
+                        } catch(e) { console.error(e) }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all"
+                    >
+                      Export CSV
+                    </button>
                   </div>
 
                   {usrsLoading ? <TabSpinner /> : users.length === 0 ? (
@@ -1733,32 +2170,46 @@ export default function AdminPage() {
                                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                   <Badge color={ROLE_COLORS[u.role] || 'gray'} className="text-[10px]">{u.role}</Badge>
                                   {u.is_banned && <Badge color="red" className="text-[10px]">Banned</Badge>}
+                                  {u.suspicious_flag && <Badge color="amber" className="text-[10px]">Flagged</Badge>}
                                   <span className="text-[10px] text-[var(--c-dim)]">
                                     joined {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                   </span>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {/* Role change — prevent changing own role */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => loadUserActivity(u.id, u.name || 'User')}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all"
+                                title="View activity"
+                              >
+                                Activity
+                              </button>
                               {u.id !== user?.id && (
-                                <select
-                                  value={u.role}
-                                  onChange={e => changeUserRole(u.id, e.target.value)}
-                                  className="text-xs border border-[var(--c-border)] rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[#FF2D55]/40"
-                                >
-                                  {['user', 'owner', 'staff', 'admin'].map(r => (
-                                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                                  ))}
-                                </select>
-                              )}
-                              {u.id !== user?.id && (
-                                <button
-                                  onClick={() => toggleBan(u.id, u.is_banned)}
-                                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors', u.is_banned ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100')}
-                                >
-                                  {u.is_banned ? 'Unban' : 'Ban'}
-                                </button>
+                                <>
+                                  <select
+                                    value={u.role}
+                                    onChange={e => changeUserRole(u.id, e.target.value)}
+                                    className="text-xs border border-[var(--c-border)] rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[#FF2D55]/40"
+                                  >
+                                    {['user', 'owner', 'staff', 'admin'].map(r => (
+                                      <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => toggleBan(u.id, u.is_banned)}
+                                    className={clsx('px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors', u.is_banned ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100')}
+                                  >
+                                    {u.is_banned ? 'Unban' : 'Ban'}
+                                  </button>
+                                  <button
+                                    onClick={async () => { try { await api.admin.flagUser(u.id, { suspicious_flag: !u.suspicious_flag }, token); loadUsers(usersPage, usersRoleFilter) } catch(e){} }}
+                                    title={u.suspicious_flag ? 'Remove flag' : 'Flag as suspicious'}
+                                    className={clsx('p-1.5 rounded-lg transition-colors', u.suspicious_flag ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'hover:bg-amber-50 text-amber-300 hover:text-amber-600')}
+                                  >
+                                    <AlertCircle size={13}/>
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -1974,6 +2425,68 @@ export default function AdminPage() {
                                     <p className={clsx('text-sm font-medium', staffPermsMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>
                                       {staffPermsMsg}
                                     </p>
+                                  )}
+                                </div>
+
+                                {/* Staff Notes */}
+                                <div className="mt-4 pt-4 border-t border-[var(--c-border)]">
+                                  <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Internal Notes</p>
+                                  <div className="space-y-2 mb-2">
+                                    {(staffNotesMap[s.id] || []).length === 0
+                                      ? <p className="text-xs text-[var(--c-dim)]">No notes yet.</p>
+                                      : (staffNotesMap[s.id] || []).map(n => (
+                                        <div key={n.id} className="flex items-start justify-between gap-2 bg-white border border-[var(--c-border)] rounded-lg px-3 py-2">
+                                          <p className="text-xs text-[var(--c-text)] flex-1">{n.note}</p>
+                                          <button onClick={() => deleteStaffNote(n.id, s.id)} className="text-red-400 hover:text-red-600 shrink-0"><X size={12}/></button>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={staffNoteInput[s.id] || ''}
+                                      onChange={e => setStaffNoteInput(prev => ({ ...prev, [s.id]: e.target.value }))}
+                                      placeholder="Add a note…"
+                                      className="flex-1 text-xs border border-[var(--c-border)] rounded-lg px-3 py-2 outline-none focus:border-[#FF2D55]/40"
+                                    />
+                                    <button onClick={() => addStaffNote(s.id)}
+                                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Staff Warnings */}
+                                <div className="mt-4 pt-4 border-t border-[var(--c-border)]">
+                                  <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Warnings</p>
+                                  <div className="space-y-2 mb-2">
+                                    {(staffWarnsMap[s.id] || []).length === 0
+                                      ? <p className="text-xs text-[var(--c-dim)]">No warnings issued.</p>
+                                      : (staffWarnsMap[s.id] || []).map(w => (
+                                        <div key={w.id} className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                                          <AlertCircle size={12} className="text-red-500 mt-0.5 shrink-0"/>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-red-700">{w.reason}</p>
+                                            <p className="text-[10px] text-red-400 mt-0.5">{new Date(w.created_at).toLocaleDateString('en-GB')}</p>
+                                          </div>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={staffWarnInput[s.id] || ''}
+                                      onChange={e => setStaffWarnInput(prev => ({ ...prev, [s.id]: e.target.value }))}
+                                      placeholder="Warning reason…"
+                                      className="flex-1 text-xs border border-red-200 rounded-lg px-3 py-2 outline-none focus:border-red-400"
+                                    />
+                                    <button onClick={() => issueWarning(s.id)} disabled={staffWarnSaving}
+                                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50">
+                                      Issue
+                                    </button>
+                                  </div>
+                                  {staffExtMsg[s.id] && (
+                                    <p className={clsx('text-xs font-semibold mt-1', staffExtMsg[s.id].startsWith('✓') ? 'text-green-700' : 'text-red-600')}>{staffExtMsg[s.id]}</p>
                                   )}
                                 </div>
                               </div>
@@ -2707,68 +3220,835 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
             ═══════════════════════════════════════════════════════════ */}
             {tab === 'History' && (
               <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2">
-                    <Clock size={17} /> Activity History
-                    {logsTotal > 0 && <span className="font-normal text-[var(--c-muted)] text-base">({logsTotal})</span>}
-                  </h3>
-                  <button onClick={() => loadAuditLogs(logsPage)} disabled={auditLoading}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
-                    {auditLoading ? 'Loading…' : 'Refresh'}
-                  </button>
+                <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Clock size={17}/> Activity History</h3>
+
+                {/* Sub-tab pills */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'audit',    label: 'Audit Log'        },
+                    { key: 'edits',    label: 'Restaurant Edits' },
+                    { key: 'logins',   label: 'Login History'    },
+                    { key: 'bans',     label: 'Bans / Unbans'    },
+                    { key: 'roles',    label: 'Role Changes'     },
+                  ].map(st => (
+                    <button key={st.key} onClick={() => setHistorySubTab(st.key)}
+                      className={clsx(
+                        'px-4 py-2 rounded-xl text-xs font-semibold border transition-all',
+                        historySubTab === st.key
+                          ? 'text-white border-transparent'
+                          : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary'
+                      )}
+                      style={historySubTab === st.key ? { background: 'linear-gradient(135deg,#FF2D55,#FF6035)' } : {}}
+                    >{st.label}</button>
+                  ))}
                 </div>
 
-                {auditLoading ? (
-                  <div className="flex justify-center py-16"><Spinner size={28} /></div>
-                ) : auditLogs.length === 0 ? (
-                  <div className="card p-12 text-center">
-                    <Clock size={32} className="mx-auto mb-3 text-[var(--c-dim)]" />
-                    <p className="text-[var(--c-muted)] text-sm">No activity recorded yet.</p>
+                {/* ── Audit Log sub-tab */}
+                {historySubTab === 'audit' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={() => loadAuditLogs(logsPage)} disabled={auditLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {auditLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {auditLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : auditLogs.length === 0 ? (
+                      <div className="card p-12 text-center"><Clock size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No audit logs yet.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {auditLogs.map(log => {
+                            const actionColors = {
+                              'menu_item.create': 'bg-green-50 text-green-700', 'menu_item.update': 'bg-blue-50 text-blue-700',
+                              'menu_item.delete': 'bg-red-50 text-red-600', 'menu.upload': 'bg-purple-50 text-purple-700',
+                              'review.delete': 'bg-red-50 text-red-600', 'review.approve': 'bg-green-50 text-green-700',
+                              'review.unapprove': 'bg-amber-50 text-amber-700', 'user.ban': 'bg-red-50 text-red-600',
+                              'user.unban': 'bg-green-50 text-green-700', 'user.role_change': 'bg-blue-50 text-blue-700',
+                              'site_content.update': 'bg-purple-50 text-purple-700', 'restaurant.boost.enable': 'bg-amber-50 text-amber-700',
+                              'restaurant.boost.remove': 'bg-gray-50 text-gray-600', 'restaurant.create': 'bg-green-50 text-green-700',
+                              'owner.assign': 'bg-purple-50 text-purple-700', 'change_request.approved': 'bg-blue-50 text-blue-700',
+                              'change_request.rejected': 'bg-red-50 text-red-600', 'staff.permissions_update': 'bg-blue-50 text-blue-700',
+                            }
+                            const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
+                            return (
+                              <div key={log.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                                <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${color}`}>{log.action}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-[var(--c-text)] truncate font-medium">{log.target}</p>
+                                  <p className="text-xs text-[var(--c-muted)]">by {log.profiles?.name || 'Admin'}</p>
+                                </div>
+                                <p className="text-xs text-[var(--c-dim)] shrink-0">
+                                  {new Date(log.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <Pagination page={logsPage} totalPages={logsTotalPages} total={logsTotal} onPageChange={loadAuditLogs} loading={auditLoading}/>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* ── Restaurant Edits sub-tab */}
+                {historySubTab === 'edits' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={() => loadEditHistory(1)} disabled={editHistoryLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {editHistoryLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {editHistoryLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : editHistory.length === 0 ? (
+                      <div className="card p-12 text-center"><History size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No restaurant edits recorded yet.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {editHistory.map(e => (
+                            <div key={e.id} className="px-4 py-3 hover:bg-surface-secondary transition-colors">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-[var(--c-text)] truncate">{e.restaurants?.name || 'Unknown restaurant'}</p>
+                                  <p className="text-xs text-[var(--c-muted)] mt-0.5">
+                                    Field: <span className="font-semibold text-[var(--c-text)]">{e.field_name}</span>
+                                  </p>
+                                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                                    <span className="text-[11px] bg-red-50 text-red-600 px-2 py-0.5 rounded line-through max-w-[180px] truncate">{e.old_value || '—'}</span>
+                                    <span className="text-[var(--c-dim)]">→</span>
+                                    <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded max-w-[180px] truncate">{e.new_value || '—'}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs text-[var(--c-dim)]">{new Date(e.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                  <p className="text-xs text-[var(--c-muted)] mt-0.5">by {e.profiles?.name || 'Admin'}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Pagination page={editHistoryPage} totalPages={editHistoryPages} total={editHistoryTotal} onPageChange={loadEditHistory} loading={editHistoryLoading}/>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Login History sub-tab */}
+                {historySubTab === 'logins' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={() => loadLoginHistory(1)} disabled={loginHistLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {loginHistLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {loginHistLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : loginHistory.length === 0 ? (
+                      <div className="card p-12 text-center"><Users size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No login events recorded.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {loginHistory.map(l => (
+                            <div key={l.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                              <Avatar name={l.profiles?.name || '?'} size={32}/>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[var(--c-text)] truncate">{l.profiles?.name || 'Unknown'}</p>
+                                <p className="text-xs text-[var(--c-muted)]">{l.ip_address || 'IP unknown'} · {l.user_agent?.split(' ')[0] || ''}</p>
+                              </div>
+                              <p className="text-xs text-[var(--c-dim)] shrink-0">
+                                {new Date(l.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <Pagination page={loginHistPage} totalPages={loginHistPages} total={loginHistTotal} onPageChange={loadLoginHistory} loading={loginHistLoading}/>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Ban History sub-tab */}
+                {historySubTab === 'bans' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={loadBanHistory} disabled={banHistLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {banHistLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {banHistLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : banHistory.length === 0 ? (
+                      <div className="card p-12 text-center"><Shield size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No ban/unban events recorded.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {banHistory.map(b => (
+                            <div key={b.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                              <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${b.action === 'user.ban' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                                {b.action === 'user.ban' ? 'BAN' : 'UNBAN'}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[var(--c-text)] truncate">{b.target}</p>
+                                <p className="text-xs text-[var(--c-muted)]">by {b.profiles?.name || 'Admin'}</p>
+                              </div>
+                              <p className="text-xs text-[var(--c-dim)] shrink-0">
+                                {new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Role Changes sub-tab */}
+                {historySubTab === 'roles' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={loadRoleHistory} disabled={roleHistLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {roleHistLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {roleHistLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : roleHistory.length === 0 ? (
+                      <div className="card p-12 text-center"><UserCheck size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No role changes recorded.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {roleHistory.map(r => (
+                            <div key={r.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 bg-blue-50 text-blue-700">ROLE</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[var(--c-text)] truncate">{r.target}</p>
+                                <p className="text-xs text-[var(--c-muted)]">by {r.profiles?.name || 'Admin'} · {r.meta ? JSON.stringify(r.meta) : ''}</p>
+                              </div>
+                              <p className="text-xs text-[var(--c-dim)] shrink-0">
+                                {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                ANALYTICS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Analytics' && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><BarChart2 size={17}/> Analytics Dashboard</h3>
+                  <button onClick={loadAnalytics} disabled={analyticsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                    {analyticsLoading ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+                {analyticsLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div> : !analyticsData ? (
+                  <div className="card p-12 text-center"><BarChart2 size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">Click Refresh to load analytics.</p></div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Stat cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Total Restaurants', value: analyticsData.restaurants?.total, sub: `${analyticsData.restaurants?.active} active`, color: 'text-blue-600' },
+                        { label: 'Total Users', value: analyticsData.users?.total, sub: `${analyticsData.users?.new30d} new this month`, color: 'text-green-600' },
+                        { label: 'Total Reviews', value: analyticsData.reviews?.total, sub: `Avg rating ${analyticsData.reviews?.avgRating}★`, color: 'text-amber-600' },
+                        { label: 'Boosted', value: analyticsData.restaurants?.boosted, sub: `${analyticsData.tickets?.open} open tickets`, color: 'text-purple-600' },
+                      ].map(c => (
+                        <div key={c.label} className="card p-5">
+                          <p className="text-xs text-[var(--c-muted)] mb-1">{c.label}</p>
+                          <p className={`text-3xl font-bold ${c.color}`}>{c.value ?? 0}</p>
+                          <p className="text-xs text-[var(--c-dim)] mt-1">{c.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {/* User roles */}
+                    <div className="card p-5">
+                      <h4 className="font-semibold text-sm mb-4 text-[var(--c-text)]">User Role Distribution</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        {Object.entries(analyticsData.users?.roles || {}).map(([role, count]) => (
+                          <div key={role} className="text-center p-3 rounded-xl bg-surface-secondary">
+                            <p className="text-xl font-bold text-[var(--c-text)]">{count}</p>
+                            <p className="text-xs text-[var(--c-muted)] capitalize">{role}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Top rated */}
+                    {analyticsData.topRated?.length > 0 && (
+                      <div className="card overflow-hidden">
+                        <div className="px-4 py-3 border-b border-[var(--c-border)]">
+                          <h4 className="font-semibold text-sm text-[var(--c-text)]">Top Rated Restaurants</h4>
+                        </div>
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {analyticsData.topRated.map((r, i) => (
+                            <div key={r.restaurant_id} className="flex items-center gap-4 px-4 py-3">
+                              <span className="text-lg font-bold text-[var(--c-dim)] w-6">#{i+1}</span>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-[var(--c-text)]">{r.restaurants?.name}</p>
+                                <p className="text-xs text-[var(--c-muted)]">{r.restaurants?.town}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-bold text-amber-500">{Number(r.avg_rating).toFixed(1)}★</p>
+                                <p className="text-xs text-[var(--c-muted)]">{r.review_count} reviews</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Monthly charts (text-based) */}
+                    {analyticsData.charts?.monthlyRestaurants?.length > 0 && (
+                      <div className="card p-5">
+                        <h4 className="font-semibold text-sm mb-4 text-[var(--c-text)]">New Restaurants (Last 6 Months)</h4>
+                        <div className="flex items-end gap-2 h-24">
+                          {analyticsData.charts.monthlyRestaurants.map(m => {
+                            const max = Math.max(...analyticsData.charts.monthlyRestaurants.map(x => x.count))
+                            const pct = max > 0 ? (m.count / max) * 100 : 0
+                            return (
+                              <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                                <span className="text-[10px] text-[var(--c-muted)]">{m.count}</span>
+                                <div className="w-full bg-blue-500 rounded-t-sm" style={{ height: `${Math.max(pct, 4)}%` }}/>
+                                <span className="text-[9px] text-[var(--c-dim)]">{m.month.slice(5)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                APPROVAL QUEUE
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Approval' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><ClipboardCheck size={17}/> Approval Queue</h3>
+                  <button onClick={loadPendingApproval} disabled={pendingRestsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                </div>
+                {approvalMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{approvalMsg}</p>}
+                {pendingRestsLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                : pendingRests.length === 0 ? (
+                  <div className="card p-12 text-center"><ClipboardCheck size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No restaurants pending approval.</p></div>
                 ) : (
                   <div className="card overflow-hidden">
                     <div className="divide-y divide-[var(--c-border)]">
-                      {auditLogs.map(log => {
-                        const actionColors = {
-                          'menu_item.create':           'bg-green-50 text-green-700',
-                          'menu_item.update':           'bg-blue-50 text-blue-700',
-                          'menu_item.delete':           'bg-red-50 text-red-600',
-                          'menu.upload':                'bg-purple-50 text-purple-700',
-                          'review.delete':              'bg-red-50 text-red-600',
-                          'review.approve':             'bg-green-50 text-green-700',
-                          'review.unapprove':           'bg-amber-50 text-amber-700',
-                          'user.ban':                   'bg-red-50 text-red-600',
-                          'user.unban':                 'bg-green-50 text-green-700',
-                          'user.role_change':           'bg-blue-50 text-blue-700',
-                          'site_content.update':        'bg-purple-50 text-purple-700',
-                          'restaurant.boost.enable':    'bg-amber-50 text-amber-700',
-                          'restaurant.boost.remove':    'bg-gray-50 text-gray-600',
-                          'restaurant.create':          'bg-green-50 text-green-700',
-                          'owner.assign':               'bg-purple-50 text-purple-700',
-                          'change_request.approved':    'bg-blue-50 text-blue-700',
-                          'change_request.rejected':    'bg-red-50 text-red-600',
-                          'change_request.paid':        'bg-purple-50 text-purple-700',
-                          'change_request.applied':     'bg-green-50 text-green-700',
-                          'staff.permissions_update':   'bg-blue-50 text-blue-700',
-                        }
-                        const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
-                        return (
-                          <div key={log.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
-                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${color}`}>{log.action}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-[var(--c-text)] truncate font-medium">{log.target}</p>
-                              <p className="text-xs text-[var(--c-muted)]">by {log.profiles?.name || 'Admin'}</p>
-                            </div>
-                            <p className="text-xs text-[var(--c-dim)] shrink-0">
-                              {new Date(log.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                      {pendingRests.map(r => (
+                        <div key={r.id} className="flex items-center gap-4 px-4 py-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-[var(--c-text)]">{r.name}</p>
+                            <p className="text-xs text-[var(--c-muted)]">{r.town}, {r.district} · {r.category}</p>
                           </div>
-                        )
-                      })}
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              try {
+                                await api.restaurants.approve(r.id, { approved: true }, token)
+                                setApprovalMsg(`✓ ${r.name} approved`)
+                                setPendingRests(prev => prev.filter(x => x.id !== r.id))
+                              } catch (err) { setApprovalMsg(`Error: ${err.message}`) }
+                            }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition-all">Approve</button>
+                            <button onClick={async () => {
+                              try {
+                                await api.restaurants.approve(r.id, { approved: false }, token)
+                                setApprovalMsg(`✗ ${r.name} rejected`)
+                                setPendingRests(prev => prev.filter(x => x.id !== r.id))
+                              } catch (err) { setApprovalMsg(`Error: ${err.message}`) }
+                            }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-all">Reject</button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <Pagination page={logsPage} totalPages={logsTotalPages} total={logsTotal} onPageChange={loadAuditLogs} loading={auditLoading} />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                GALLERY
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Gallery' && (
+              <div className="space-y-4 animate-fade-in">
+                <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Image size={17}/> Gallery Management</h3>
+                <div className="card p-4 space-y-3">
+                  <label className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">Select Restaurant</label>
+                  <select value={galleryRestId} onChange={e => { setGalleryRestId(e.target.value); loadGallery(e.target.value) }}
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                    <option value="">— choose restaurant —</option>
+                    {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                {galleryMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{galleryMsg}</p>}
+                {galleryRestId && (
+                  <div className="card p-4 space-y-3">
+                    <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">Upload Image</p>
+                    <div className="flex gap-3 flex-wrap">
+                      <input type="file" accept="image/*" onChange={e => setGalleryFile(e.target.files[0])} className="text-sm text-[var(--c-muted)]"/>
+                      <input value={galleryCaption} onChange={e => setGalleryCaption(e.target.value)} placeholder="Caption (optional)"
+                        className="flex-1 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                      <Button size="sm" loading={galleryUploading} onClick={async () => {
+                        if (!galleryFile) return
+                        setGalleryUploading(true); setGalleryMsg('')
+                        try {
+                          const form = new FormData()
+                          form.append('image', galleryFile)
+                          if (galleryCaption) form.append('caption', galleryCaption)
+                          await api.gallery.upload(galleryRestId, form, token)
+                          setGalleryMsg('✓ Image uploaded')
+                          setGalleryFile(null); setGalleryCaption('')
+                          loadGallery(galleryRestId)
+                        } catch (err) { setGalleryMsg(`Error: ${err.message}`) }
+                        finally { setGalleryUploading(false) }
+                      }}>Upload</Button>
+                    </div>
+                  </div>
+                )}
+                {galleryLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                : galleryImages.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {galleryImages.map(img => (
+                      <div key={img.id} className="card overflow-hidden group relative">
+                        <img src={img.image_url} alt={img.caption || ''} className="w-full h-32 object-cover"/>
+                        {img.caption && <p className="text-xs text-[var(--c-muted)] px-2 py-1">{img.caption}</p>}
+                        <button onClick={async () => {
+                          if (!confirm('Delete this image?')) return
+                          try { await api.gallery.delete(img.id, token); setGalleryMsg('Deleted'); loadGallery(galleryRestId) }
+                          catch (err) { setGalleryMsg(`Error: ${err.message}`) }
+                        }} className="absolute top-2 right-2 p-1 rounded-lg bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Trash2 size={12}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                FAQs
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'FAQs' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><HelpCircle size={17}/> FAQ Management</h3>
+                  <button onClick={loadFaqs} disabled={faqsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                </div>
+                {faqMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{faqMsg}</p>}
+                {/* FAQ Form */}
+                <div className="card p-5 space-y-3">
+                  <h4 className="font-semibold text-sm text-[var(--c-text)]">{faqEditId ? 'Edit FAQ' : 'Add New FAQ'}</h4>
+                  <input value={faqForm.question} onChange={e => setFaqForm(p => ({...p, question: e.target.value}))} placeholder="Question"
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                  <textarea value={faqForm.answer} onChange={e => setFaqForm(p => ({...p, answer: e.target.value}))} placeholder="Answer" rows={3}
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] resize-none"/>
+                  <div className="flex gap-3">
+                    <input value={faqForm.category} onChange={e => setFaqForm(p => ({...p, category: e.target.value}))} placeholder="Category"
+                      className="flex-1 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <input type="number" value={faqForm.sort_order} onChange={e => setFaqForm(p => ({...p, sort_order: +e.target.value}))} placeholder="Order"
+                      className="w-24 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <Button size="sm" loading={faqSaving} onClick={async () => {
+                      setFaqSaving(true); setFaqMsg('')
+                      try {
+                        if (faqEditId) await api.faqs.update(faqEditId, faqForm, token)
+                        else await api.faqs.create(faqForm, token)
+                        setFaqMsg(faqEditId ? '✓ FAQ updated' : '✓ FAQ created')
+                        setFaqForm({ question: '', answer: '', category: 'general', sort_order: 0 })
+                        setFaqEditId(null)
+                        loadFaqs()
+                      } catch (err) { setFaqMsg(`Error: ${err.message}`) }
+                      finally { setFaqSaving(false) }
+                    }}>{faqEditId ? 'Update' : 'Add FAQ'}</Button>
+                    {faqEditId && <button onClick={() => { setFaqEditId(null); setFaqForm({ question: '', answer: '', category: 'general', sort_order: 0 }) }}
+                      className="px-3 py-2 rounded-xl text-sm border border-[var(--c-border)] text-[var(--c-muted)]">Cancel</button>}
+                  </div>
+                </div>
+                {faqsLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                : faqs.length === 0 ? <div className="card p-10 text-center text-[var(--c-muted)] text-sm">No FAQs yet.</div>
+                : (
+                  <div className="card overflow-hidden divide-y divide-[var(--c-border)]">
+                    {faqs.map(faq => (
+                      <div key={faq.id} className="px-4 py-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm text-[var(--c-text)]">{faq.question}</p>
+                            <p className="text-xs text-[var(--c-muted)] mt-1 line-clamp-2">{faq.answer}</p>
+                            <div className="flex gap-2 mt-1">
+                              <span className="text-[10px] bg-surface-secondary px-2 py-0.5 rounded-full text-[var(--c-muted)]">{faq.category}</span>
+                              {!faq.is_active && <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">Hidden</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => { setFaqEditId(faq.id); setFaqForm({ question: faq.question, answer: faq.answer, category: faq.category, sort_order: faq.sort_order }) }}
+                              className="p-1.5 rounded-lg text-[var(--c-muted)] hover:bg-surface-secondary"><Pencil size={13}/></button>
+                            <button onClick={async () => {
+                              await api.faqs.update(faq.id, { is_active: !faq.is_active }, token)
+                              loadFaqs()
+                            }} className="p-1.5 rounded-lg text-[var(--c-muted)] hover:bg-surface-secondary">{faq.is_active ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
+                            <button onClick={async () => {
+                              if (!confirm('Delete FAQ?')) return
+                              await api.faqs.delete(faq.id, token); loadFaqs()
+                            }} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={13}/></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                STAFF TASKS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Tasks' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><ListTodo size={17}/> Staff Tasks</h3>
+                  <button onClick={() => loadTasks(1)} disabled={tasksLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                </div>
+                {taskMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{taskMsg}</p>}
+                {isAdmin && (
+                  <div className="card p-5 space-y-3">
+                    <h4 className="font-semibold text-sm text-[var(--c-text)]">Assign New Task</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select value={taskForm.assigned_to} onChange={e => setTaskForm(p => ({...p, assigned_to: e.target.value}))}
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                        <option value="">— assign to —</option>
+                        {allUsers.filter(u => ['staff','admin'].includes(u.role)).map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                      </select>
+                      <input value={taskForm.title} onChange={e => setTaskForm(p => ({...p, title: e.target.value}))} placeholder="Task title"
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                      <select value={taskForm.priority} onChange={e => setTaskForm(p => ({...p, priority: e.target.value}))}
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                        {['low','medium','high','urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(p => ({...p, due_date: e.target.value}))}
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    </div>
+                    <textarea value={taskForm.description} onChange={e => setTaskForm(p => ({...p, description: e.target.value}))} placeholder="Description (optional)" rows={2}
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] resize-none"/>
+                    <Button size="sm" loading={taskSaving} onClick={async () => {
+                      if (!taskForm.assigned_to || !taskForm.title) { setTaskMsg('assigned_to and title required'); return }
+                      setTaskSaving(true); setTaskMsg('')
+                      try {
+                        await api.staffExtended.createTask(taskForm, token)
+                        setTaskMsg('✓ Task assigned')
+                        setTaskForm({ assigned_to: '', title: '', description: '', priority: 'medium', due_date: '' })
+                        loadTasks(1)
+                      } catch (err) { setTaskMsg(`Error: ${err.message}`) }
+                      finally { setTaskSaving(false) }
+                    }}>Assign Task</Button>
+                  </div>
+                )}
+                {tasksLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                : tasks.length === 0 ? <div className="card p-10 text-center text-[var(--c-muted)] text-sm">No tasks.</div>
+                : (
+                  <div className="card overflow-hidden divide-y divide-[var(--c-border)]">
+                    {tasks.map(t => {
+                      const pc = { low: 'text-gray-500', medium: 'text-blue-600', high: 'text-amber-600', urgent: 'text-red-600' }
+                      const sc = { pending: 'bg-amber-50 text-amber-700', in_progress: 'bg-blue-50 text-blue-700', done: 'bg-green-50 text-green-700', cancelled: 'bg-gray-50 text-gray-500' }
+                      return (
+                        <div key={t.id} className="px-4 py-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-sm text-[var(--c-text)]">{t.title}</p>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${sc[t.status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>{t.status}</span>
+                                <span className={`text-[10px] font-semibold ${pc[t.priority]}`}>{t.priority}</span>
+                              </div>
+                              {t.description && <p className="text-xs text-[var(--c-muted)] mt-1">{t.description}</p>}
+                              <p className="text-xs text-[var(--c-dim)] mt-1">Assigned to: {t.profiles?.name || 'Unknown'} {t.due_date && `· Due: ${t.due_date}`}</p>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              {t.status !== 'done' && <button onClick={async () => {
+                                await api.staffExtended.updateTask(t.id, { status: 'done' }, token); loadTasks(tasksPage)
+                              }} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50"><Check size={13}/></button>}
+                              {isAdmin && <button onClick={async () => {
+                                await api.staffExtended.deleteTask(t.id, token); loadTasks(tasksPage)
+                              }} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={13}/></button>}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <Pagination page={tasksPage} totalPages={tasksTotalPgs} total={tasksTotal} onPageChange={loadTasks} loading={tasksLoading}/>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                ANNOUNCEMENTS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Announcements' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Bell size={17}/> System Announcements</h3>
+                  <button onClick={loadAnnouncements} disabled={announcementsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                </div>
+                {annMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{annMsg}</p>}
+                <div className="card p-5 space-y-3">
+                  <h4 className="font-semibold text-sm text-[var(--c-text)]">{annEditId ? 'Edit Announcement' : 'New Announcement'}</h4>
+                  <input value={annForm.title} onChange={e => setAnnForm(p => ({...p, title: e.target.value}))} placeholder="Title"
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                  <textarea value={annForm.message} onChange={e => setAnnForm(p => ({...p, message: e.target.value}))} placeholder="Message" rows={3}
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] resize-none"/>
+                  <div className="flex gap-3 flex-wrap">
+                    <select value={annForm.type} onChange={e => setAnnForm(p => ({...p, type: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      {['info','warning','success','error'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <select value={annForm.target} onChange={e => setAnnForm(p => ({...p, target: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      {['all','admin','staff','owner'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input type="datetime-local" value={annForm.expires_at} onChange={e => setAnnForm(p => ({...p, expires_at: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <Button size="sm" loading={annSaving} onClick={async () => {
+                      setAnnSaving(true); setAnnMsg('')
+                      try {
+                        if (annEditId) await api.announcements.update(annEditId, annForm, token)
+                        else await api.announcements.create(annForm, token)
+                        setAnnMsg(annEditId ? '✓ Updated' : '✓ Announcement created')
+                        setAnnForm({ title: '', message: '', type: 'info', target: 'all', expires_at: '' }); setAnnEditId(null)
+                        loadAnnouncements()
+                      } catch (err) { setAnnMsg(`Error: ${err.message}`) }
+                      finally { setAnnSaving(false) }
+                    }}>{annEditId ? 'Update' : 'Create'}</Button>
+                    {annEditId && <button onClick={() => { setAnnEditId(null); setAnnForm({ title: '', message: '', type: 'info', target: 'all', expires_at: '' }) }}
+                      className="px-3 py-2 rounded-xl text-sm border border-[var(--c-border)] text-[var(--c-muted)]">Cancel</button>}
+                  </div>
+                </div>
+                {announcementsLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                : announcements.length === 0 ? <div className="card p-10 text-center text-[var(--c-muted)] text-sm">No announcements.</div>
+                : (
+                  <div className="card overflow-hidden divide-y divide-[var(--c-border)]">
+                    {announcements.map(a => {
+                      const tc = { info: 'bg-blue-50 text-blue-700', warning: 'bg-amber-50 text-amber-700', success: 'bg-green-50 text-green-700', error: 'bg-red-50 text-red-600' }
+                      return (
+                        <div key={a.id} className="px-4 py-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-sm text-[var(--c-text)]">{a.title}</p>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${tc[a.type]}`}>{a.type}</span>
+                                <span className="text-[10px] bg-surface-secondary text-[var(--c-muted)] px-2 py-0.5 rounded-full">{a.target}</span>
+                                {!a.is_active && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inactive</span>}
+                              </div>
+                              <p className="text-xs text-[var(--c-muted)] mt-1">{a.message}</p>
+                              {a.expires_at && <p className="text-[10px] text-[var(--c-dim)] mt-1">Expires: {new Date(a.expires_at).toLocaleDateString()}</p>}
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button onClick={() => { setAnnEditId(a.id); setAnnForm({ title: a.title, message: a.message, type: a.type, target: a.target, expires_at: a.expires_at || '' }) }}
+                                className="p-1.5 rounded-lg text-[var(--c-muted)] hover:bg-surface-secondary"><Pencil size={13}/></button>
+                              <button onClick={async () => { await api.announcements.update(a.id, { is_active: !a.is_active }, token); loadAnnouncements() }}
+                                className="p-1.5 rounded-lg text-[var(--c-muted)] hover:bg-surface-secondary">{a.is_active ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
+                              <button onClick={async () => { if (!confirm('Delete?')) return; await api.announcements.delete(a.id, token); loadAnnouncements() }}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={13}/></button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                SUPPORT TICKETS
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Tickets' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Ticket size={17}/> Support Tickets {ticketsTotal > 0 && <span className="text-[var(--c-muted)] font-normal text-base">({ticketsTotal})</span>}</h3>
+                  <div className="flex gap-2">
+                    <select value={ticketFilter} onChange={e => { setTicketFilter(e.target.value); loadTickets(1, e.target.value) }}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      <option value="">All Statuses</option>
+                      {['open','in_progress','resolved','closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <button onClick={() => loadTickets(1)} disabled={ticketsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                  </div>
+                </div>
+                {ticketsLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                : tickets.length === 0 ? <div className="card p-12 text-center"><Ticket size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No tickets.</p></div>
+                : (
+                  <div className="card overflow-hidden divide-y divide-[var(--c-border)]">
+                    {tickets.map(t => {
+                      const sc = { open: 'bg-red-50 text-red-600', in_progress: 'bg-blue-50 text-blue-700', resolved: 'bg-green-50 text-green-700', closed: 'bg-gray-50 text-gray-500' }
+                      const isExp = expandedTicket?.id === t.id
+                      return (
+                        <div key={t.id}>
+                          <div className="flex items-center gap-4 px-4 py-4 cursor-pointer hover:bg-surface-secondary" onClick={async () => {
+                            if (isExp) { setExpandedTicket(null); return }
+                            const d = await api.tickets.get(t.id, token)
+                            setExpandedTicket(d)
+                          }}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-sm text-[var(--c-text)]">{t.subject}</p>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sc[t.status] || 'bg-gray-50 text-gray-600'}`}>{t.status}</span>
+                                <span className="text-[10px] text-[var(--c-muted)]">{t.priority}</span>
+                              </div>
+                              <p className="text-xs text-[var(--c-muted)] mt-0.5">by {t.profiles?.name || 'Unknown'} · {new Date(t.created_at).toLocaleDateString()}</p>
+                            </div>
+                            {isExp ? <ChevronUp size={16} className="text-[var(--c-dim)]"/> : <ChevronDown size={16} className="text-[var(--c-dim)]"/>}
+                          </div>
+                          {isExp && expandedTicket && (
+                            <div className="px-4 pb-4 border-t border-[var(--c-border)] bg-surface-secondary space-y-3 pt-3">
+                              <div className="flex gap-2 flex-wrap">
+                                {['open','in_progress','resolved','closed'].map(s => (
+                                  <button key={s} onClick={async () => {
+                                    await api.tickets.update(t.id, { status: s }, token)
+                                    setExpandedTicket(p => ({...p, status: s}))
+                                    loadTickets(ticketsPage)
+                                  }} className={`px-3 py-1 rounded-lg text-xs font-semibold border ${expandedTicket.status === s ? 'bg-[var(--c-primary)] text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}>{s}</button>
+                                ))}
+                              </div>
+                              <div className="space-y-2 max-h-48 overflow-y-auto">
+                                {(expandedTicket.messages || []).map(m => (
+                                  <div key={m.id} className={`p-3 rounded-xl text-sm ${m.is_staff ? 'bg-blue-50 text-blue-900 ml-8' : 'bg-white border border-[var(--c-border)] mr-8'}`}>
+                                    <p className="text-[10px] text-[var(--c-muted)] mb-1">{m.profiles?.name} · {new Date(m.created_at).toLocaleString()}</p>
+                                    {m.message}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <input value={ticketReply} onChange={e => setTicketReply(e.target.value)} placeholder="Type reply…"
+                                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                                <Button size="sm" loading={ticketReplying} onClick={async () => {
+                                  if (!ticketReply.trim()) return
+                                  setTicketReplying(true)
+                                  try {
+                                    await api.tickets.reply(t.id, { message: ticketReply }, token)
+                                    setTicketReply('')
+                                    const d = await api.tickets.get(t.id, token)
+                                    setExpandedTicket(d)
+                                  } catch (err) { console.error(err) }
+                                  finally { setTicketReplying(false) }
+                                }}><Send size={13}/></Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <Pagination page={ticketsPage} totalPages={ticketsTotalPgs} total={ticketsTotal} onPageChange={loadTickets} loading={ticketsLoading}/>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                REVENUE TRACKER
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Revenue' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><DollarSign size={17}/> Revenue Tracker</h3>
+                  <button onClick={() => loadPayments(1)} disabled={paymentsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                </div>
+                {payMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{payMsg}</p>}
+                <div className="card p-5 space-y-3">
+                  <h4 className="font-semibold text-sm text-[var(--c-text)]">Record Payment</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <select value={payForm.restaurant_id} onChange={e => setPayForm(p => ({...p, restaurant_id: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      <option value="">— select restaurant —</option>
+                      {restaurantOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    <input type="number" value={payForm.amount} onChange={e => setPayForm(p => ({...p, amount: e.target.value}))} placeholder="Amount (LKR)"
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <select value={payForm.plan_type} onChange={e => setPayForm(p => ({...p, plan_type: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      {['monthly','annual','boost_30','boost_60','boost_90'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input type="date" value={payForm.payment_date} onChange={e => setPayForm(p => ({...p, payment_date: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <input value={payForm.notes} onChange={e => setPayForm(p => ({...p, notes: e.target.value}))} placeholder="Notes (optional)"
+                      className="sm:col-span-2 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                  </div>
+                  <Button size="sm" loading={paySaving} onClick={async () => {
+                    if (!payForm.restaurant_id || !payForm.amount) { setPayMsg('restaurant and amount required'); return }
+                    setPaySaving(true); setPayMsg('')
+                    try {
+                      await api.payments.create(payForm, token)
+                      setPayMsg('✓ Payment recorded')
+                      setPayForm({ restaurant_id: '', amount: '', plan_type: 'monthly', payment_date: '', notes: '' })
+                      loadPayments(1)
+                    } catch (err) { setPayMsg(`Error: ${err.message}`) }
+                    finally { setPaySaving(false) }
+                  }}>Record Payment</Button>
+                </div>
+                {paymentsLoading ? <div className="flex justify-center py-8"><Spinner size={24}/></div>
+                : payments.length === 0 ? <div className="card p-10 text-center text-[var(--c-muted)] text-sm">No payments recorded yet.</div>
+                : (
+                  <div className="card overflow-hidden">
+                    <div className="divide-y divide-[var(--c-border)]">
+                      {payments.map(p => (
+                        <div key={p.id} className="flex items-center gap-4 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-[var(--c-text)]">{p.restaurants?.name}</p>
+                            <p className="text-xs text-[var(--c-muted)]">{p.plan_type} · {p.payment_date} {p.notes && `· ${p.notes}`}</p>
+                          </div>
+                          <p className="font-bold text-green-600 text-sm shrink-0">LKR {Number(p.amount).toLocaleString()}</p>
+                          <button onClick={async () => {
+                            if (!confirm('Delete payment?')) return
+                            await api.payments.delete(p.id, token); loadPayments(paymentsPage)
+                          }} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 shrink-0"><Trash2 size={13}/></button>
+                        </div>
+                      ))}
+                    </div>
+                    <Pagination page={paymentsPage} totalPages={paymentsTotalPgs} total={paymentsTotal} onPageChange={loadPayments} loading={paymentsLoading}/>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                NOTIFICATIONS (Send Panel)
+            ═══════════════════════════════════════════════════════════ */}
+            {tab === 'Notifications' && (
+              <div className="space-y-4 animate-fade-in">
+                <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Bell size={17}/> Send Notifications</h3>
+                {notifMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{notifMsg}</p>}
+                <div className="card p-5 space-y-4">
+                  <p className="text-xs text-[var(--c-muted)]">Send a notification to all users of a specific role, or to a specific user by selecting them below.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <select value={notifForm.role} onChange={e => setNotifForm(p => ({...p, role: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      {['user','owner','staff','admin'].map(r => <option key={r} value={r}>{r} (all)</option>)}
+                    </select>
+                    <select value={notifForm.type} onChange={e => setNotifForm(p => ({...p, type: e.target.value}))}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      {['info','success','warning','error'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input value={notifForm.title} onChange={e => setNotifForm(p => ({...p, title: e.target.value}))} placeholder="Notification title"
+                      className="sm:col-span-2 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
+                    <textarea value={notifForm.message} onChange={e => setNotifForm(p => ({...p, message: e.target.value}))} placeholder="Message" rows={3}
+                      className="sm:col-span-2 px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] resize-none"/>
+                  </div>
+                  <Button loading={notifSaving} onClick={async () => {
+                    if (!notifForm.title || !notifForm.message) { setNotifMsg('title and message required'); return }
+                    setNotifSaving(true); setNotifMsg('')
+                    try {
+                      await api.notifications.send({ role: notifForm.role, title: notifForm.title, message: notifForm.message, type: notifForm.type }, token)
+                      setNotifMsg(`✓ Notification sent to all ${notifForm.role}s`)
+                      setNotifForm({ role: 'user', title: '', message: '', type: 'info' })
+                    } catch (err) { setNotifMsg(`Error: ${err.message}`) }
+                    finally { setNotifSaving(false) }
+                  }}>Send Notification</Button>
+                </div>
               </div>
             )}
 

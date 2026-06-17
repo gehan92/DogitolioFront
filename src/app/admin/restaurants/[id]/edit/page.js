@@ -110,6 +110,11 @@ export default function EditRestaurantPage() {
         cover_image:       data.cover_image || null,
         category:          data.category || 'restaurant',
         category_meta:     data.category_meta || {},
+        social_facebook:   data.social_facebook || '',
+        social_instagram:  data.social_instagram || '',
+        social_tiktok:     data.social_tiktok || '',
+        meta_title:        data.meta_title || '',
+        meta_description:  data.meta_description || '',
       })
       setCoverPreview(data.cover_image || null)
       setActiveMenu(data.active_menu || null)
@@ -805,6 +810,58 @@ export default function EditRestaurantPage() {
                 <p className="text-xs text-[var(--c-dim)] mt-1">Leave blank to use the default message.</p>
               </div>
             )}
+          </div>
+
+          {/* Social Media & SEO */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: accent }}>Social Media & SEO</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">Facebook URL</label>
+                <input value={form.social_facebook} onChange={e => set('social_facebook', e.target.value)}
+                  placeholder="https://facebook.com/..."
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = accent + '66'}
+                  onBlur={e => e.target.style.borderColor = ''} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">Instagram URL</label>
+                <input value={form.social_instagram} onChange={e => set('social_instagram', e.target.value)}
+                  placeholder="https://instagram.com/..."
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = accent + '66'}
+                  onBlur={e => e.target.style.borderColor = ''} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">TikTok URL</label>
+                <input value={form.social_tiktok} onChange={e => set('social_tiktok', e.target.value)}
+                  placeholder="https://tiktok.com/@..."
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = accent + '66'}
+                  onBlur={e => e.target.style.borderColor = ''} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">SEO Title (meta title)</label>
+              <input value={form.meta_title} onChange={e => set('meta_title', e.target.value)}
+                placeholder="Best pizza in Colombo — Restaurant Name"
+                className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                onFocus={e => e.target.style.borderColor = accent + '66'}
+                onBlur={e => e.target.style.borderColor = ''} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">SEO Description (meta description)</label>
+              <textarea value={form.meta_description} onChange={e => set('meta_description', e.target.value)} rows={2}
+                placeholder="Short description shown in Google search results (max 160 characters)"
+                maxLength={160}
+                className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white resize-none"
+                onFocus={e => e.target.style.borderColor = accent + '66'}
+                onBlur={e => e.target.style.borderColor = ''} />
+              <p className="text-xs text-[var(--c-dim)] mt-1">{form.meta_description.length}/160 characters</p>
+            </div>
           </div>
 
           {/* QR Code */}
