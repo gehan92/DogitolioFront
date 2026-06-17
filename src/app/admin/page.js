@@ -914,6 +914,7 @@ export default function AdminPage() {
     if (!isBanned && !confirm('Ban this user?\n\nThey will be locked out of their account immediately.')) return
     await api.admin.patchUser(userId, { is_banned: !isBanned }, token)
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, is_banned: !isBanned } : usr))
+    loadBanHistory()
   }
 
   async function changeUserRole(userId, newRole) {
@@ -924,6 +925,7 @@ export default function AdminPage() {
       setUsersMsg(`✓ Role updated to "${newRole}"`)
       setTimeout(() => setUsersMsg(''), 3000)
       api.admin.userCounts(token).then(setUserRoleCounts).catch(() => {})
+      loadRoleHistory()
     } catch (err) {
       setUsersMsg(`Error: ${err.message}`)
     }
