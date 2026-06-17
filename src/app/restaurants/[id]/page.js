@@ -99,84 +99,138 @@ function MenuSection({ items, brandColor }) {
 
   return (
     <div>
-      {/* Category pill tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={clsx(
-              'px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-150 shrink-0',
-              shown === cat ? 'text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            )}
-            style={shown === cat ? { background: color } : {}}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* ── Sticky category tab bar */}
+      {categories.length > 1 && (
+        <div className="sticky top-0 z-10 -mx-4 px-4 pt-1 pb-3 mb-4"
+          style={{ background: 'var(--c-bg, #f9fafb)', backdropFilter: 'blur(12px)' }}>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={clsx(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-all duration-150 shrink-0 border',
+                  shown === cat
+                    ? 'text-white border-transparent shadow-sm'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                )}
+                style={shown === cat ? { background: color, borderColor: color } : {}}
+              >
+                {cat}
+                <span className={clsx(
+                  'text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none',
+                  shown === cat ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-400'
+                )}>
+                  {groups[cat].length}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Category heading */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1">
+          <h3 className="font-black text-gray-900 text-base tracking-tight">{shown}</h3>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+            {groups[shown]?.length} item{groups[shown]?.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="h-px flex-1 bg-gray-100" />
       </div>
 
-      {/* Menu items */}
-      <div className="space-y-3">
+      {/* ── Menu grid — 1 col mobile, 2 col desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {groups[shown]?.map(item => {
           const salePrice = discountedPrice(item)
+          const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
+          const ingredients = item.ingredients
+            ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
+            : []
+
           return (
-            <div key={item.id}
-              className="flex items-start gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-sm transition-all duration-150"
-              style={{ borderColor: salePrice ? `${color}22` : undefined }}>
-              {/* Photo */}
-              {item.photo_url && (
-                <img src={item.photo_url} alt={item.name}
-                  className="w-20 h-20 rounded-xl object-cover shrink-0 border border-gray-100" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-[15px] leading-tight">{item.name}</p>
-                    {item.description && (
-                      <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>
-                    )}
-                    {item.ingredients && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        <span className="font-medium text-gray-500">Ingredients:</span> {item.ingredients}
-                      </p>
-                    )}
-                    {/* Portion rows — shown inline when multiple sizes */}
-                    {Array.isArray(item.portions) && item.portions.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {item.portions.map((p, i) => (
-                          <div key={i} className="flex items-center justify-between gap-4">
-                            <span className="text-sm text-gray-500">{p.size}</span>
-                            <span className="text-[14px] font-bold shrink-0" style={{ color }}>Rs. {Number(p.price).toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* Single price — only when no portions defined */}
-                  {(!item.portions || item.portions.length === 0) && item.price && (
-                    <div className="text-right shrink-0">
-                      {salePrice ? (
-                        <>
-                          <span className="text-[13px] text-gray-400 line-through block">Rs. {Number(item.price).toLocaleString()}</span>
-                          <span className="text-[15px] font-black block" style={{ color }}>Rs. {Math.round(salePrice).toLocaleString()}</span>
-                          <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full mt-0.5 inline-block"
-                            style={{ background: color }}>
-                            {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-[15px] font-black" style={{ color }}>Rs. {Number(item.price).toLocaleString()}</span>
-                      )}
-                    </div>
+            <div
+              key={item.id}
+              className="flex gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group"
+            >
+              {/* ── Left: details */}
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
+
+                {/* Name + discount badge */}
+                <div className="flex items-start gap-2 flex-wrap">
+                  <p className="font-bold text-gray-900 text-[15px] leading-snug flex-1 min-w-0">{item.name}</p>
+                  {salePrice && !hasPortions && (
+                    <span className="shrink-0 text-[10px] font-black text-white px-2 py-0.5 rounded-full"
+                      style={{ background: color }}>
+                      {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
+                    </span>
                   )}
                 </div>
+
+                {/* Description */}
+                {item.description && (
+                  <p className="text-[13px] text-gray-400 leading-relaxed line-clamp-2">{item.description}</p>
+                )}
+
+                {/* Ingredient chips */}
+                {ingredients.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {ingredients.map((ing, i) => (
+                      <span key={i}
+                        className="text-[11px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 font-medium">
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Price / Portions */}
+                <div className="mt-auto pt-1">
+                  {hasPortions ? (
+                    <div className="space-y-1.5">
+                      {item.portions.map((p, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3">
+                          <span className="text-[12px] text-gray-500 font-semibold bg-gray-50 px-2.5 py-1 rounded-lg">
+                            {p.size}
+                          </span>
+                          <span className="text-[14px] font-black" style={{ color }}>
+                            Rs. {Number(p.price).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : item.price ? (
+                    <div className="flex items-end gap-2">
+                      <span className="text-[17px] font-black leading-none" style={{ color }}>
+                        Rs. {Math.round(salePrice ?? item.price).toLocaleString()}
+                      </span>
+                      {salePrice && (
+                        <span className="text-[12px] text-gray-400 line-through leading-none mb-0.5">
+                          Rs. {Number(item.price).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
+
+              {/* ── Right: photo */}
+              {item.photo_url && (
+                <div className="shrink-0 self-start mt-0.5">
+                  <img
+                    src={item.photo_url}
+                    alt={item.name}
+                    className="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover border border-gray-100 group-hover:scale-[1.02] transition-transform duration-300"
+                  />
+                </div>
+              )}
             </div>
           )
         })}
       </div>
-      <p className="text-xs text-gray-400 text-center mt-6">
+
+      <p className="text-[11px] text-gray-400 text-center mt-8 pb-2">
         Prices may vary. Contact the restaurant to confirm.
       </p>
     </div>
