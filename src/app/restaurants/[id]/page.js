@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   MapPin, Phone, Globe, Clock, ArrowLeft, Star,
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
-  ChevronRight, ThumbsUp, Navigation, Zap, Wrench,
+  ChevronRight, ChevronLeft, ThumbsUp, Navigation, Zap, Wrench,
+  X, Images,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
@@ -195,6 +196,8 @@ export default function RestaurantPage() {
   const [myComment,  setMyComment]  = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted,  setSubmitted]  = useState(false)
+  const [gallery,       setGallery]       = useState([])
+  const [lightboxIndex, setLightboxIndex] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -205,11 +208,23 @@ export default function RestaurantPage() {
         ])
         setRestaurant(rest)
         setReviews(revs.data || [])
+        api.gallery.list(id).then(gal => setGallery(gal?.data || [])).catch(() => {})
       } catch (err) { console.error(err) }
       finally { setLoading(false) }
     }
     load()
   }, [id])
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const handleKey = (e) => {
+      if (e.key === 'ArrowLeft')  setLightboxIndex(i => Math.max(0, i - 1))
+      if (e.key === 'ArrowRight') setLightboxIndex(i => Math.min(gallery.length - 1, i + 1))
+      if (e.key === 'Escape')     setLightboxIndex(null)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [lightboxIndex, gallery.length])
 
   async function submitReview(e) {
     e.preventDefault()
@@ -322,6 +337,64 @@ export default function RestaurantPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Photo gallery mosaic */}
+        {gallery.length > 0 && (
+          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gray-100" style={{ height: 220 }}>
+            <div className="flex gap-0.5 h-full">
+              {/* Main large photo */}
+              <div
+                className="flex-[3] relative overflow-hidden group cursor-pointer"
+                onClick={() => setLightboxIndex(0)}
+              >
+                <img
+                  src={gallery[0].image_url}
+                  alt={gallery[0].caption || name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
+
+              {/* Side thumbnails */}
+              {gallery.length > 1 && (
+                <div className="flex-[2] flex flex-col gap-0.5">
+                  {gallery.slice(1, 3).map((img, idx) => {
+                    const isLastWithMore = idx === 1 && gallery.length > 3
+                    return (
+                      <div
+                        key={img.id}
+                        className="flex-1 relative overflow-hidden group cursor-pointer"
+                        onClick={() => setLightboxIndex(idx + 1)}
+                      >
+                        <img
+                          src={img.image_url}
+                          alt={img.caption || name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        {isLastWithMore && (
+                          <div className="absolute inset-0 bg-black/55 flex items-center justify-center pointer-events-none">
+                            <div className="text-center">
+                              <p className="text-white font-black text-2xl leading-none">+{gallery.length - 3}</p>
+                              <p className="text-white/75 text-xs font-semibold mt-0.5">more</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* See all photos pill */}
+            <button
+              onClick={() => setLightboxIndex(0)}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/90 backdrop-blur-sm text-[12px] font-bold text-gray-900 shadow-lg hover:bg-white transition-colors duration-150"
+            >
+              <Images size={12} />
+              See all {gallery.length} photo{gallery.length !== 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
 
         {/* Maintenance / Under-construction banner */}
         {category_meta?.under_maintenance && (
@@ -616,6 +689,78 @@ export default function RestaurantPage() {
         )}
 
       </main>
+
+      {/* ── Lightbox */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          onClick={() => setLightboxIndex(null)}
+        >
+          {/* Close */}
+          <button
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+            onClick={() => setLightboxIndex(null)}
+          >
+            <X size={20} />
+          </button>
+
+          {/* Prev arrow */}
+          {lightboxIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => i - 1) }}
+            >
+              <ChevronLeft size={24} />
+            </button>
+          )}
+
+          {/* Image + caption + counter */}
+          <div
+            className="max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-3"
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={gallery[lightboxIndex]?.image_url}
+              alt={gallery[lightboxIndex]?.caption || name}
+              className="max-w-full max-h-[78vh] object-contain rounded-xl shadow-2xl"
+            />
+            {gallery[lightboxIndex]?.caption && (
+              <p className="text-white/70 text-sm text-center px-4">{gallery[lightboxIndex].caption}</p>
+            )}
+            <p className="text-white/40 text-xs font-semibold tracking-wider">
+              {lightboxIndex + 1} / {gallery.length}
+            </p>
+          </div>
+
+          {/* Next arrow */}
+          {lightboxIndex < gallery.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => i + 1) }}
+            >
+              <ChevronRight size={24} />
+            </button>
+          )}
+
+          {/* Thumbnail strip */}
+          {gallery.length > 1 && (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 max-w-[80vw] overflow-x-auto px-4 pb-1">
+              {gallery.map((img, i) => (
+                <button
+                  key={img.id}
+                  onClick={e => { e.stopPropagation(); setLightboxIndex(i) }}
+                  className={clsx(
+                    'shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all duration-150',
+                    i === lightboxIndex ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-70'
+                  )}
+                >
+                  <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }
