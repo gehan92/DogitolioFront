@@ -18,7 +18,7 @@ const navLinks = [
 ]
 
 export default function Navbar() {
-  const { user, profile, isAdmin, isOwner, isSuperuser, loading, signOut } = useAuth()
+  const { user, profile, isAdmin, isStaff, isOwner, isSuperuser, loading, signOut } = useAuth()
   const { activeTheme, siteDefault, setTheme } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
@@ -113,6 +113,16 @@ export default function Navbar() {
                 >
                   <LayoutDashboard size={13} />
                   Admin
+                </Link>
+              )}
+              {isStaff && (
+                <Link
+                  href="/admin"
+                  className="relative px-4 py-2 text-[13px] font-semibold rounded-lg transition-all duration-150 flex items-center gap-1.5 border border-blue-200"
+                  style={{ color: '#2563eb', background: pathname.startsWith('/admin') ? '#eff6ff' : '' }}
+                >
+                  <LayoutDashboard size={13} />
+                  Dashboard
                 </Link>
               )}
               {isOwner && (
@@ -231,6 +241,12 @@ export default function Navbar() {
                           <Link href="/admin" onClick={() => setMenuOpen(false)}
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-amber-700 hover:bg-amber-50 transition-colors duration-150">
                             <LayoutDashboard size={14} className="shrink-0" /> Admin Dashboard
+                          </Link>
+                        )}
+                        {isStaff && (
+                          <Link href="/admin" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-blue-700 hover:bg-blue-50 transition-colors duration-150">
+                            <LayoutDashboard size={14} className="shrink-0" /> Dashboard
                           </Link>
                         )}
                         {isOwner && (
