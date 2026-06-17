@@ -2061,7 +2061,6 @@ export default function AdminPage() {
                     { value: 'staff',     label: 'Staff',     countKey: 'staff'     },
                     { value: 'owner',     label: 'Owner',     countKey: 'owner'     },
                     { value: 'user',      label: 'User',      countKey: 'user'      },
-                    { value: 'superuser', label: 'Superuser', countKey: 'superuser' },
                   ].map(r => {
                     const isActive = usersRoleFilter === r.value
                     const count    = userRoleCounts?.[r.countKey]
