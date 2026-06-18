@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -239,15 +239,31 @@ function MenuSection({ items, brandColor }) {
 
 function FloatingCallButton({ phone, color, name }) {
   const [open, setOpen] = useState(false)
+  const [barVisible, setBarVisible] = useState(true)
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      setBarVisible(y < 80 || y < lastScrollY.current)
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <>
-      {/* ── Mobile: sticky full-width bar above bottom nav (world standard) */}
+      {/* ── Mobile: sticky bar — slides away on scroll down, returns on scroll up */}
       <a
         href={`tel:${phone}`}
         className="md:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between px-6 py-4 rounded-2xl text-white"
         style={{
           background: `linear-gradient(135deg, ${color}, ${color}dd)`,
           boxShadow: `0 4px 24px ${color}45`,
+          transform: barVisible ? 'translateY(0)' : 'translateY(calc(100% + 80px))',
+          opacity: barVisible ? 1 : 0,
+          transition: 'transform 0.3s ease, opacity 0.3s ease',
         }}
       >
         <div className="flex items-center gap-2.5">
