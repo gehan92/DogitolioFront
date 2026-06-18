@@ -236,4 +236,11 @@ export const api = {
     create: (data, token)     => apiFetch('/payments', { method: 'POST', body: JSON.stringify(data) }, token),
     delete: (id, token)       => apiFetch(`/payments/${id}`, { method: 'DELETE' }, token),
   },
+
+  // ── REPORTS
+  reports: {
+    staffPerformance: (token) => apiFetch('/reports/staff-performance', {}, token),
+    myPerformance:    (token) => apiFetch('/reports/my-performance',    {}, token),
+    adminSummary:     (token) => apiFetch('/reports/admin-summary',     {}, token),
+  },
 }

@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, Search, RefreshCw, Ban, CheckCircle,
   UserCog, AlertTriangle, BarChart3, Menu, X, LogOut,
   ArrowUpCircle, ArrowDownCircle, Activity, Building2,
-  Download, ChevronDown, ChevronUp, Clock, Filter,
+  Download, ChevronDown, ChevronUp, Clock, Filter, TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -42,6 +42,7 @@ const SA_NAV = [
   { key: 'Admins',     label: 'Admins',      icon: Shield,          group: 'Access'    },
   { key: 'Superusers', label: 'Superusers',  icon: Crown,           group: 'Access'    },
   { key: 'AuditLogs',  label: 'Audit Logs',  icon: History,         group: 'System'    },
+  { key: 'Reports',    label: 'Reports',     icon: TrendingUp,      group: 'System'    },
   { key: 'System',     label: 'System Info', icon: Settings,        group: 'System'    },
 ]
 
@@ -294,6 +295,10 @@ export default function SuperAdminPage() {
   const [logsLoad,    setLogsLoad]    = useState(false)
   const [logFilter,   setLogFilter]   = useState('')
 
+  // ── Reports
+  const [saReportsData,    setSaReportsData]    = useState(null)
+  const [saReportsLoading, setSaReportsLoading] = useState(false)
+
   // ── Confirmation modal state
   const [modal, setModal] = useState(null)
   // modal = { type: 'ban'|'unban'|'role'|'promote'|'revoke', user, newRole?, banReason?, banDuration? }
@@ -314,6 +319,7 @@ export default function SuperAdminPage() {
     if (tab === 'Admins')     fetchUsers(1, 'admin', '')
     if (tab === 'Superusers') fetchUsers(1, 'superuser', '')
     if (tab === 'AuditLogs')  fetchLogs(1)
+    if (tab === 'Reports')    fetchAdminSummary()
   }, [tab, isSuperuser, token])
 
   // ── Stats ─────────────────────────────────────────────────────────────────
@@ -330,6 +336,19 @@ export default function SuperAdminPage() {
       setStats({ users: counts })
     } finally {
       setStatsLoading(false)
+    }
+  }
+
+  // ── Admin summary report ──────────────────────────────────────────────────
+  async function fetchAdminSummary() {
+    setSaReportsLoading(true)
+    try {
+      const data = await api.reports.adminSummary(token)
+      setSaReportsData(data)
+    } catch (e) {
+      showMsg('error', e.message)
+    } finally {
+      setSaReportsLoading(false)
     }
   }
 
@@ -709,6 +728,75 @@ export default function SuperAdminPage() {
 
           {/* ── SYSTEM ───────────────────────────────────────────────────── */}
           {tab === 'System' && <SystemSection profile={profile} />}
+
+          {/* ── REPORTS ──────────────────────────────────────────────────── */}
+          {tab === 'Reports' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-extrabold" style={{ color: 'var(--c-text)' }}>Admin Activity Summary</h2>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--c-dim)' }}>Actions and tasks assigned by each admin in the last 30 days</p>
+                </div>
+                <button onClick={fetchAdminSummary}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--c-border)] hover:bg-[var(--c-surface2)] transition-all"
+                  style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
+                  <TrendingUp size={13} /> Refresh
+                </button>
+              </div>
+
+              {saReportsLoading ? (
+                <div className="flex justify-center items-center py-20"><Spinner size={28} /></div>
+              ) : !saReportsData ? (
+                <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No report data available.</div>
+              ) : !saReportsData.data?.length ? (
+                <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No admin accounts found.</div>
+              ) : (
+                <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                          {['Admin','Actions (30d)','Tasks Assigned (30d)','Joined'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {saReportsData.data.map(a => (
+                          <tr key={a.id} className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0"
+                                  style={{ background: 'linear-gradient(135deg,#d97706,#b45309)' }}>
+                                  {(a.name || '?')[0].toUpperCase()}
+                                </div>
+                                <p className="text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>{a.name || 'Unnamed'}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full',
+                                a.actionsLast30d > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-400')}>
+                                {a.actionsLast30d}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full',
+                                a.tasksAssigned > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400')}>
+                                {a.tasksAssigned}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-[12px]" style={{ color: 'var(--c-dim)' }}>
+                              {a.joined ? new Date(a.joined).toLocaleDateString() : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         </main>
       </div>

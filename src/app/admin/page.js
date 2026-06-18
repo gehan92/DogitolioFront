@@ -9,7 +9,7 @@ import {
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
   Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
   Bell, BarChart2, HelpCircle, DollarSign, ClipboardCheck,
-  Ticket, ListTodo, Send, ChevronUp,
+  Ticket, ListTodo, Send, ChevronUp, TrendingUp,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
@@ -25,7 +25,7 @@ const PAGE_SIZE = 12
 // Sections staff can have access toggled for (admin-only sections excluded)
 const STAFF_SECTIONS = [
   'Overview', 'Restaurants', 'Boost', 'Reviews',
-  'Menu Items', 'Site Content', 'History', 'Gallery', 'Tasks', 'Tickets',
+  'Menu Items', 'Site Content', 'History', 'Gallery', 'Tasks', 'Tickets', 'Reports',
 ]
 
 // All nav items — staff sees a filtered subset based on their permissions
@@ -57,6 +57,7 @@ const ALL_NAV_ITEMS = [
   { key: 'Site Content', label: 'Site Content',    icon: FileText,        adminOnly: false, group: 'System'     },
   { key: 'Theme',        label: 'Theme',           icon: Palette,         adminOnly: true,  group: 'System'     },
   { key: 'History',      label: 'History',         icon: Clock,           adminOnly: false, group: 'System'     },
+  { key: 'Reports',      label: 'Reports',         icon: TrendingUp,      adminOnly: false, group: 'System'     },
 ]
 
 const STATUS_COLORS = {
@@ -359,6 +360,10 @@ export default function AdminPage() {
   const [notifForm,    setNotifForm]    = useState({ role: 'all', title: '', message: '', type: 'info' })
   const [notifSaving,  setNotifSaving]  = useState(false)
   const [notifMsg,     setNotifMsg]     = useState('')
+
+  // ── Reports
+  const [reportsData,    setReportsData]    = useState(null)
+  const [reportsLoading, setReportsLoading] = useState(false)
 
   const SC_SCHEMAS = {
     home: [
@@ -834,6 +839,17 @@ export default function AdminPage() {
     finally { setPaymentsLoading(false) }
   }
 
+  async function loadReports() {
+    setReportsLoading(true)
+    try {
+      const data = isAdmin
+        ? await api.reports.staffPerformance(token)
+        : await api.reports.myPerformance(token)
+      setReportsData({ type: isAdmin ? 'admin' : 'staff', ...data })
+    } catch (err) { console.error(err) }
+    finally { setReportsLoading(false) }
+  }
+
   // ── Lazy tab navigation ─────────────────────────────────────────────────
   function navigate(key) {
     setTab(key)
@@ -861,6 +877,7 @@ export default function AdminPage() {
     else if (key === 'Announcements')   { loadAnnouncements() }
     else if (key === 'Tickets')         { loadTickets(1) }
     else if (key === 'Revenue')         { loadPayments(1) }
+    else if (key === 'Reports')         { loadReports() }
     else if (key === 'Gallery')         { /* user picks restaurant first */ }
     else if (key === 'Notifications')   { /* send panel, no load needed */ }
   }
@@ -4051,6 +4068,155 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                     finally { setNotifSaving(false) }
                   }}>Send Notification</Button>
                 </div>
+              </div>
+            )}
+
+            {/* ── REPORTS ──────────────────────────────────────────────── */}
+            {tab === 'Reports' && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-extrabold" style={{ color: 'var(--c-text)' }}>
+                      {reportsData?.type === 'admin' ? 'Staff Performance' : 'My Performance'}
+                    </h2>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--c-dim)' }}>
+                      {reportsData?.type === 'admin' ? 'Task completion stats for each staff member' : 'Your task activity and completion rate'}
+                    </p>
+                  </div>
+                  <button onClick={loadReports}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--c-border)] hover:bg-[var(--c-surface2)] transition-all"
+                    style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
+                    <TrendingUp size={13} /> Refresh
+                  </button>
+                </div>
+
+                {reportsLoading ? (
+                  <div className="flex justify-center items-center py-20"><Spinner size={28} /></div>
+                ) : !reportsData ? (
+                  <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No report data available.</div>
+                ) : reportsData.type === 'admin' ? (
+                  /* ── Admin view: staff performance table */
+                  <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                    {(!reportsData.data || reportsData.data.length === 0) ? (
+                      <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No staff members found.</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                              {['Staff Member','Total','Done','Active','Pending','Overdue','Rate','Warnings'].map(h => (
+                                <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportsData.data.map(s => (
+                              <tr key={s.id} className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF2D55] to-[#FF6035] flex items-center justify-center text-white text-[10px] font-black shrink-0">
+                                      {(s.name || '?')[0].toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <p className="text-[12px] font-semibold leading-none" style={{ color: 'var(--c-text)' }}>{s.name || 'Unnamed'}</p>
+                                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-dim)' }}>
+                                        Since {s.joined ? new Date(s.joined).toLocaleDateString() : '—'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>{s.tasks.total}</td>
+                                <td className="px-4 py-3">
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.tasks.done}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.tasks.in_progress}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{s.tasks.pending}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.tasks.overdue > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>{s.tasks.overdue}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 min-w-[48px]">
+                                      <div className="h-1.5 rounded-full bg-gradient-to-r from-[#FF2D55] to-[#FF6035]" style={{ width: `${s.completionRate}%` }} />
+                                    </div>
+                                    <span className="text-[11px] font-bold shrink-0" style={{ color: 'var(--c-text)' }}>{s.completionRate}%</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.warnings > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400')}>{s.warnings}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── Staff view: own performance */
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Total Tasks',    value: reportsData.stats?.total,          color: '#7c3aed' },
+                        { label: 'Completed',      value: reportsData.stats?.done,           color: '#16a34a' },
+                        { label: 'In Progress',    value: reportsData.stats?.in_progress,    color: '#2563eb' },
+                        { label: 'Pending',        value: reportsData.stats?.pending,        color: '#d97706' },
+                        { label: 'Overdue',        value: reportsData.stats?.overdue,        color: '#dc2626' },
+                        { label: 'Completion Rate',value: `${reportsData.stats?.completionRate ?? 0}%`, color: '#FF2D55' },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="rounded-2xl border border-[var(--c-border)] p-4" style={{ background: 'var(--c-surface)' }}>
+                          <p className="text-2xl font-extrabold" style={{ color }}>{value ?? '—'}</p>
+                          <p className="text-[11px] font-semibold mt-1" style={{ color: 'var(--c-dim)' }}>{label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {reportsData.stats?.total > 0 && (
+                      <div className="rounded-2xl border border-[var(--c-border)] p-5" style={{ background: 'var(--c-surface)' }}>
+                        <p className="text-[12px] font-bold mb-3" style={{ color: 'var(--c-muted)' }}>Completion Progress</p>
+                        <div className="h-3 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-3 rounded-full bg-gradient-to-r from-[#FF2D55] to-[#FF6035] transition-all"
+                            style={{ width: `${reportsData.stats?.completionRate ?? 0}%` }} />
+                        </div>
+                        <p className="text-[11px] mt-2" style={{ color: 'var(--c-dim)' }}>
+                          {reportsData.stats?.done} of {reportsData.stats?.total} tasks completed
+                        </p>
+                      </div>
+                    )}
+
+                    {reportsData.tasks?.length > 0 && (
+                      <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                        <div className="px-5 py-4 border-b border-[var(--c-border)]">
+                          <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>Recent Tasks</p>
+                        </div>
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {reportsData.tasks.map(t => (
+                            <div key={t.id} className="px-5 py-3 flex items-center gap-3">
+                              <span className={clsx('w-2 h-2 rounded-full shrink-0',
+                                t.status === 'done' ? 'bg-green-500' : t.status === 'in_progress' ? 'bg-blue-500' : 'bg-amber-400'
+                              )} />
+                              <p className="flex-1 text-[12px] font-medium truncate" style={{ color: 'var(--c-text)' }}>{t.title}</p>
+                              <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full capitalize',
+                                t.status === 'done' ? 'bg-green-100 text-green-700'
+                                : t.status === 'in_progress' ? 'bg-blue-100 text-blue-700'
+                                : 'bg-amber-100 text-amber-700'
+                              )}>{t.status.replace('_', ' ')}</span>
+                              {t.due_date && (
+                                <span className="text-[10px] shrink-0" style={{ color: 'var(--c-dim)' }}>
+                                  Due {new Date(t.due_date).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
