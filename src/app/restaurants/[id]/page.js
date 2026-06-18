@@ -237,6 +237,43 @@ function MenuSection({ items, brandColor }) {
   )
 }
 
+function FloatingCallButton({ phone, color, name }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      {open && <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />}
+      <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2">
+        {open && (
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-52"
+            style={{ animation: 'fadeInUp .15s ease' }}>
+            <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Call directly</p>
+            <a
+              href={`tel:${phone}`}
+              className="flex items-center gap-2 font-bold text-base transition-opacity hover:opacity-75"
+              style={{ color }}
+            >
+              <Phone size={15} />
+              {phone}
+            </a>
+            <p className="text-[10px] text-gray-300 mt-2 font-medium truncate">{name}</p>
+          </div>
+        )}
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
+          style={{
+            background: `linear-gradient(135deg, ${color}, ${color}cc)`,
+            boxShadow: `0 6px 24px ${color}55`,
+          }}
+          aria-label={open ? 'Close' : 'Call restaurant'}
+        >
+          {open ? <X size={20} /> : <Phone size={22} />}
+        </button>
+      </div>
+    </>
+  )
+}
+
 export default function RestaurantPage() {
   const { id }          = useParams()
   const { user, token } = useAuth()
@@ -815,6 +852,9 @@ export default function RestaurantPage() {
           )}
         </div>
       )}
+
+      {/* ── Floating call button */}
+      {phone && <FloatingCallButton phone={phone} color={color} name={name} />}
     </>
   )
 }
