@@ -171,7 +171,11 @@ function RestaurantsContent() {
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-2xl font-bold text-[var(--c-text)]">{pageTitle}</h1>
-          {!loading && <p className="text-sm text-[var(--c-muted)]">{total} found</p>}
+          {!loading && total > 0 && (
+            <p className="text-sm text-[var(--c-muted)]">
+              Showing {(page - 1) * 12 + 1}–{Math.min(page * 12, total)} of {total}
+            </p>
+          )}
         </div>
 
         {/* Venue grid */}
@@ -200,8 +204,35 @@ function RestaurantsContent() {
               ))}
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-10">
+            {/* Pagination — always shown when there are results */}
+            <div className="mt-10">
+              {/* Mobile: Prev / Page X of Y / Next */}
+              <div className="flex sm:hidden items-center justify-between gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page <= 1}
+                  className="flex-1"
+                >
+                  <ChevronLeft size={16} /> Prev
+                </Button>
+                <span className="text-sm font-medium text-[var(--c-muted)] whitespace-nowrap px-2">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page >= totalPages}
+                  className="flex-1 justify-end"
+                >
+                  Next <ChevronRight size={16} />
+                </Button>
+              </div>
+
+              {/* Desktop: numbered buttons */}
+              <div className="hidden sm:flex items-center justify-center gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -210,7 +241,6 @@ function RestaurantsContent() {
                 >
                   <ChevronLeft size={16} /> Prev
                 </Button>
-
                 <div className="flex gap-1">
                   {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
                     <button
@@ -226,7 +256,6 @@ function RestaurantsContent() {
                     </button>
                   ))}
                 </div>
-
                 <Button
                   variant="secondary"
                   size="sm"
@@ -236,7 +265,14 @@ function RestaurantsContent() {
                   Next <ChevronRight size={16} />
                 </Button>
               </div>
-            )}
+
+              {/* End of results */}
+              {page >= totalPages && (
+                <p className="text-center text-xs text-[var(--c-muted)] mt-6">
+                  — You've seen all {total} results —
+                </p>
+              )}
+            </div>
           </>
         )}
 
