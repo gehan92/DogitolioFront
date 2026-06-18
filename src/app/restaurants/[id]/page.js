@@ -241,33 +241,50 @@ function FloatingCallButton({ phone, color, name }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      {open && <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />}
-      <div className="fixed bottom-20 md:bottom-8 right-3 sm:right-4 md:right-6 z-40 flex flex-col items-end gap-2">
+      {/* ── Mobile: sticky full-width bar above bottom nav (world standard) */}
+      <a
+        href={`tel:${phone}`}
+        className="md:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between px-5 py-3.5 rounded-2xl text-white"
+        style={{
+          background: `linear-gradient(135deg, ${color}, ${color}dd)`,
+          boxShadow: `0 4px 24px ${color}45`,
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <Phone size={16} />
+          <span className="text-[13px] font-bold">Call Restaurant</span>
+        </div>
+        <span className="text-[12px] font-semibold text-white/80">{phone}</span>
+      </a>
+
+      {/* ── Desktop: floating FAB with expand tooltip */}
+      {open && <div className="hidden md:block fixed inset-0 z-30" onClick={() => setOpen(false)} />}
+      <div className="hidden md:flex fixed bottom-8 right-6 z-40 flex-col items-end gap-2">
         {open && (
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 sm:p-4 w-44 sm:w-52"
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-52"
             style={{ animation: 'fadeInUp .15s ease' }}>
-            <p className="text-[10px] sm:text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5 sm:mb-2">Call directly</p>
+            <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Call directly</p>
             <a
               href={`tel:${phone}`}
-              className="flex items-center gap-2 font-bold text-sm sm:text-base transition-opacity hover:opacity-75"
+              className="flex items-center gap-2 font-bold text-base transition-opacity hover:opacity-75"
               style={{ color }}
             >
-              <Phone size={14} />
+              <Phone size={15} />
               {phone}
             </a>
-            <p className="text-[10px] text-gray-300 mt-1.5 sm:mt-2 font-medium truncate">{name}</p>
+            <p className="text-[10px] text-gray-300 mt-2 font-medium truncate">{name}</p>
           </div>
         )}
         <button
           onClick={() => setOpen(o => !o)}
-          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
+          className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
           style={{
             background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-            boxShadow: `0 4px 20px ${color}50`,
+            boxShadow: `0 6px 24px ${color}55`,
           }}
           aria-label={open ? 'Close' : 'Call restaurant'}
         >
-          {open ? <X size={18} /> : <Phone size={20} />}
+          {open ? <X size={20} /> : <Phone size={22} />}
         </button>
       </div>
     </>
@@ -375,7 +392,7 @@ export default function RestaurantPage() {
   return (
     <>
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 py-6 pb-28 md:pb-10">
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-36 md:pb-10">
 
         {/* Back */}
         <Link
