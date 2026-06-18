@@ -242,32 +242,32 @@ function FloatingCallButton({ phone, color, name }) {
   return (
     <>
       {open && <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />}
-      <div className="fixed bottom-20 md:bottom-6 right-4 z-40 flex flex-col items-end gap-2">
+      <div className="fixed bottom-20 md:bottom-8 right-3 sm:right-4 md:right-6 z-40 flex flex-col items-end gap-2">
         {open && (
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-52"
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 sm:p-4 w-44 sm:w-52"
             style={{ animation: 'fadeInUp .15s ease' }}>
-            <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Call directly</p>
+            <p className="text-[10px] sm:text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5 sm:mb-2">Call directly</p>
             <a
               href={`tel:${phone}`}
-              className="flex items-center gap-2 font-bold text-base transition-opacity hover:opacity-75"
+              className="flex items-center gap-2 font-bold text-sm sm:text-base transition-opacity hover:opacity-75"
               style={{ color }}
             >
-              <Phone size={15} />
+              <Phone size={14} />
               {phone}
             </a>
-            <p className="text-[10px] text-gray-300 mt-2 font-medium truncate">{name}</p>
+            <p className="text-[10px] text-gray-300 mt-1.5 sm:mt-2 font-medium truncate">{name}</p>
           </div>
         )}
         <button
           onClick={() => setOpen(o => !o)}
-          className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
           style={{
             background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-            boxShadow: `0 6px 24px ${color}55`,
+            boxShadow: `0 4px 20px ${color}50`,
           }}
           aria-label={open ? 'Close' : 'Call restaurant'}
         >
-          {open ? <X size={20} /> : <Phone size={22} />}
+          {open ? <X size={18} /> : <Phone size={20} />}
         </button>
       </div>
     </>
@@ -431,7 +431,7 @@ export default function RestaurantPage() {
 
         {/* ── Photo gallery mosaic */}
         {gallery.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gray-100" style={{ height: 220 }}>
+          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gray-100 h-40 sm:h-52 md:h-56">
             <div className="flex gap-0.5 h-full">
               {/* Main large photo */}
               <div
@@ -504,9 +504,9 @@ export default function RestaurantPage() {
 
         {/* Rating summary */}
         {avgRating > 0 && (
-          <div className="flex items-center gap-5 p-4 rounded-2xl border mb-5" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', boxShadow: '0 2px 16px rgba(0,0,0,.06)' }}>
-            <div className="text-center shrink-0 px-2">
-            <div className="text-5xl font-black leading-none mb-1.5" style={{ color: 'var(--c-text)' }}>{Number(avgRating).toFixed(1)}</div>
+          <div className="flex items-center gap-3 sm:gap-5 p-3 sm:p-4 rounded-2xl border mb-5" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', boxShadow: '0 2px 16px rgba(0,0,0,.06)' }}>
+            <div className="text-center shrink-0 px-1 sm:px-2">
+            <div className="text-4xl sm:text-5xl font-black leading-none mb-1.5" style={{ color: 'var(--c-text)' }}>{Number(avgRating).toFixed(1)}</div>
               <Stars rating={Math.round(avgRating)} size={14} />
               <p className="text-[11px] text-gray-400 mt-1.5">{reviews.length || reviewCount} reviews</p>
             </div>
