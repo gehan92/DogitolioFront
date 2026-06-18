@@ -130,7 +130,7 @@ function StatusBadge({ status }) {
 
 // ── Main admin / staff workplace page ──────────────────────────────────────
 export default function AdminPage() {
-  const { user, profile, isAdmin, isStaff, loading: authLoading, token } = useAuth()
+  const { user, profile, isAdmin, isStaff, isSuperuser, loading: authLoading, token } = useAuth()
   const router = useRouter()
 
   // ── Navigation
@@ -139,7 +139,9 @@ export default function AdminPage() {
   const [tabsLoaded,  setTabsLoaded]  = useState(new Set(['Overview']))
 
   // ── Staff permissions (loaded from Supabase directly via RLS)
-  const [myPermissions, setMyPermissions] = useState(null) // null = not yet loaded
+  const [myPermissions,      setMyPermissions]      = useState(null) // null = not yet loaded
+  // ── Admin permissions (superadmin-controlled — loaded for non-superuser admins)
+  const [myAdminPermissions, setMyAdminPermissions] = useState(null)
 
   // ── Global state
   const [stats,   setStats]   = useState(null)
@@ -536,12 +538,21 @@ export default function AdminPage() {
     setLoading(true)
     try {
       if (isAdmin) {
-        const [statsData, optsData] = await Promise.all([
+        const requests = [
           api.admin.stats(token),
           api.restaurants.list({ limit: 200 }),
-        ])
+        ]
+        if (!isSuperuser) requests.push(
+          supabase.from('admin_permissions').select('section, can_access').eq('admin_id', profile.id)
+        )
+        const [statsData, optsData, permsResult] = await Promise.all(requests)
         setStats(statsData)
         setRestaurantOptions(optsData.data || [])
+        if (permsResult) {
+          const permMap = {}
+          ;(permsResult.data || []).forEach(p => { permMap[p.section] = p.can_access })
+          setMyAdminPermissions(permMap)
+        }
       } else {
         // Staff: load restaurant options + own section permissions from Supabase (RLS allows)
         const [optsData, permsData] = await Promise.all([
@@ -1316,13 +1327,18 @@ export default function AdminPage() {
   const pendingRequestsCount = stats?.stats?.pendingRequests ?? 0
 
   // Build nav items based on role + permissions
-  const navItems = isAdmin
+  const navItems = isSuperuser
     ? ALL_NAV_ITEMS
-    : ALL_NAV_ITEMS.filter(item => {
-        if (item.adminOnly) return false
-        if (!myPermissions) return true // still loading → show all
-        return myPermissions[item.key] !== false
-      })
+    : isAdmin
+      ? ALL_NAV_ITEMS.filter(item => {
+          if (!myAdminPermissions) return true // still loading → show all
+          return myAdminPermissions[item.key] !== false
+        })
+      : ALL_NAV_ITEMS.filter(item => {
+          if (item.adminOnly) return false
+          if (!myPermissions) return true // still loading → show all
+          return myPermissions[item.key] !== false
+        })
 
   const isWorkplace = isStaff && !isAdmin
   const dashboardTitle = isWorkplace ? 'My Workplace' : 'Admin Panel'

@@ -150,6 +150,8 @@ export const api = {
     patchUser: (id, data, token)  => apiFetch(`/superadmin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
     auditLogs: (params, token)    => apiFetch('/superadmin/audit-logs?' + new URLSearchParams(params), {}, token),
     writeLog:  (data, token)      => apiFetch('/superadmin/audit-logs', { method: 'POST', body: JSON.stringify(data) }, token),
+    adminPermissions:       (adminId, token)             => apiFetch(`/superadmin/admin-permissions/${adminId}`, {}, token),
+    updateAdminPermissions: (adminId, permissions, token) => apiFetch(`/superadmin/admin-permissions/${adminId}`, { method: 'PUT', body: JSON.stringify({ permissions }) }, token),
   },
 
   // ── HISTORY

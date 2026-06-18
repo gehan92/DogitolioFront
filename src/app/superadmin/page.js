@@ -8,6 +8,7 @@ import {
   UserCog, AlertTriangle, BarChart3, Menu, X, LogOut,
   ArrowUpCircle, ArrowDownCircle, Activity, Building2,
   Download, ChevronDown, ChevronUp, Clock, Filter, TrendingUp,
+  ShieldCheck, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -19,6 +20,32 @@ import clsx from 'clsx'
 const PAGE_SIZE = 15
 
 const ROLE_OPTIONS = ['user', 'staff', 'owner', 'admin', 'superuser']
+
+const ADMIN_PANEL_SECTIONS = [
+  { key: 'Overview',      label: 'Overview',        group: 'Content'    },
+  { key: 'Analytics',     label: 'Analytics',       group: 'Content'    },
+  { key: 'Restaurants',   label: 'Restaurants',     group: 'Content'    },
+  { key: 'Approval',      label: 'Approval Queue',  group: 'Content'    },
+  { key: 'Menu Items',    label: 'Menu Items',       group: 'Content'    },
+  { key: 'Gallery',       label: 'Gallery',         group: 'Content'    },
+  { key: 'Banners',       label: 'Banners',         group: 'Content'    },
+  { key: 'FAQs',          label: 'FAQs',            group: 'Content'    },
+  { key: 'Reviews',       label: 'Reviews',         group: 'Moderation' },
+  { key: 'Requests',      label: 'Change Requests', group: 'Moderation' },
+  { key: 'Boost',         label: 'Boost',           group: 'Moderation' },
+  { key: 'Tickets',       label: 'Support Tickets', group: 'Moderation' },
+  { key: 'Users',         label: 'Users',           group: 'Admin'      },
+  { key: 'Owners',        label: 'Owners',          group: 'Admin'      },
+  { key: 'Staff',         label: 'Staff',           group: 'Admin'      },
+  { key: 'Tasks',         label: 'Staff Tasks',     group: 'Admin'      },
+  { key: 'Announcements', label: 'Announcements',   group: 'Admin'      },
+  { key: 'Revenue',       label: 'Revenue',         group: 'Finance'    },
+  { key: 'Notifications', label: 'Notifications',   group: 'System'     },
+  { key: 'Site Content',  label: 'Site Content',    group: 'System'     },
+  { key: 'Theme',         label: 'Theme',           group: 'System'     },
+  { key: 'History',       label: 'History',         group: 'System'     },
+  { key: 'Reports',       label: 'Reports',         group: 'System'     },
+]
 
 const ROLE_COLORS = {
   superuser: { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-300' },
@@ -37,13 +64,14 @@ const BAN_DURATION_OPTIONS = [
 ]
 
 const SA_NAV = [
-  { key: 'Overview',   label: 'Overview',    icon: LayoutDashboard, group: 'Dashboard' },
-  { key: 'Users',      label: 'All Users',   icon: Users,           group: 'Access'    },
-  { key: 'Admins',     label: 'Admins',      icon: Shield,          group: 'Access'    },
-  { key: 'Superusers', label: 'Superusers',  icon: Crown,           group: 'Access'    },
-  { key: 'AuditLogs',  label: 'Audit Logs',  icon: History,         group: 'System'    },
-  { key: 'Reports',    label: 'Reports',     icon: TrendingUp,      group: 'System'    },
-  { key: 'System',     label: 'System Info', icon: Settings,        group: 'System'    },
+  { key: 'Overview',   label: 'Overview',      icon: LayoutDashboard, group: 'Dashboard' },
+  { key: 'Users',      label: 'All Users',     icon: Users,           group: 'Access'    },
+  { key: 'Admins',     label: 'Admins',        icon: Shield,          group: 'Access'    },
+  { key: 'Superusers', label: 'Superusers',    icon: Crown,           group: 'Access'    },
+  { key: 'AdminPerms', label: 'Admin Access',  icon: ShieldCheck,     group: 'Access'    },
+  { key: 'AuditLogs',  label: 'Audit Logs',    icon: History,         group: 'System'    },
+  { key: 'Reports',    label: 'Reports',       icon: TrendingUp,      group: 'System'    },
+  { key: 'System',     label: 'System Info',   icon: Settings,        group: 'System'    },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -299,6 +327,14 @@ export default function SuperAdminPage() {
   const [saReportsData,    setSaReportsData]    = useState(null)
   const [saReportsLoading, setSaReportsLoading] = useState(false)
 
+  // ── Admin Permissions
+  const [adminsList,       setAdminsList]       = useState([])
+  const [adminsLoading,    setAdminsLoading]    = useState(false)
+  const [selAdminId,       setSelAdminId]       = useState(null)
+  const [adminPermsEdit,   setAdminPermsEdit]   = useState({})
+  const [adminPermsSaving, setAdminPermsSaving] = useState(false)
+  const [adminPermsMsg,    setAdminPermsMsg]    = useState('')
+
   // ── Confirmation modal state
   const [modal, setModal] = useState(null)
   // modal = { type: 'ban'|'unban'|'role'|'promote'|'revoke', user, newRole?, banReason?, banDuration? }
@@ -320,6 +356,7 @@ export default function SuperAdminPage() {
     if (tab === 'Superusers') fetchUsers(1, 'superuser', '')
     if (tab === 'AuditLogs')  fetchLogs(1)
     if (tab === 'Reports')    fetchAdminSummary()
+    if (tab === 'AdminPerms') fetchAdminsList()
   }, [tab, isSuperuser, token])
 
   // ── Stats ─────────────────────────────────────────────────────────────────
@@ -337,6 +374,42 @@ export default function SuperAdminPage() {
     } finally {
       setStatsLoading(false)
     }
+  }
+
+  // ── Admin Permission Management ───────────────────────────────────────────
+  async function fetchAdminsList() {
+    setAdminsLoading(true)
+    try {
+      const res = await api.superadmin.users({ role: 'admin', limit: 100 }, token)
+      setAdminsList(res.data || [])
+    } catch (e) { showMsg('error', e.message) }
+    finally { setAdminsLoading(false) }
+  }
+
+  async function loadAdminPerms(adminId) {
+    setSelAdminId(adminId)
+    setAdminPermsEdit({})
+    setAdminPermsMsg('')
+    try {
+      const res = await api.superadmin.adminPermissions(adminId, token)
+      const map = {}
+      ADMIN_PANEL_SECTIONS.forEach(s => { map[s.key] = true })
+      ;(res.data || []).forEach(p => { map[p.section] = p.can_access })
+      setAdminPermsEdit(map)
+    } catch (e) { showMsg('error', e.message) }
+  }
+
+  async function saveAdminPerms() {
+    if (!selAdminId) return
+    setAdminPermsSaving(true)
+    setAdminPermsMsg('')
+    try {
+      const permissions = Object.entries(adminPermsEdit).map(([section, can_access]) => ({ section, can_access }))
+      await api.superadmin.updateAdminPermissions(selAdminId, permissions, token)
+      setAdminPermsMsg('Permissions saved.')
+      setTimeout(() => setAdminPermsMsg(''), 3000)
+    } catch (e) { setAdminPermsMsg(e.message) }
+    finally { setAdminPermsSaving(false) }
   }
 
   // ── Admin summary report ──────────────────────────────────────────────────
@@ -724,6 +797,94 @@ export default function SuperAdminPage() {
               logFilter={logFilter} setLogFilter={setLogFilter}
               onFetch={(p, f) => { if (f !== undefined) setLogFilter(f); fetchLogs(p, f ?? logFilter) }}
             />
+          )}
+
+          {/* ── ADMIN ACCESS PERMISSIONS ─────────────────────────────────── */}
+          {tab === 'AdminPerms' && (
+            <div>
+              <p className="text-xs mb-6" style={{ color: 'var(--c-dim)' }}>
+                Select an admin to control which sections of the admin panel they can access.
+              </p>
+
+              {adminsLoading ? <TabSpinner /> : !adminsList.length ? (
+                <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No admin accounts found.</div>
+              ) : (
+                <div className="flex flex-col lg:flex-row gap-6">
+
+                  {/* Admin list */}
+                  <div className="w-full lg:w-60 shrink-0 rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                    <div className="px-4 py-3 border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>Select Admin</p>
+                    </div>
+                    {adminsList.map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => loadAdminPerms(a.id)}
+                        className={clsx(
+                          'w-full flex items-center gap-3 px-4 py-3 border-b border-[var(--c-border)] last:border-0 transition-colors text-left',
+                          selAdminId === a.id ? 'bg-violet-50' : 'hover:bg-[var(--c-surface2)]'
+                        )}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0"
+                          style={{ background: 'linear-gradient(135deg,#d97706,#b45309)' }}>
+                          {(a.name || '?')[0].toUpperCase()}
+                        </div>
+                        <p className="text-[13px] font-semibold truncate"
+                          style={{ color: selAdminId === a.id ? '#7c3aed' : 'var(--c-text)' }}>
+                          {a.name || 'Unnamed'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Permission toggles */}
+                  {!selAdminId ? (
+                    <div className="flex-1 flex items-center justify-center py-20 rounded-2xl border border-dashed border-[var(--c-border)]">
+                      <p className="text-sm" style={{ color: 'var(--c-dim)' }}>← Select an admin to manage their panel access</p>
+                    </div>
+                  ) : Object.keys(adminPermsEdit).length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center py-20"><Spinner size={28} /></div>
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      {['Content', 'Moderation', 'Admin', 'Finance', 'System'].map(group => (
+                        <div key={group} className="rounded-2xl border border-[var(--c-border)] mb-4 overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                          <div className="px-5 py-3 border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{group}</p>
+                          </div>
+                          <div className="divide-y divide-[var(--c-border)]">
+                            {ADMIN_PANEL_SECTIONS.filter(s => s.group === group).map(s => (
+                              <div key={s.key} className="flex items-center justify-between px-5 py-3">
+                                <p className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>{s.label}</p>
+                                <button onClick={() => setAdminPermsEdit(prev => ({ ...prev, [s.key]: !prev[s.key] }))}>
+                                  {adminPermsEdit[s.key]
+                                    ? <ToggleRight size={26} className="text-violet-600" />
+                                    : <ToggleLeft  size={26} style={{ color: 'var(--c-dim)' }} />
+                                  }
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="flex items-center justify-between mt-2 gap-3">
+                        {adminPermsMsg && (
+                          <p className={clsx('text-xs font-semibold', adminPermsMsg === 'Permissions saved.' ? 'text-green-600' : 'text-red-600')}>
+                            {adminPermsMsg}
+                          </p>
+                        )}
+                        <button
+                          onClick={saveAdminPerms}
+                          disabled={adminPermsSaving}
+                          className="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)' }}>
+                          {adminPermsSaving ? 'Saving…' : 'Save Permissions'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── SYSTEM ───────────────────────────────────────────────────── */}
