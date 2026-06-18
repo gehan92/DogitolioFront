@@ -852,7 +852,7 @@ export default function RestaurantPage() {
       )}
 
       {/* ── Floating call button */}
-      {phone && <FloatingCallButton phone={phone} color={color} />}
+      {phone && tab === 'menu' && <FloatingCallButton phone={phone} color={color} />}
     </>
   )
 }
