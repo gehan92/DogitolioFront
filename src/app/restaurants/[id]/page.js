@@ -244,7 +244,7 @@ function FloatingCallButton({ phone, color, name }) {
       {/* ── Mobile: sticky full-width bar above bottom nav (world standard) */}
       <a
         href={`tel:${phone}`}
-        className="md:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between px-5 py-3.5 rounded-2xl text-white"
+        className="md:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between px-6 py-4 rounded-2xl text-white"
         style={{
           background: `linear-gradient(135deg, ${color}, ${color}dd)`,
           boxShadow: `0 4px 24px ${color}45`,
