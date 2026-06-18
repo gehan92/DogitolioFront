@@ -70,6 +70,7 @@ export default function EditRestaurantPage() {
   }
 
   // Boost state — separate from the main form, saved independently
+  const [copiedUrl, setCopiedUrl] = useState(false)
   const [boost,          setBoost]         = useState({ is_boosted: false, boost_plan: '30', boost_expires_at: null })
   const [boostSaving,    setBoostSaving]   = useState(false)
   const [boostMsg,       setBoostMsg]      = useState('')
@@ -865,39 +866,101 @@ export default function EditRestaurantPage() {
           </div>
 
           {/* QR Code */}
-          <div className="card p-6 space-y-4">
-            <h2 className="font-semibold text-sm uppercase tracking-wide flex items-center gap-2" style={{ color: accent }}>
-              <QrCode size={14} /> QR Code
-            </h2>
-            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
-              Place this QR code at the venue. Customers scan it to open the restaurant page instantly.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div ref={qrRef} className="p-3 bg-white rounded-2xl border border-[var(--c-border)] shadow-sm shrink-0">
-                <QRCodeCanvas
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/restaurants/${id}`}
-                  size={160}
-                  level="H"
-                  includeMargin={false}
-                />
+          <div className="card p-6 space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-9 h-9 rounded-xl text-white shrink-0"
+                style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}>
+                <QrCode size={16} />
+              </span>
+              <div>
+                <h2 className="font-bold text-[15px] text-[var(--c-text)]">QR Code</h2>
+                <p className="text-xs text-[var(--c-muted)] mt-0.5">Customers scan this to open the menu page instantly.</p>
               </div>
-              <div className="flex-1 space-y-3">
-                <div>
-                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-1">Scan destination</p>
-                  <code className="text-xs text-[var(--c-text)] bg-gray-100 px-2 py-1 rounded-lg break-all">
-                    {typeof window !== 'undefined' ? window.location.origin : ''}/restaurants/{id}
-                  </code>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+              {/* Printed card preview */}
+              <div className="shrink-0 flex flex-col items-center gap-2">
+                <div ref={qrRef}
+                  className="bg-white rounded-3xl shadow-lg border border-gray-100 px-7 py-6 flex flex-col items-center gap-3 w-56">
+                  <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400">Scan to View Menu</p>
+                  <div className="p-1 rounded-xl" style={{ background: accent + '12' }}>
+                    <QRCodeCanvas
+                      value={`${typeof window !== 'undefined' ? window.location.origin : 'https://mealhear.lk'}/restaurants/${id}`}
+                      size={152}
+                      level="H"
+                      fgColor={accent}
+                      bgColor="#ffffff"
+                      marginSize={0}
+                    />
+                  </div>
+                  <div className="w-full pt-2 border-t border-gray-100 text-center">
+                    <p className="text-[13px] font-black text-gray-800 leading-tight truncate">{form?.name || 'Restaurant Name'}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5 tracking-wide">mealhear.lk</p>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={downloadQR}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                  style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}
-                >
-                  <Download size={14} />
-                  Download PNG
-                </button>
-                <p className="text-xs text-[var(--c-dim)]">Print and place at the counter or entrance.</p>
+                <p className="text-[11px] text-[var(--c-dim)]">Print preview</p>
+              </div>
+
+              {/* Right: actions + tips */}
+              <div className="flex-1 w-full space-y-5">
+                {/* URL row */}
+                <div>
+                  <p className="text-xs font-bold text-[var(--c-muted)] mb-2 uppercase tracking-wide">Page URL</p>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-[var(--c-border)] rounded-xl px-3 py-2.5">
+                    <code className="flex-1 text-xs text-[var(--c-text)] break-all leading-relaxed">
+                      {typeof window !== 'undefined' ? window.location.origin : 'https://mealhear.lk'}/restaurants/{id}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/restaurants/${id}`)
+                        setCopiedUrl(true)
+                        setTimeout(() => setCopiedUrl(false), 2000)
+                      }}
+                      className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
+                      style={copiedUrl
+                        ? { background: accent + '18', borderColor: accent + '44', color: accent }
+                        : { background: 'white', borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+                    >
+                      {copiedUrl ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Download */}
+                <div>
+                  <p className="text-xs font-bold text-[var(--c-muted)] mb-2 uppercase tracking-wide">Download</p>
+                  <button
+                    type="button"
+                    onClick={downloadQR}
+                    className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                    style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}
+                  >
+                    <Download size={15} />
+                    Download PNG
+                  </button>
+                  <p className="text-xs text-[var(--c-dim)] mt-1.5">High-res PNG — print at any size without quality loss.</p>
+                </div>
+
+                {/* Placement tips */}
+                <div className="rounded-2xl border border-[var(--c-border)] bg-gray-50 p-4 space-y-2.5">
+                  <p className="text-xs font-bold text-[var(--c-text)] uppercase tracking-wide">Placement tips</p>
+                  {[
+                    'Entrance or reception counter — first thing guests see',
+                    'On each table for in-seat browsing',
+                    'Printed on packaging, receipts, or flyers',
+                  ].map((tip, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+                        style={{ background: accent }}>
+                        {i + 1}
+                      </span>
+                      <p className="text-xs text-[var(--c-muted)] leading-relaxed">{tip}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
