@@ -242,7 +242,7 @@ function FloatingCallButton({ phone, color, name }) {
   return (
     <>
       {open && <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />}
-      <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2">
+      <div className="fixed bottom-20 md:bottom-6 right-4 z-40 flex flex-col items-end gap-2">
         {open && (
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-52"
             style={{ animation: 'fadeInUp .15s ease' }}>
