@@ -19,14 +19,34 @@ const inter = Inter({
 })
 
 export const metadata = {
+  metadataBase: new URL('https://mealhere.com'),
   title:       { default: 'MealHere — Find Food Menus Near You', template: '%s | MealHere' },
   description: 'MealHere helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     type:  'website',
+    url:   'https://mealhere.com',
+    siteName: 'MealHere',
     title: 'MealHere — Find Food Menus Near You',
     description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'MealHere — Find Food Menus Near You',
+    description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
+  },
+}
+
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'MealHere',
+  url: 'https://mealhere.com',
+  logo: 'https://mealhere.com/logo.png',
 }
 
 async function getActiveThemeKey() {
@@ -78,6 +98,11 @@ export default async function RootLayout({ children }) {
         {/* Server-rendered theme vars — used when no user preference is stored */}
         <style dangerouslySetInnerHTML={{ __html: themeStyle }} />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
         <meta name="theme-color" content={theme.vars['--c-brand']} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
