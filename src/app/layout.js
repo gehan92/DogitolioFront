@@ -19,7 +19,7 @@ const inter = Inter({
 })
 
 export const metadata = {
-  metadataBase: new URL('https://mealhere.com'),
+  metadataBase: new URL('https://www.mealhere.com'),
   title:       { default: 'MealHere — Find Food Menus Near You', template: '%s | MealHere' },
   description: 'MealHere helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
@@ -30,7 +30,7 @@ export const metadata = {
   },
   openGraph: {
     type:  'website',
-    url:   'https://mealhere.com',
+    url:   'https://www.mealhere.com',
     siteName: 'MealHere',
     title: 'MealHere — Find Food Menus Near You',
     description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
@@ -46,8 +46,8 @@ const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'MealHere',
-  url: 'https://mealhere.com',
-  logo: 'https://mealhere.com/logo.png',
+  url: 'https://www.mealhere.com',
+  logo: 'https://www.mealhere.com/logo.png',
 }
 
 async function getActiveThemeKey() {

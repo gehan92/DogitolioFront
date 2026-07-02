@@ -5,6 +5,6 @@ export default function robots() {
       allow: '/',
       disallow: ['/admin', '/superadmin', '/owner', '/profile', '/auth'],
     },
-    sitemap: 'https://mealhere.com/sitemap.xml',
+    sitemap: 'https://www.mealhere.com/sitemap.xml',
   }
 }

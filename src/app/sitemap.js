@@ -1,4 +1,4 @@
-const BASE_URL = 'https://mealhere.com'
+const BASE_URL = 'https://www.mealhere.com'
 
 async function getRestaurantIds() {
   try {
