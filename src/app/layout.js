@@ -23,6 +23,7 @@ export const metadata = {
   title:       { default: 'MealHere — Find Food Menus Near You', template: '%s | MealHere' },
   description: 'MealHere helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
+  alternates:  { canonical: '/' },
   icons: {
     icon: '/favicon.svg',
     apple: '/apple-touch-icon.png',
