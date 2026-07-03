@@ -81,6 +81,15 @@ function banUntilDate(duration) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 }
 
+function downloadCSV(filename, headers, rows) {
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 function exportCSV(users) {
   const headers = ['Name', 'City', 'Role', 'Status', 'Joined', 'Ban Reason', 'Banned Until']
   const rows = users.map(u => [
@@ -92,12 +101,19 @@ function exportCSV(users) {
     u.ban_reason || '',
     u.banned_until ? new Date(u.banned_until).toLocaleDateString() : '',
   ])
-  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href = url; a.download = `users-${Date.now()}.csv`; a.click()
-  URL.revokeObjectURL(url)
+  downloadCSV(`users-${Date.now()}.csv`, headers, rows)
+}
+
+function exportLogsCSV(logs) {
+  const headers = ['Date', 'Actor', 'Role', 'Action', 'Target']
+  const rows = logs.map(log => [
+    log.created_at ? new Date(log.created_at).toLocaleString() : '',
+    log.profiles?.name || 'System',
+    log.profiles?.role || '',
+    log.action,
+    log.target || '',
+  ])
+  downloadCSV(`audit-logs-${Date.now()}.csv`, headers, rows)
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -154,7 +170,7 @@ function StatCard({ label, value, sub, color = '#7c3aed', icon: Icon }) {
 }
 
 // ── Confirmation Modal ────────────────────────────────────────────────────────
-function ConfirmModal({ open, onClose, onConfirm, title, description, confirmLabel = 'Confirm', danger = true, children }) {
+function ConfirmModal({ open, onClose, onConfirm, title, description, confirmLabel = 'Confirm', danger = true, confirmDisabled = false, children }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -176,8 +192,8 @@ function ConfirmModal({ open, onClose, onConfirm, title, description, confirmLab
             style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
             Cancel
           </button>
-          <button onClick={onConfirm}
-            className={clsx('px-4 py-2 rounded-xl text-xs font-bold text-white transition-all',
+          <button onClick={onConfirm} disabled={confirmDisabled}
+            className={clsx('px-4 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed',
               danger ? 'bg-red-600 hover:bg-red-700' : 'bg-violet-600 hover:bg-violet-700')}>
             {confirmLabel}
           </button>
@@ -188,11 +204,12 @@ function ConfirmModal({ open, onClose, onConfirm, title, description, confirmLab
 }
 
 // ── User Detail Row (expandable) ──────────────────────────────────────────────
-function UserRow({ u, isSelf, currentUserId, roleOptions, roleSaving, onChangeRole, onBan, showSuperuser }) {
+function UserRow({ u, isSelf, currentUserId, roleOptions, roleSaving, onChangeRole, onBan, selected, onToggleSelect }) {
   const [expanded, setExpanded] = useState(false)
   const isSU   = u.role === 'superuser'
   const banKey = `ban_${u.id}`
   const saving = roleSaving[u.id] || roleSaving[banKey]
+  const selectable = !isSelf && !isSU
 
   return (
     <>
@@ -200,6 +217,15 @@ function UserRow({ u, isSelf, currentUserId, roleOptions, roleSaving, onChangeRo
         className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors cursor-pointer"
         onClick={() => setExpanded(e => !e)}
       >
+        <td className="pl-4 pr-1 py-3" onClick={e => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={!!selected}
+            disabled={!selectable}
+            onChange={() => onToggleSelect(u.id)}
+            className="w-3.5 h-3.5 rounded disabled:opacity-30"
+          />
+        </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
             <Avatar src={u.avatar_url} name={u.name} size={32} />
@@ -214,7 +240,7 @@ function UserRow({ u, isSelf, currentUserId, roleOptions, roleSaving, onChangeRo
         </td>
 
         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-          {isSelf || (isSU && !showSuperuser) ? (
+          {isSelf || isSU ? (
             <RoleBadge role={u.role} />
           ) : (
             <select value={u.role}
@@ -262,7 +288,7 @@ function UserRow({ u, isSelf, currentUserId, roleOptions, roleSaving, onChangeRo
 
       {expanded && (
         <tr className="border-b border-[var(--c-border)]">
-          <td colSpan={5} className="px-6 py-4" style={{ background: 'var(--c-surface2)' }}>
+          <td colSpan={6} className="px-6 py-4" style={{ background: 'var(--c-surface2)' }}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-[11px]">
               <div>
                 <p className="font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--c-dim)' }}>User ID</p>
@@ -314,6 +340,7 @@ export default function SuperAdminPage() {
   const [roleFilter,  setRoleFilter]  = useState('')
   const [searchQ,     setSearchQ]     = useState('')
   const [roleSaving,  setRoleSaving]  = useState({})
+  const [bulkBusy,    setBulkBusy]    = useState(false)
 
   // ── Audit logs
   const [logs,        setLogs]        = useState([])
@@ -322,6 +349,9 @@ export default function SuperAdminPage() {
   const [logsTotalP,  setLogsTotalP]  = useState(1)
   const [logsLoad,    setLogsLoad]    = useState(false)
   const [logFilter,   setLogFilter]   = useState('')
+  const [logActor,    setLogActor]    = useState('')
+  const [logDateFrom, setLogDateFrom] = useState('')
+  const [logDateTo,   setLogDateTo]   = useState('')
 
   // ── Reports
   const [saReportsData,    setSaReportsData]    = useState(null)
@@ -337,7 +367,7 @@ export default function SuperAdminPage() {
 
   // ── Confirmation modal state
   const [modal, setModal] = useState(null)
-  // modal = { type: 'ban'|'unban'|'role'|'promote'|'revoke', user, newRole?, banReason?, banDuration? }
+  // modal = { type: 'ban'|'unban'|'role'|'promote'|'revoke', user, newRole?, banReason?, banDuration?, confirmText? }
 
   // ── Auth guard
   useEffect(() => {
@@ -459,14 +489,56 @@ export default function SuperAdminPage() {
   }
 
   function openSuperuserModal(u) {
-    setModal({ type: u.role === 'superuser' ? 'revoke' : 'promote', target: u })
+    setModal({ type: u.role === 'superuser' ? 'revoke' : 'promote', target: u, confirmText: '' })
+  }
+
+  function openBulkBanModal(ids) {
+    setModal({ type: 'bulk_ban', targetIds: ids, banReason: '', banDuration: '7d' })
+  }
+
+  function openBulkRoleModal(ids, role) {
+    setModal({ type: 'bulk_role', targetIds: ids, newRole: role })
   }
 
   // ── Confirm actions ───────────────────────────────────────────────────────
   async function confirmAction() {
     if (!modal) return
-    const { type, target, newRole, banReason, banDuration } = modal
+    const { type, target, targetIds, newRole, banReason, banDuration, confirmText } = modal
+
+    if (type === 'promote' && confirmText?.trim().toUpperCase() !== 'PROMOTE') {
+      showMsg('error', 'Type PROMOTE to confirm.')
+      return
+    }
+
     setModal(null)
+
+    if (type === 'bulk_ban' || type === 'bulk_role') {
+      setBulkBusy(true)
+      const body = type === 'bulk_ban'
+        ? { is_banned: true, ban_reason: banReason || null, banned_until: banUntilDate(banDuration) }
+        : { role: newRole }
+
+      const results = await Promise.allSettled(
+        targetIds.map(id => api.superadmin.patchUser(id, body, token))
+      )
+      const okCount   = results.filter(r => r.status === 'fulfilled').length
+      const failCount = results.length - okCount
+
+      if (type === 'bulk_ban') {
+        setUsers(prev => prev.map(u => targetIds.includes(u.id) ? { ...u, is_banned: true, ban_reason: banReason, banned_until: body.banned_until } : u))
+      } else {
+        setUsers(prev => prev.map(u => targetIds.includes(u.id) ? { ...u, role: newRole } : u))
+      }
+
+      showMsg(
+        failCount === 0 ? 'success' : 'error',
+        failCount === 0
+          ? `${okCount} user${okCount !== 1 ? 's' : ''} updated.`
+          : `${okCount} updated, ${failCount} failed.`
+      )
+      setBulkBusy(false)
+      return
+    }
 
     const key    = type === 'ban' || type === 'unban' ? `ban_${target.id}` : target.id
     setRoleSaving(s => ({ ...s, [key]: true }))
@@ -510,11 +582,14 @@ export default function SuperAdminPage() {
   }
 
   // ── Audit Logs ────────────────────────────────────────────────────────────
-  async function fetchLogs(page, filter = logFilter) {
+  async function fetchLogs(page, filter = logFilter, actor = logActor, dateFrom = logDateFrom, dateTo = logDateTo) {
     setLogsLoad(true)
     try {
       const params = { page, limit: PAGE_SIZE }
       if (filter.trim()) params.action_filter = filter.trim()
+      if (actor.trim())  params.admin_name    = actor.trim()
+      if (dateFrom)       params.date_from    = dateFrom
+      if (dateTo)         params.date_to      = dateTo
       const res = await api.superadmin.auditLogs(params, token)
       setLogs(res.data || [])
       setLogsTotal(res.total || 0)
@@ -618,27 +693,48 @@ export default function SuperAdminPage() {
         onConfirm={confirmAction}
         danger={modal?.type !== 'promote'}
         title={
-          modal?.type === 'ban'     ? `Ban ${modal.target?.name || 'User'}?` :
-          modal?.type === 'unban'   ? `Unban ${modal.target?.name || 'User'}?` :
-          modal?.type === 'role'    ? `Change role to "${modal?.newRole}"?` :
-          modal?.type === 'promote' ? `Promote ${modal.target?.name || 'User'} to Superuser?` :
-          modal?.type === 'revoke'  ? `Revoke superuser from ${modal.target?.name || 'User'}?` : ''
+          modal?.type === 'ban'       ? `Ban ${modal.target?.name || 'User'}?` :
+          modal?.type === 'unban'     ? `Unban ${modal.target?.name || 'User'}?` :
+          modal?.type === 'role'      ? `Change role to "${modal?.newRole}"?` :
+          modal?.type === 'promote'   ? `Promote ${modal.target?.name || 'User'} to Superuser?` :
+          modal?.type === 'revoke'    ? `Revoke superuser from ${modal.target?.name || 'User'}?` :
+          modal?.type === 'bulk_ban'  ? `Ban ${modal.targetIds?.length || 0} users?` :
+          modal?.type === 'bulk_role' ? `Change ${modal.targetIds?.length || 0} users to "${modal?.newRole}"?` : ''
         }
         description={
-          modal?.type === 'ban'     ? 'The user will not be able to log in until unbanned.' :
-          modal?.type === 'unban'   ? 'The user will regain full access to the platform.' :
-          modal?.type === 'promote' ? 'This grants full system access. Only promote users you fully trust.' :
-          modal?.type === 'revoke'  ? 'This will downgrade the user to regular user role.' : undefined
+          modal?.type === 'ban'       ? 'The user will not be able to log in until unbanned.' :
+          modal?.type === 'unban'     ? 'The user will regain full access to the platform.' :
+          modal?.type === 'promote'   ? 'This grants full system access. Only promote users you fully trust.' :
+          modal?.type === 'revoke'    ? 'This will downgrade the user to regular user role.' :
+          modal?.type === 'bulk_ban'  ? 'None of the selected users will be able to log in until unbanned.' :
+          modal?.type === 'bulk_role' ? 'This changes the role for every selected user.' : undefined
         }
         confirmLabel={
-          modal?.type === 'ban'     ? 'Ban User' :
-          modal?.type === 'unban'   ? 'Unban User' :
-          modal?.type === 'promote' ? 'Promote' :
-          modal?.type === 'revoke'  ? 'Revoke' :
+          modal?.type === 'ban'       ? 'Ban User' :
+          modal?.type === 'unban'     ? 'Unban User' :
+          modal?.type === 'promote'   ? 'Promote' :
+          modal?.type === 'revoke'    ? 'Revoke' :
+          modal?.type === 'bulk_ban'  ? 'Ban Users' :
+          modal?.type === 'bulk_role' ? 'Apply' :
           'Confirm'
         }
+        confirmDisabled={modal?.type === 'promote' && modal?.confirmText?.trim().toUpperCase() !== 'PROMOTE'}
       >
-        {modal?.type === 'ban' && (
+        {modal?.type === 'promote' && (
+          <div className="mt-3">
+            <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
+              Type <span className="font-mono font-bold text-violet-600">PROMOTE</span> to confirm
+            </label>
+            <input
+              value={modal.confirmText}
+              onChange={e => setModal(m => ({ ...m, confirmText: e.target.value }))}
+              placeholder="PROMOTE"
+              autoFocus
+              className="w-full text-[12px] px-3 py-2 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface2)] text-[var(--c-text)] outline-none font-mono"
+            />
+          </div>
+        )}
+        {(modal?.type === 'ban' || modal?.type === 'bulk_ban') && (
           <div className="space-y-3 mt-3">
             <div>
               <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>Reason (shown to user)</label>
@@ -762,7 +858,7 @@ export default function SuperAdminPage() {
               onChangeRole={(u, newRole) => openRoleModal(u, newRole)}
               onBan={openBanModal}
               roleSaving={roleSaving} currentUserId={user?.id}
-              showSuperuser={true}
+              onBulkBan={openBulkBanModal} onBulkRole={openBulkRoleModal} bulkBusy={bulkBusy}
             />
           )}
 
@@ -775,7 +871,8 @@ export default function SuperAdminPage() {
               onChangeRole={(u, newRole) => openRoleModal(u, newRole)}
               onBan={openBanModal}
               roleSaving={roleSaving} currentUserId={user?.id}
-              showSuperuser={false} lockedFilter="admin"
+              onBulkBan={openBulkBanModal} onBulkRole={openBulkRoleModal} bulkBusy={bulkBusy}
+              lockedFilter="admin"
               emptyMsg="No admin users found."
             />
           )}
@@ -795,7 +892,16 @@ export default function SuperAdminPage() {
             <AuditSection
               logs={logs} loading={logsLoad} total={logsTotal} totalPages={logsTotalP} page={logsPage}
               logFilter={logFilter} setLogFilter={setLogFilter}
-              onFetch={(p, f) => { if (f !== undefined) setLogFilter(f); fetchLogs(p, f ?? logFilter) }}
+              logActor={logActor} setLogActor={setLogActor}
+              logDateFrom={logDateFrom} setLogDateFrom={setLogDateFrom}
+              logDateTo={logDateTo} setLogDateTo={setLogDateTo}
+              onFetch={(p, f, a, from, to) => {
+                if (f    !== undefined) setLogFilter(f)
+                if (a    !== undefined) setLogActor(a)
+                if (from !== undefined) setLogDateFrom(from)
+                if (to   !== undefined) setLogDateTo(to)
+                fetchLogs(p, f ?? logFilter, a ?? logActor, from ?? logDateFrom, to ?? logDateTo)
+              }}
             />
           )}
 
@@ -973,10 +1079,28 @@ function UsersSection({
   roleFilter, setRoleFilter, searchQ, setSearchQ,
   onFetch, onChangeRole, onBan,
   roleSaving, currentUserId,
-  showSuperuser = true, lockedFilter, emptyMsg = 'No users found.',
+  lockedFilter, emptyMsg = 'No users found.',
+  onBulkBan, onBulkRole, bulkBusy,
 }) {
   const [localQ, setLocalQ] = useState(searchQ)
-  const roleOptions = showSuperuser ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r !== 'superuser')
+  const [selected, setSelected] = useState([])
+  const [bulkRole, setBulkRole] = useState('')
+  // Superuser can only be granted/revoked via the dedicated Superusers tab
+  // (stronger warning copy + type-to-confirm step), never this generic dropdown.
+  const roleOptions = ROLE_OPTIONS.filter(r => r !== 'superuser')
+
+  useEffect(() => { setSelected([]) }, [users])
+
+  const selectableUsers = users.filter(u => u.id !== currentUserId && u.role !== 'superuser')
+  const allSelected = selectableUsers.length > 0 && selected.length === selectableUsers.length
+
+  function toggleSelect(id) {
+    setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  }
+
+  function toggleSelectAll() {
+    setSelected(allSelected ? [] : selectableUsers.map(u => u.id))
+  }
 
   return (
     <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
@@ -996,8 +1120,8 @@ function UsersSection({
               value={localQ}
               onChange={e => setLocalQ(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') onFetch(1, roleFilter, localQ) }}
-              placeholder="Search by name…"
-              className="text-xs bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] w-36"
+              placeholder="Search by name or email…"
+              className="text-xs bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] w-44"
             />
             {localQ && <button onClick={() => { setLocalQ(''); onFetch(1, roleFilter, '') }}><X size={11} style={{ color: 'var(--c-dim)' }} /></button>}
           </div>
@@ -1011,6 +1135,36 @@ function UsersSection({
         <p className="ml-auto text-[11px] font-semibold" style={{ color: 'var(--c-dim)' }}>{total} user{total !== 1 ? 's' : ''}</p>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5 px-5 py-3 border-b border-[var(--c-border)] bg-violet-50">
+          <span className="text-[12px] font-bold text-violet-700">{selected.length} selected</span>
+          <button
+            onClick={() => onBulkBan(selected)}
+            disabled={bulkBusy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition-all disabled:opacity-50">
+            <Ban size={12} /> Ban Selected
+          </button>
+          <div className="flex items-center gap-1.5">
+            <select value={bulkRole} onChange={e => setBulkRole(e.target.value)}
+              className="text-[11px] px-2 py-1.5 rounded-lg border border-[var(--c-border)] bg-white text-[var(--c-text)] font-semibold outline-none">
+              <option value="">Set role to…</option>
+              {roleOptions.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+            </select>
+            <button
+              onClick={() => bulkRole && onBulkRole(selected, bulkRole)}
+              disabled={bulkBusy || !bulkRole}
+              className="px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-all disabled:opacity-40">
+              Apply
+            </button>
+          </div>
+          <button onClick={() => setSelected([])}
+            className="ml-auto text-[11px] font-semibold hover:underline" style={{ color: 'var(--c-dim)' }}>
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {loading ? <TabSpinner /> : users.length === 0 ? (
         <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>{emptyMsg}</div>
       ) : (
@@ -1018,6 +1172,10 @@ function UsersSection({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                <th className="pl-4 pr-1 py-2.5">
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
+                    disabled={selectableUsers.length === 0} className="w-3.5 h-3.5 rounded" />
+                </th>
                 {['User', 'Role', 'Status', 'Actions', ''].map(h => (
                   <th key={h} className="text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider"
                     style={{ color: 'var(--c-dim)' }}>{h}</th>
@@ -1035,7 +1193,8 @@ function UsersSection({
                   roleSaving={roleSaving}
                   onChangeRole={onChangeRole}
                   onBan={onBan}
-                  showSuperuser={showSuperuser}
+                  selected={selected.includes(u.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
             </tbody>
@@ -1174,8 +1333,23 @@ function SuperusersSection({ users, loading, total, totalPages, page, onFetch, o
 // ════════════════════════════════════════════════════════════════════════════
 // AUDIT SECTION
 // ════════════════════════════════════════════════════════════════════════════
-function AuditSection({ logs, loading, total, totalPages, page, onFetch, logFilter, setLogFilter }) {
+function AuditSection({
+  logs, loading, total, totalPages, page, onFetch,
+  logFilter, setLogFilter, logActor, setLogActor, logDateFrom, setLogDateFrom, logDateTo, setLogDateTo,
+}) {
   const [localFilter, setLocalFilter] = useState(logFilter)
+  const [localActor,  setLocalActor]  = useState(logActor)
+
+  function applyFilters() {
+    onFetch(1, localFilter, localActor, logDateFrom, logDateTo)
+  }
+
+  function clearAll() {
+    setLocalFilter(''); setLocalActor('')
+    onFetch(1, '', '', '', '')
+  }
+
+  const hasFilters = localFilter || localActor || logDateFrom || logDateTo
 
   return (
     <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
@@ -1184,19 +1358,57 @@ function AuditSection({ logs, loading, total, totalPages, page, onFetch, logFilt
           <h3 className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>Audit Logs</h3>
           <p className="text-[11px]" style={{ color: 'var(--c-dim)' }}>Full system-wide activity log</p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface2)]">
             <Filter size={12} style={{ color: 'var(--c-dim)' }} />
             <input
               value={localFilter}
               onChange={e => setLocalFilter(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') onFetch(1, localFilter) }}
+              onKeyDown={e => { if (e.key === 'Enter') applyFilters() }}
               placeholder="Filter by action…"
-              className="text-xs bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] w-32"
+              className="text-xs bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] w-28"
             />
-            {localFilter && <button onClick={() => { setLocalFilter(''); onFetch(1, '') }}><X size={11} style={{ color: 'var(--c-dim)' }} /></button>}
           </div>
-          <button onClick={() => onFetch(1, localFilter)}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface2)]">
+            <UserCog size={12} style={{ color: 'var(--c-dim)' }} />
+            <input
+              value={localActor}
+              onChange={e => setLocalActor(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') applyFilters() }}
+              placeholder="Actor name…"
+              className="text-xs bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] w-24"
+            />
+          </div>
+          <input
+            type="date" value={logDateFrom}
+            onChange={e => setLogDateFrom(e.target.value)}
+            className="text-xs px-2.5 py-1.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface2)] text-[var(--c-text)] outline-none"
+          />
+          <span className="text-[11px]" style={{ color: 'var(--c-dim)' }}>to</span>
+          <input
+            type="date" value={logDateTo}
+            onChange={e => setLogDateTo(e.target.value)}
+            className="text-xs px-2.5 py-1.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface2)] text-[var(--c-text)] outline-none"
+          />
+          <button onClick={applyFilters}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold border border-[var(--c-border)] hover:bg-[var(--c-surface2)] transition-all"
+            style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
+            <Filter size={12} /> Apply
+          </button>
+          {hasFilters && (
+            <button onClick={clearAll}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-[var(--c-surface2)] transition-all"
+              style={{ color: 'var(--c-dim)' }}>
+              <X size={11} /> Clear
+            </button>
+          )}
+          <button onClick={() => logs.length > 0 && exportLogsCSV(logs)}
+            disabled={logs.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold border border-[var(--c-border)] hover:bg-[var(--c-surface2)] transition-all disabled:opacity-40"
+            style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
+            <Download size={12} /> Export CSV
+          </button>
+          <button onClick={() => onFetch(page, localFilter, localActor, logDateFrom, logDateTo)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold border border-[var(--c-border)] hover:bg-[var(--c-surface2)] transition-all"
             style={{ color: 'var(--c-muted)', background: 'var(--c-surface)' }}>
             <RefreshCw size={12} /> Refresh
@@ -1233,7 +1445,8 @@ function AuditSection({ logs, loading, total, totalPages, page, onFetch, logFilt
         </div>
       )}
 
-      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={p => onFetch(p)} loading={loading} />
+      <Pagination page={page} totalPages={totalPages} total={total}
+        onPageChange={p => onFetch(p, localFilter, localActor, logDateFrom, logDateTo)} loading={loading} />
     </div>
   )
 }
