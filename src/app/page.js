@@ -32,7 +32,7 @@ export default async function HomePage() {
   const stat3Label = cms.stat3Label || 'Reviews'
 
   const whyTitle    = cms.whyTitle    || 'Everything you need to find great food'
-  const whySubtitle = cms.whySubtitle || 'MealHere makes it easy to discover, explore and review every food place across Sri Lanka.'
+  const whySubtitle = cms.whySubtitle || 'MealHere — or "Meal Here" — makes it easy to discover, explore and review every food place across Sri Lanka.'
 
   const howTitle   = cms.howTitle   || 'How MealHere works'
   const step1Title = cms.step1Title || 'Search'

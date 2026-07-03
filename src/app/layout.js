@@ -21,7 +21,7 @@ const inter = Inter({
 export const metadata = {
   metadataBase: new URL('https://www.mealhere.com'),
   title:       { default: 'MealHere — Find Food Menus Near You', template: '%s | MealHere' },
-  description: 'MealHere helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
+  description: 'MealHere (also known as Meal Here) helps you find the best food menus at hotels, restaurants, food shops and snack bars across Sri Lanka. Search by food, price, town or province.',
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
   alternates:  { canonical: '/' },
   icons: {
@@ -33,12 +33,12 @@ export const metadata = {
     url:   'https://www.mealhere.com',
     siteName: 'MealHere',
     title: 'MealHere — Find Food Menus Near You',
-    description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
+    description: 'MealHere (Meal Here) helps you find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'MealHere — Find Food Menus Near You',
-    description: 'Find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
+    description: 'MealHere (Meal Here) helps you find menus at hotels, restaurants, food shops and snack bars across Sri Lanka.',
   },
 }
 
@@ -46,6 +46,7 @@ const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'MealHere',
+  alternateName: 'Meal Here',
   url: 'https://www.mealhere.com',
   logo: 'https://www.mealhere.com/logo.png',
 }
