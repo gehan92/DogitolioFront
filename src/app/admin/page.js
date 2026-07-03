@@ -200,6 +200,7 @@ export default function AdminPage() {
   const [ownerMsg,     setOwnerMsg]     = useState('')
   const [ownerSaving,  setOwnerSaving]  = useState(false)
   const [allUsers,     setAllUsers]     = useState([])
+  const [assignableStaff, setAssignableStaff] = useState([])
 
   // ── Staff Management
   const [staffList,       setStaffList]       = useState([])
@@ -817,6 +818,19 @@ export default function AdminPage() {
     finally { setTasksLoading(false) }
   }
 
+  async function loadAssignableStaff() {
+    try {
+      const [staffRes, adminRes] = await Promise.allSettled([
+        api.admin.users({ limit: 200, role: 'staff' }, token),
+        api.admin.users({ limit: 200, role: 'admin' }, token),
+      ])
+      const list = []
+      if (staffRes.status === 'fulfilled') list.push(...(staffRes.value.data || []))
+      if (adminRes.status === 'fulfilled') list.push(...(adminRes.value.data || []))
+      setAssignableStaff(list)
+    } catch (err) { console.error(err) }
+  }
+
   async function loadAnnouncements() {
     setAnnouncementsLoading(true)
     try { const d = await api.announcements.all({}, token); setAnnouncements(d.data || []) }
@@ -884,7 +898,7 @@ export default function AdminPage() {
     else if (key === 'Analytics')       { loadAnalytics() }
     else if (key === 'Approval')        { loadPendingApproval() }
     else if (key === 'FAQs')           { loadFaqs() }
-    else if (key === 'Tasks')           { loadTasks(1) }
+    else if (key === 'Tasks')           { loadTasks(1); loadAssignableStaff() }
     else if (key === 'Announcements')   { loadAnnouncements() }
     else if (key === 'Tickets')         { loadTickets(1) }
     else if (key === 'Revenue')         { loadPayments(1) }
@@ -3758,7 +3772,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                       <select value={taskForm.assigned_to} onChange={e => setTaskForm(p => ({...p, assigned_to: e.target.value}))}
                         className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
                         <option value="">— assign to —</option>
-                        {allUsers.filter(u => ['staff','admin'].includes(u.role)).map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                        {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
                       </select>
                       <input value={taskForm.title} onChange={e => setTaskForm(p => ({...p, title: e.target.value}))} placeholder="Task title"
                         className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"/>
