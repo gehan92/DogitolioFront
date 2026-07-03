@@ -98,9 +98,10 @@ export function PriceBadge({ range }) {
 }
 
 // ── AVATAR ────────────────────────────────────────
-export function Avatar({ src, name = '?', size = 36 }) {
-  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  if (src) return <img src={src} alt={name} width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />
+export function Avatar({ src, name, size = 36 }) {
+  const safeName = name || '?'
+  const initials = safeName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  if (src) return <img src={src} alt={safeName} width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />
   return (
     <div className="rounded-full bg-brand-100 text-brand-700 font-semibold flex items-center justify-center text-sm"
          style={{ width: size, height: size, fontSize: size * 0.36 }}>
