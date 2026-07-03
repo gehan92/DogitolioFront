@@ -368,6 +368,13 @@ export default function AdminPage() {
   // ── Reports
   const [reportsData,    setReportsData]    = useState(null)
   const [reportsLoading, setReportsLoading] = useState(false)
+  const [reportsAllTasks,     setReportsAllTasks]     = useState([])
+  const [reportsTasksLoading, setReportsTasksLoading] = useState(false)
+  const [reportsStaffSearch,   setReportsStaffSearch]   = useState('')
+  const [reportsStaffFilter,   setReportsStaffFilter]   = useState('') // '', 'overdue', 'warned'
+  const [reportsTaskSearch,    setReportsTaskSearch]    = useState('')
+  const [reportsTaskStatus,    setReportsTaskStatus]    = useState('')
+  const [reportsTaskAssignee,  setReportsTaskAssignee]  = useState('')
 
   const SC_SCHEMAS = {
     home: [
@@ -884,8 +891,18 @@ export default function AdminPage() {
         ? await api.reports.staffPerformance(token)
         : await api.reports.myPerformance(token)
       setReportsData({ type: isAdmin ? 'admin' : 'staff', ...data })
+      if (isAdmin) loadReportsTasks()
     } catch (err) { console.error(err) }
     finally { setReportsLoading(false) }
+  }
+
+  async function loadReportsTasks() {
+    setReportsTasksLoading(true)
+    try {
+      const d = await api.staffExtended.getTasks({ limit: 200 }, token)
+      setReportsAllTasks(d.data || [])
+    } catch (err) { console.error(err) }
+    finally { setReportsTasksLoading(false) }
   }
 
   // ── Lazy tab navigation ─────────────────────────────────────────────────
@@ -915,7 +932,7 @@ export default function AdminPage() {
     else if (key === 'Announcements')   { loadAnnouncements() }
     else if (key === 'Tickets')         { loadTickets(1) }
     else if (key === 'Revenue')         { loadPayments(1) }
-    else if (key === 'Reports')         { loadReports() }
+    else if (key === 'Reports')         { loadReports(); loadAssignableStaff() }
     else if (key === 'Gallery')         { /* user picks restaurant first */ }
     else if (key === 'Notifications')   { /* send panel, no load needed */ }
   }
@@ -4153,66 +4170,177 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                 ) : !reportsData ? (
                   <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No report data available.</div>
                 ) : reportsData.type === 'admin' ? (
-                  /* ── Admin view: staff performance table */
-                  <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
-                    {(!reportsData.data || reportsData.data.length === 0) ? (
-                      <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No staff members found.</div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
-                              {['Staff Member','Total','Done','Active','Pending','Overdue','Rate','Warnings'].map(h => (
-                                <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reportsData.data.map(s => (
-                              <tr key={s.id} className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors">
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF2D55] to-[#FF6035] flex items-center justify-center text-white text-[10px] font-black shrink-0">
-                                      {(s.name || '?')[0].toUpperCase()}
-                                    </div>
-                                    <div>
-                                      <p className="text-[12px] font-semibold leading-none" style={{ color: 'var(--c-text)' }}>{s.name || 'Unnamed'}</p>
-                                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-dim)' }}>
-                                        Since {s.joined ? new Date(s.joined).toLocaleDateString() : '—'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>{s.tasks.total}</td>
-                                <td className="px-4 py-3">
-                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.tasks.done}</span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.tasks.in_progress}</span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{s.tasks.pending}</span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.tasks.overdue > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>{s.tasks.overdue}</span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 min-w-[48px]">
-                                      <div className="h-1.5 rounded-full bg-gradient-to-r from-[#FF2D55] to-[#FF6035]" style={{ width: `${s.completionRate}%` }} />
-                                    </div>
-                                    <span className="text-[11px] font-bold shrink-0" style={{ color: 'var(--c-text)' }}>{s.completionRate}%</span>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.warnings > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400')}>{s.warnings}</span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  /* ── Admin view: separate, independently searchable tables ── */
+                  <div className="space-y-8">
+
+                    {/* ── TABLE 1: Staff Performance ── */}
+                    <div>
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                        <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>Staff Performance</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={reportsStaffSearch}
+                            onChange={e => setReportsStaffSearch(e.target.value)}
+                            placeholder="Search staff name…"
+                            className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] w-44"
+                          />
+                          <select
+                            value={reportsStaffFilter}
+                            onChange={e => setReportsStaffFilter(e.target.value)}
+                            className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"
+                          >
+                            <option value="">All staff</option>
+                            <option value="overdue">Has overdue tasks</option>
+                            <option value="warned">Has warnings</option>
+                          </select>
+                        </div>
                       </div>
-                    )}
+                      <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                        {(() => {
+                          const rows = (reportsData.data || []).filter(s => {
+                            if (reportsStaffSearch && !(s.name || '').toLowerCase().includes(reportsStaffSearch.toLowerCase())) return false
+                            if (reportsStaffFilter === 'overdue' && s.tasks.overdue === 0) return false
+                            if (reportsStaffFilter === 'warned' && s.warnings === 0) return false
+                            return true
+                          })
+                          return rows.length === 0 ? (
+                            <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No staff members match.</div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                                    {['Staff Member','Total','Done','Active','Pending','Overdue','Rate','Warnings'].map(h => (
+                                      <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map(s => (
+                                    <tr key={s.id} className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors">
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2.5">
+                                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF2D55] to-[#FF6035] flex items-center justify-center text-white text-[10px] font-black shrink-0">
+                                            {(s.name || '?')[0].toUpperCase()}
+                                          </div>
+                                          <div>
+                                            <p className="text-[12px] font-semibold leading-none" style={{ color: 'var(--c-text)' }}>{s.name || 'Unnamed'}</p>
+                                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-dim)' }}>
+                                              Since {s.joined ? new Date(s.joined).toLocaleDateString() : '—'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>{s.tasks.total}</td>
+                                      <td className="px-4 py-3">
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.tasks.done}</span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.tasks.in_progress}</span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{s.tasks.pending}</span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.tasks.overdue > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>{s.tasks.overdue}</span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 min-w-[48px]">
+                                            <div className="h-1.5 rounded-full bg-gradient-to-r from-[#FF2D55] to-[#FF6035]" style={{ width: `${s.completionRate}%` }} />
+                                          </div>
+                                          <span className="text-[11px] font-bold shrink-0" style={{ color: 'var(--c-text)' }}>{s.completionRate}%</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full', s.warnings > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400')}>{s.warnings}</span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* ── TABLE 2: All Tasks ── */}
+                    <div>
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                        <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>All Tasks</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            value={reportsTaskSearch}
+                            onChange={e => setReportsTaskSearch(e.target.value)}
+                            placeholder="Search task title…"
+                            className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)] w-44"
+                          />
+                          <select
+                            value={reportsTaskStatus}
+                            onChange={e => setReportsTaskStatus(e.target.value)}
+                            className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"
+                          >
+                            <option value="">All statuses</option>
+                            {['pending','in_progress','done','cancelled'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                          </select>
+                          <select
+                            value={reportsTaskAssignee}
+                            onChange={e => setReportsTaskAssignee(e.target.value)}
+                            className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"
+                          >
+                            <option value="">All staff</option>
+                            {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+                        {reportsTasksLoading ? (
+                          <div className="flex justify-center items-center py-16"><Spinner size={22} /></div>
+                        ) : (() => {
+                          const sc = { pending: 'bg-amber-50 text-amber-700', in_progress: 'bg-blue-50 text-blue-700', done: 'bg-green-50 text-green-700', cancelled: 'bg-gray-50 text-gray-500' }
+                          const pc = { low: 'text-gray-500', medium: 'text-blue-600', high: 'text-amber-600', urgent: 'text-red-600' }
+                          const rows = reportsAllTasks.filter(t => {
+                            if (reportsTaskSearch && !t.title.toLowerCase().includes(reportsTaskSearch.toLowerCase())) return false
+                            if (reportsTaskStatus && t.status !== reportsTaskStatus) return false
+                            if (reportsTaskAssignee && t.profiles?.id !== reportsTaskAssignee) return false
+                            return true
+                          })
+                          return rows.length === 0 ? (
+                            <div className="py-16 text-center text-sm" style={{ color: 'var(--c-dim)' }}>No tasks match.</div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-[var(--c-border)]" style={{ background: 'var(--c-surface2)' }}>
+                                    {['Title','Assigned To','Status','Priority','Due Date','Created'].map(h => (
+                                      <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-dim)' }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map(t => (
+                                    <tr key={t.id} className="border-b border-[var(--c-border)] last:border-0 hover:bg-[var(--c-surface2)] transition-colors">
+                                      <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>{t.title}</td>
+                                      <td className="px-4 py-3 text-[12px]" style={{ color: 'var(--c-muted)' }}>{t.profiles?.name || 'Unknown'}</td>
+                                      <td className="px-4 py-3">
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${sc[t.status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>{t.status}</span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={`text-[11px] font-semibold ${pc[t.priority]}`}>{t.priority}</span>
+                                      </td>
+                                      <td className="px-4 py-3 text-[12px]" style={{ color: 'var(--c-dim)' }}>{t.due_date || '—'}</td>
+                                      <td className="px-4 py-3 text-[12px]" style={{ color: 'var(--c-dim)' }}>{new Date(t.created_at).toLocaleDateString()}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
+
                   </div>
                 ) : (
                   /* ── Staff view: own performance */
