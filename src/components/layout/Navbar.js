@@ -55,7 +55,7 @@ export default function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
               <img
-                src="/logo.svg"
+                src="/logo.png"
                 alt="MealHere"
                 className="w-8 h-8 rounded-xl transition-transform duration-200 group-hover:scale-105"
               />

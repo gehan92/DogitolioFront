@@ -148,7 +148,7 @@ export default async function HomePage() {
           <BannerStrip placement="home" />
         </div>
 
-        {/* ── WHY DIGITOLIO */}
+        {/* ── WHY MEALHERE */}
         <section className="bg-white py-16">
           <div className="max-w-5xl mx-auto px-4">
             <div className="text-center mb-12">
@@ -369,7 +369,7 @@ export default async function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2.5 mb-4">
-                  <img src="/logo.svg" alt="MealHere" className="w-9 h-9 rounded-xl" />
+                  <img src="/logo.png" alt="MealHere" className="w-9 h-9 rounded-xl" />
                   <span className="font-bold text-white text-lg tracking-tight">MealHere</span>
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed max-w-xs">

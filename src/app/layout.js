@@ -25,7 +25,7 @@ export const metadata = {
   keywords:    ['Sri Lanka restaurants', 'food menu', 'hotel menu', 'snack bar', 'food shop', 'Galle', 'Colombo', 'Kandy'],
   alternates:  { canonical: '/' },
   icons: {
-    icon: '/favicon.svg',
+    icon: '/logo.png',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
@@ -98,7 +98,7 @@ export default async function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: antiFlashScript }} />
         {/* Server-rendered theme vars — used when no user preference is stored */}
         <style dangerouslySetInnerHTML={{ __html: themeStyle }} />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           type="application/ld+json"
