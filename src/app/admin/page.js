@@ -533,6 +533,16 @@ export default function AdminPage() {
     loadInitial()
   }, [token, isAdmin, isStaff])
 
+  // ── Deep link: /admin?tab=Tasks (used by notification links)
+  useEffect(() => {
+    if (!token || (!isAdmin && !isStaff)) return
+    const tabParam = new URLSearchParams(window.location.search).get('tab')
+    if (tabParam) {
+      navigate(tabParam)
+      router.replace('/admin')
+    }
+  }, [token, isAdmin, isStaff])
+
   // ── Data loaders ────────────────────────────────────────────────────────
 
   async function loadInitial() {

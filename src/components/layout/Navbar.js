@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { THEMES } from '@/lib/themes'
 import { Avatar, ThemePicker } from '@/components/ui'
+import NotificationBell from './NotificationBell'
 import clsx from 'clsx'
 
 const navLinks = [
@@ -139,6 +140,8 @@ export default function Navbar() {
 
             {/* Right actions */}
             <div className="flex items-center gap-2 shrink-0">
+
+              {!loading && user && <NotificationBell />}
 
               {/* ── Theme controls */}
               {isAdmin ? (
