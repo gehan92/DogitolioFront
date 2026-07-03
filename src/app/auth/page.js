@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail, resetPassword } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
@@ -26,10 +26,14 @@ function AuthInner() {
   const [busy,      setBusy]      = useState(false)
   const [error,     setError]     = useState('')
   const [success,   setSuccess]   = useState('')
+  const redirectTimer = useRef(null)
 
   useEffect(() => {
     if (!loading && user) router.replace(isAdmin ? '/admin' : '/')
   }, [user, loading, isAdmin])
+
+  // Clear any pending redirect timer if the component unmounts early
+  useEffect(() => () => clearTimeout(redirectTimer.current), [])
 
   // Show error passed from auth callback (e.g. expired magic link)
   useEffect(() => {
@@ -37,7 +41,11 @@ function AuthInner() {
     if (urlError) setError(urlError)
   }, [searchParams])
 
-  function reset() { setError(''); setSuccess('') }
+  function reset() {
+    clearTimeout(redirectTimer.current)
+    setError('')
+    setSuccess('')
+  }
 
   async function handleGoogle() {
     reset()
@@ -88,6 +96,13 @@ function AuthInner() {
           }
         } else {
           setSuccess('Account created! Check your email to confirm, then sign in.')
+          setName('')
+          setEmail('')
+          setPassword('')
+          redirectTimer.current = setTimeout(() => {
+            setSuccess('')
+            setTab('signin')
+          }, 4000)
         }
       }
     } finally {

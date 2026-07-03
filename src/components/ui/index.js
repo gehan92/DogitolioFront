@@ -4,6 +4,7 @@ import clsx from 'clsx'
 
 export { ThemePicker } from './ThemePicker'
 export { BannerStrip } from './BannerStrip'
+export { EmailConfirmedBanner } from './EmailConfirmedBanner'
 
 // ── BUTTON ────────────────────────────────────────
 export function Button({ children, variant = 'primary', size = 'md', className, loading, disabled, ...props }) {
