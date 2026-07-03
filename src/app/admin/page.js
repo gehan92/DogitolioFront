@@ -9,7 +9,7 @@ import {
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
   Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
   Bell, BarChart2, HelpCircle, DollarSign, ClipboardCheck,
-  Ticket, ListTodo, Send, ChevronUp, TrendingUp,
+  Ticket, ListTodo, Send, ChevronUp, TrendingUp, Play,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
@@ -326,6 +326,7 @@ export default function AdminPage() {
   const [tasksTotal,    setTasksTotal]    = useState(0)
   const [tasksPage,     setTasksPage]     = useState(1)
   const [tasksTotalPgs, setTasksTotalPgs] = useState(1)
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState('')
   const [taskForm,      setTaskForm]      = useState({ assigned_to: '', title: '', description: '', priority: 'medium', due_date: '' })
   const [taskSaving,    setTaskSaving]    = useState(false)
   const [taskMsg,       setTaskMsg]       = useState('')
@@ -816,10 +817,12 @@ export default function AdminPage() {
     finally { setGalleryLoading(false) }
   }
 
-  async function loadTasks(page = 1) {
+  async function loadTasks(page = 1, assigneeFilter = taskAssigneeFilter) {
     setTasksLoading(true)
     try {
-      const d = await api.staffExtended.getTasks({ page, limit: 20 }, token)
+      const params = { page, limit: 20 }
+      if (assigneeFilter) params.assigned_to = assigneeFilter
+      const d = await api.staffExtended.getTasks(params, token)
       setTasks(d.data || [])
       setTasksTotal(d.total || 0)
       setTasksPage(page)
@@ -3770,9 +3773,21 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
             ═══════════════════════════════════════════════════════════ */}
             {tab === 'Tasks' && (
               <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><ListTodo size={17}/> Staff Tasks</h3>
-                  <button onClick={() => loadTasks(1)} disabled={tasksLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <select
+                        value={taskAssigneeFilter}
+                        onChange={e => { setTaskAssigneeFilter(e.target.value); loadTasks(1, e.target.value) }}
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]"
+                      >
+                        <option value="">All staff</option>
+                        {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                      </select>
+                    )}
+                    <button onClick={() => loadTasks(1)} disabled={tasksLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
+                  </div>
                 </div>
                 {taskMsg && <p className="text-sm px-4 py-2 rounded-xl bg-green-50 text-green-700">{taskMsg}</p>}
                 {isAdmin && (
@@ -3828,12 +3843,15 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                               <p className="text-xs text-[var(--c-dim)] mt-1">Assigned to: {t.profiles?.name || 'Unknown'} {t.due_date && `· Due: ${t.due_date}`}</p>
                             </div>
                             <div className="flex gap-1.5 shrink-0">
+                              {t.status === 'pending' && <button onClick={async () => {
+                                await api.staffExtended.updateTask(t.id, { status: 'in_progress' }, token); loadTasks(tasksPage)
+                              }} title="Mark in progress" className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50"><Play size={13}/></button>}
                               {t.status !== 'done' && <button onClick={async () => {
                                 await api.staffExtended.updateTask(t.id, { status: 'done' }, token); loadTasks(tasksPage)
-                              }} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50"><Check size={13}/></button>}
+                              }} title="Mark done" className="p-1.5 rounded-lg text-green-600 hover:bg-green-50"><Check size={13}/></button>}
                               {isAdmin && <button onClick={async () => {
                                 await api.staffExtended.deleteTask(t.id, token); loadTasks(tasksPage)
-                              }} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={13}/></button>}
+                              }} title="Delete task" className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={13}/></button>}
                             </div>
                           </div>
                         </div>
