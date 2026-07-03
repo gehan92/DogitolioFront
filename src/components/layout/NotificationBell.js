@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Check } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -34,7 +34,6 @@ export default function NotificationBell() {
   const [items,       setItems]       = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading,     setLoading]     = useState(false)
-  const loadedOnce = useRef(false)
 
   const fetchNotifications = useCallback(async () => {
     if (!token) return
@@ -55,8 +54,7 @@ export default function NotificationBell() {
   async function openBell() {
     const next = !open
     setOpen(next)
-    if (next && !loadedOnce.current) {
-      loadedOnce.current = true
+    if (next) {
       setLoading(true)
       await fetchNotifications()
       setLoading(false)
