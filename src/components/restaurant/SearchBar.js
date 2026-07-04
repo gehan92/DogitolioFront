@@ -74,7 +74,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search food, restaurant, town..."
-            className="flex-1 bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] text-sm md:text-base"
+            className="flex-1 min-w-0 bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] text-sm md:text-base"
             autoComplete="off"
           />
 
