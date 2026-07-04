@@ -63,11 +63,112 @@ function RatingBar({ label, count, total }) {
   )
 }
 
+/* ── Menu item detail modal ── */
+function MenuItemModal({ item, color, onClose }) {
+  const [activePortion, setActivePortion] = useState(0)
+  if (!item) return null
+
+  const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
+  const salePrice = (() => {
+    if (!item.discount_type || !item.discount_value || !item.price) return null
+    if (item.discount_type === 'percent') return item.price * (1 - item.discount_value / 100)
+    if (item.discount_type === 'fixed')   return item.price - item.discount_value
+    return null
+  })()
+  const ingredients = item.ingredients
+    ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
+    : []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-white overflow-hidden max-h-[88vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Photo or placeholder — always the same shape */}
+        <div className="relative h-56 shrink-0 bg-gray-100">
+          {item.photo_url ? (
+            <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}14` }}>
+              <UtensilsCrossed size={40} style={{ color }} strokeWidth={1.5} />
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Content — scrollable if long */}
+        <div className="p-5 overflow-y-auto">
+          <h3 className="font-black text-gray-900 text-xl leading-snug mb-2">{item.name}</h3>
+
+          {item.description && (
+            <p className="text-sm text-gray-500 leading-relaxed mb-4">{item.description}</p>
+          )}
+
+          {ingredients.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-5">
+              {ingredients.map((ing, i) => (
+                <span key={i} className="text-[12px] px-2.5 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100 font-medium">
+                  {ing}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {hasPortions ? (
+            <div>
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {item.portions.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActivePortion(i)}
+                    className={clsx(
+                      'px-4 py-2 rounded-xl text-sm font-bold border transition-colors',
+                      activePortion === i ? 'text-white border-transparent' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                    )}
+                    style={activePortion === i ? { background: color } : {}}
+                  >
+                    {p.size}
+                  </button>
+                ))}
+              </div>
+              <p className="text-2xl font-black" style={{ color }}>
+                Rs. {Number(item.portions[activePortion]?.price || 0).toLocaleString()}
+              </p>
+            </div>
+          ) : item.price ? (
+            <div className="flex items-end gap-3">
+              <span className="text-2xl font-black" style={{ color }}>
+                Rs. {Math.round(salePrice ?? item.price).toLocaleString()}
+              </span>
+              {salePrice && (
+                <span className="text-sm text-gray-400 line-through mb-1">
+                  Rs. {Number(item.price).toLocaleString()}
+                </span>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Visual menu grouped by category */
 function MenuSection({ items, brandColor }) {
   const color = brandColor || '#FF2D55'
   const available = items || []
   const [activeCategory, setActiveCategory] = useState(null)
+  const [selectedItem,   setSelectedItem]   = useState(null)
 
   const groups = available.reduce((acc, item) => {
     const cat = item.category || 'Other'
@@ -140,73 +241,84 @@ function MenuSection({ items, brandColor }) {
         <div className="h-px flex-1 bg-gray-100" />
       </div>
 
-      {/* ── Menu grid — 1 col mobile, 2 col desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* ── Menu grid — 1 col mobile, 2 col tablet, 3 col desktop, uniform cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {groups[shown]?.map(item => {
           const salePrice = discountedPrice(item)
           const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
           const ingredients = item.ingredients
             ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
             : []
+          const shownIngredients = ingredients.slice(0, 3)
+          const extraIngredients = ingredients.length - shownIngredients.length
+          const lowestPortionPrice = hasPortions
+            ? Math.min(...item.portions.map(p => Number(p.price) || 0))
+            : null
 
           return (
-            <div
+            <button
               key={item.id}
-              className="flex gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group"
+              onClick={() => setSelectedItem(item)}
+              className="flex flex-col text-left gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group h-full"
             >
-              {/* ── Left: details */}
-              <div className="flex-1 min-w-0 flex flex-col gap-2">
+              {/* ── Photo or placeholder — always the same shape, keeps every card uniform */}
+              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-50 shrink-0">
+                {item.photo_url ? (
+                  <img
+                    src={item.photo_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}0f` }}>
+                    <UtensilsCrossed size={26} style={{ color }} strokeWidth={1.5} />
+                  </div>
+                )}
+                {salePrice && !hasPortions && (
+                  <span className="absolute top-2 right-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-sm"
+                    style={{ background: color }}>
+                    {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
+                  </span>
+                )}
+              </div>
 
-                {/* Name + discount badge */}
-                <div className="flex items-start gap-2 flex-wrap">
-                  <p className="font-bold text-gray-900 text-[15px] leading-snug flex-1 min-w-0">{item.name}</p>
-                  {salePrice && !hasPortions && (
-                    <span className="shrink-0 text-[10px] font-black text-white px-2 py-0.5 rounded-full"
-                      style={{ background: color }}>
-                      {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
-                    </span>
-                  )}
-                </div>
+              {/* ── Details */}
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <p className="font-bold text-gray-900 text-[15px] leading-snug line-clamp-1">{item.name}</p>
 
-                {/* Description */}
                 {item.description && (
                   <p className="text-[13px] text-gray-400 leading-relaxed line-clamp-2">{item.description}</p>
                 )}
 
-                {/* Ingredient chips */}
-                {ingredients.length > 0 && (
+                {shownIngredients.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {ingredients.map((ing, i) => (
+                    {shownIngredients.map((ing, i) => (
                       <span key={i}
                         className="text-[11px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 font-medium">
                         {ing}
                       </span>
                     ))}
+                    {extraIngredients > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-100 font-medium">
+                        +{extraIngredients} more
+                      </span>
+                    )}
                   </div>
                 )}
 
-                {/* Price / Portions */}
+                {/* Price — condensed; full breakdown shown in the detail popup */}
                 <div className="mt-auto pt-1">
                   {hasPortions ? (
-                    <div className="space-y-1.5">
-                      {item.portions.map((p, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3">
-                          <span className="text-[12px] text-gray-500 font-semibold bg-gray-50 px-2.5 py-1 rounded-lg">
-                            {p.size}
-                          </span>
-                          <span className="text-[14px] font-black" style={{ color }}>
-                            Rs. {Number(p.price).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="text-[15px] font-black" style={{ color }}>
+                      From Rs. {lowestPortionPrice.toLocaleString()}
+                    </span>
                   ) : item.price ? (
                     <div className="flex items-end gap-2">
-                      <span className="text-[17px] font-black leading-none" style={{ color }}>
+                      <span className="text-[16px] font-black leading-none" style={{ color }}>
                         Rs. {Math.round(salePrice ?? item.price).toLocaleString()}
                       </span>
                       {salePrice && (
-                        <span className="text-[12px] text-gray-400 line-through leading-none mb-0.5">
+                        <span className="text-[11px] text-gray-400 line-through leading-none mb-0.5">
                           Rs. {Number(item.price).toLocaleString()}
                         </span>
                       )}
@@ -214,18 +326,7 @@ function MenuSection({ items, brandColor }) {
                   ) : null}
                 </div>
               </div>
-
-              {/* ── Right: photo */}
-              {item.photo_url && (
-                <div className="shrink-0 self-start mt-0.5">
-                  <img
-                    src={item.photo_url}
-                    alt={item.name}
-                    className="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover border border-gray-100 group-hover:scale-[1.02] transition-transform duration-300"
-                  />
-                </div>
-              )}
-            </div>
+            </button>
           )
         })}
       </div>
@@ -233,6 +334,8 @@ function MenuSection({ items, brandColor }) {
       <p className="text-[11px] text-gray-400 text-center mt-8 pb-2">
         Prices may vary. Contact the restaurant to confirm.
       </p>
+
+      <MenuItemModal item={selectedItem} color={color} onClose={() => setSelectedItem(null)} />
     </div>
   )
 }
