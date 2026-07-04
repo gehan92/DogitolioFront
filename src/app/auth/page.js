@@ -5,6 +5,9 @@ import { signInWithGoogle, signInWithFacebook, signInWithEmail, signUpWithEmail,
 import { useAuth } from '@/hooks/useAuth'
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react'
 
+// Toggle back to true to re-enable Google/Facebook sign-in on the auth page
+const SHOW_OAUTH_LOGIN = false
+
 export default function AuthPage() {
   return (
     <Suspense>
@@ -253,7 +256,7 @@ function AuthInner() {
           )}
 
           {/* Divider + OAuth — hidden on forgot view */}
-          {tab !== 'forgot' && (
+          {SHOW_OAUTH_LOGIN && tab !== 'forgot' && (
             <>
               <div className="relative mb-5">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
