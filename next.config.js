@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config) => {
@@ -24,4 +26,12 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  webpack: { treeshake: { removeDebugLogging: true } },
+  // Skip Sentry's build-time source map upload when no auth token is
+  // configured, so builds/dev keep working before Sentry is fully set up.
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+})
