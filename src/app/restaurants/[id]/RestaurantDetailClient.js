@@ -107,7 +107,7 @@ function MenuItemModal({ item, color, onClose }) {
         </div>
 
         {/* Content — scrollable if long */}
-        <div className="p-5 overflow-y-auto">
+        <div className="p-5 overflow-y-auto min-h-0">
           <h3 className="font-black text-gray-900 text-xl leading-snug mb-2">{item.name}</h3>
 
           {item.description && (
