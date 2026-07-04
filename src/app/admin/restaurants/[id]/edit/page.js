@@ -25,6 +25,7 @@ const PRICE_RANGES = ['budget', 'mid', 'upscale']
 const CUISINE_OPTIONS = [
   'Sri Lankan', 'Chinese', 'Indian', 'Western', 'Italian', 'Japanese',
   'Thai', 'Korean', 'Mediterranean', 'Seafood', 'Vegetarian', 'Fast Food', 'Cafe', 'Bakery',
+  'Rice & Curry', 'Kottu', 'Breakfast', 'Desserts',
 ]
 
 const CATEGORY_OPTIONS = [
