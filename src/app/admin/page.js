@@ -24,7 +24,7 @@ const PAGE_SIZE = 12
 
 // Sections staff can have access toggled for (admin-only sections excluded)
 const STAFF_SECTIONS = [
-  'Overview', 'Restaurants', 'Boost', 'Reviews',
+  'Overview', 'Restaurants', 'Boost', 'Reviews', 'Requests',
   'Menu Items', 'Site Content', 'History', 'Gallery', 'Tasks', 'Tickets', 'Reports',
 ]
 
@@ -41,7 +41,7 @@ const ALL_NAV_ITEMS = [
   { key: 'FAQs',         label: 'FAQs',            icon: HelpCircle,      adminOnly: true,  group: 'Content'    },
   // Moderation
   { key: 'Reviews',      label: 'Reviews',         icon: MessageSquare,   adminOnly: false, group: 'Moderation' },
-  { key: 'Requests',     label: 'Change Requests', icon: Inbox,           adminOnly: true,  group: 'Moderation' },
+  { key: 'Requests',     label: 'Change Requests', icon: Inbox,           adminOnly: false, group: 'Moderation' },
   { key: 'Boost',        label: 'Boost',           icon: Zap,             adminOnly: false, group: 'Moderation' },
   { key: 'Tickets',      label: 'Support Tickets', icon: Ticket,          adminOnly: false, group: 'Moderation' },
   // Admin
@@ -919,7 +919,7 @@ export default function AdminPage() {
     } else if (key === 'Reviews')       { loadReviews(1) }
     else if (key === 'Users')           { loadUsers(1, '', true) }
     else if (key === 'History')         { loadAuditLogs(1); loadEditHistory(1); loadLoginHistory(1); loadBanHistory(); loadRoleHistory() }
-    else if (key === 'Requests')        { loadChangeRequests(1) }
+    else if (key === 'Requests')        { loadChangeRequests(1); if (isAdmin) loadAssignableStaff() }
     else if (key === 'Owners')          { loadOwners() }
     else if (key === 'Staff')           { loadStaff(1) }
     else if (key === 'Site Content')    { scLoad(scPage) }
@@ -2000,6 +2000,12 @@ export default function AdminPage() {
                                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
                                     <StatusBadge status={cr.status} />
                                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{cr.type?.replace(/_/g, ' ')}</span>
+                                    <span className={clsx(
+                                      'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                                      cr.assignee?.name ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-50 text-gray-400'
+                                    )}>
+                                      {cr.assignee?.name ? `→ ${cr.assignee.name}` : 'Unassigned'}
+                                    </span>
                                   </div>
                                   <p className="font-medium text-sm text-[var(--c-text)] mt-1">{cr.title}</p>
                                   <p className="text-xs text-[var(--c-muted)] mt-0.5">
@@ -2038,6 +2044,27 @@ export default function AdminPage() {
                                   <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
                                     <p className="text-xs font-semibold text-blue-700 mb-0.5">Admin note</p>
                                     <p className="text-sm text-blue-800">{cr.admin_note}</p>
+                                  </div>
+                                )}
+
+                                {/* Assign to staff (admin only) */}
+                                {isAdmin && (
+                                  <div>
+                                    <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Assign to staff</label>
+                                    <select
+                                      value={cr.assigned_to || ''}
+                                      onChange={async e => {
+                                        const assigned_to = e.target.value || null
+                                        try {
+                                          await api.admin.assignChangeRequest(cr.id, assigned_to, token)
+                                          await loadChangeRequests(crPage, crStatusFilter)
+                                        } catch (err) { alert(`Error: ${err.message}`) }
+                                      }}
+                                      className={inputCls}
+                                    >
+                                      <option value="">— Unassigned —</option>
+                                      {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                                    </select>
                                   </div>
                                 )}
 

@@ -127,6 +127,7 @@ export const api = {
     changeRequests:     (params, token)   => apiFetch('/admin/change-requests?' + new URLSearchParams(params), {}, token),
     getChangeRequest:   (id, token)       => apiFetch(`/admin/change-requests/${id}`, {}, token),
     patchChangeRequest: (id, data, token) => apiFetch(`/admin/change-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+    assignChangeRequest: (id, assigned_to, token) => apiFetch(`/admin/change-requests/${id}/assign`, { method: 'PATCH', body: JSON.stringify({ assigned_to }) }, token),
 
     // Owners
     owners:      (token)        => apiFetch('/admin/owners', {}, token),
