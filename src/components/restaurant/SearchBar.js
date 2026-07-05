@@ -63,7 +63,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
       <form onSubmit={handleSubmit}>
         {/* Main search bar */}
         <div className={clsx(
-          'flex items-center gap-2 bg-white border border-[var(--c-border)] rounded-2xl transition-shadow',
+          'flex flex-wrap items-center gap-2 bg-white border border-[var(--c-border)] rounded-2xl transition-shadow',
           'focus-within:ring-2 focus-within:ring-brand-300 focus-within:border-brand-400',
           compact ? 'p-2' : 'p-2.5 md:p-3'
         )}>
@@ -74,7 +74,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search food, restaurant, town..."
-            className="flex-1 min-w-0 bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] text-sm md:text-base"
+            className="flex-1 min-w-[60px] bg-transparent outline-none text-[var(--c-text)] placeholder:text-[var(--c-dim)] text-sm md:text-base"
             autoComplete="off"
           />
 

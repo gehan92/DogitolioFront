@@ -103,11 +103,11 @@ export default async function HomePage() {
               {heroBadge}
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-[88px] font-black text-white leading-[1.03] tracking-tight mb-6 drop-shadow-sm whitespace-pre-line">
+            <h1 className="text-5xl md:text-7xl lg:text-[88px] font-black text-white leading-[1.03] tracking-tight mb-6 drop-shadow-sm whitespace-pre-line break-words">
               {heroHeadline}
             </h1>
 
-            <p className="text-white/90 text-lg md:text-xl mb-10 max-w-lg mx-auto leading-relaxed">
+            <p className="text-white/90 text-lg md:text-xl mb-10 max-w-lg mx-auto leading-relaxed break-words">
               {heroSubheadline}
             </p>
 
