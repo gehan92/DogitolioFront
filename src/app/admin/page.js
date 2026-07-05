@@ -551,6 +551,19 @@ export default function AdminPage() {
     }
   }, [token, isAdmin, isStaff])
 
+  // ── Auto-refresh: Requests and Tasks poll in the background while open,
+  // so a new assignment or status change from another user shows up without
+  // a manual refresh (mirrors the NotificationBell's poll interval).
+  useEffect(() => {
+    if (!token) return
+    if (tab !== 'Requests' && tab !== 'Tasks') return
+    const id = setInterval(() => {
+      if (tab === 'Requests') loadChangeRequests(crPage, crStatusFilter, true)
+      else if (tab === 'Tasks') loadTasks(tasksPage, taskAssigneeFilter, true)
+    }, 30000)
+    return () => clearInterval(id)
+  }, [token, tab, crPage, crStatusFilter, tasksPage, taskAssigneeFilter])
+
   // ── Data loaders ────────────────────────────────────────────────────────
 
   async function loadInitial() {
@@ -640,8 +653,8 @@ export default function AdminPage() {
     finally { setAuditLoading(false) }
   }
 
-  async function loadChangeRequests(page = 1, statusFilter = crStatusFilter) {
-    setCrLoading(true)
+  async function loadChangeRequests(page = 1, statusFilter = crStatusFilter, silent = false) {
+    if (!silent) setCrLoading(true)
     try {
       const params = { page, limit: PAGE_SIZE }
       if (statusFilter) params.status = statusFilter
@@ -651,7 +664,7 @@ export default function AdminPage() {
       setCrTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
       setCrPage(page)
     } catch (err) { console.error(err) }
-    finally { setCrLoading(false) }
+    finally { if (!silent) setCrLoading(false) }
   }
 
   async function loadOwners() {
@@ -824,8 +837,8 @@ export default function AdminPage() {
     finally { setGalleryLoading(false) }
   }
 
-  async function loadTasks(page = 1, assigneeFilter = taskAssigneeFilter) {
-    setTasksLoading(true)
+  async function loadTasks(page = 1, assigneeFilter = taskAssigneeFilter, silent = false) {
+    if (!silent) setTasksLoading(true)
     try {
       const params = { page, limit: 20 }
       if (assigneeFilter) params.assigned_to = assigneeFilter
@@ -835,7 +848,7 @@ export default function AdminPage() {
       setTasksPage(page)
       setTasksTotalPgs(d.totalPages || 1)
     } catch (err) { console.error(err) }
-    finally { setTasksLoading(false) }
+    finally { if (!silent) setTasksLoading(false) }
   }
 
   async function loadAssignableStaff() {
