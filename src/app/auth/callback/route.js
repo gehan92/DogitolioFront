@@ -7,6 +7,7 @@ export async function GET(request) {
   const code  = requestUrl.searchParams.get('code')
   const error = requestUrl.searchParams.get('error')
   const errorCode = requestUrl.searchParams.get('error_code')
+  const next  = requestUrl.searchParams.get('next') || '/'
 
   if (error) {
     const msg = errorCode === 'otp_expired'
@@ -40,5 +41,5 @@ export async function GET(request) {
     }
   }
 
-  return NextResponse.redirect(new URL('/', requestUrl.origin))
+  return NextResponse.redirect(new URL(next, requestUrl.origin))
 }
