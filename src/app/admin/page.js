@@ -550,11 +550,21 @@ export default function AdminPage() {
   }, [token, isAdmin, isStaff])
 
   // ── Deep link: /admin?tab=Tasks (used by notification links)
+  // /admin?tab=Menu Items&restaurant=<id> also restores the selected
+  // restaurant, and that one is kept in the URL (not stripped) so
+  // refreshing or reopening the link keeps the same restaurant selected.
   useEffect(() => {
     if (!token || (!isAdmin && !isStaff)) return
-    const tabParam = new URLSearchParams(window.location.search).get('tab')
-    if (tabParam) {
-      navigate(tabParam)
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab')
+    const restaurantParam = params.get('restaurant')
+    if (!tabParam) return
+
+    navigate(tabParam)
+    if (tabParam === 'Menu Items' && restaurantParam) {
+      setMiRestaurant(restaurantParam)
+      loadMenuItems(restaurantParam)
+    } else {
       router.replace('/admin')
     }
   }, [token, isAdmin, isStaff])
@@ -1181,6 +1191,20 @@ export default function AdminPage() {
       setMenuItems(data?.data || [])
     } catch { setMenuItems([]) }
     finally { setMiLoading(false) }
+  }
+
+  // Selecting a restaurant here also saves it in the URL, so refreshing
+  // (or sharing the link) keeps the same restaurant selected instead of
+  // resetting the dropdown back to empty.
+  function selectMenuRestaurant(restaurantId) {
+    setMiRestaurant(restaurantId)
+    loadMenuItems(restaurantId)
+    miReset()
+    const params = new URLSearchParams(window.location.search)
+    params.set('tab', 'Menu Items')
+    if (restaurantId) params.set('restaurant', restaurantId)
+    else params.delete('restaurant')
+    router.replace(`/admin?${params.toString()}`)
   }
 
   function miStartEdit(item) {
@@ -2747,7 +2771,7 @@ export default function AdminPage() {
                   </h3>
                   <select
                     value={miRestaurant}
-                    onChange={e => { setMiRestaurant(e.target.value); loadMenuItems(e.target.value); miReset() }}
+                    onChange={e => selectMenuRestaurant(e.target.value)}
                     className={inputCls}
                   >
                     <option value="">— Select restaurant —</option>
