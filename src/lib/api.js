@@ -78,10 +78,11 @@ export const api = {
 
   // ── MENU ITEMS
   menuItems: {
-    list:   (restaurantId)                  => apiFetch(`/menu-items/${restaurantId}`),
-    create: (restaurantId, formData, token) => formFetch(`${BASE}/api/menu-items/${restaurantId}`, token, formData),
-    update: (id, formData, token)           => formFetch(`${BASE}/api/menu-items/item/${id}`, token, formData, 'PUT'),
-    delete: (id, token)                     => apiFetch(`/menu-items/item/${id}`, { method: 'DELETE' }, token),
+    list:               (restaurantId)                  => apiFetch(`/menu-items/${restaurantId}`),
+    create:             (restaurantId, formData, token) => formFetch(`${BASE}/api/menu-items/${restaurantId}`, token, formData),
+    update:             (id, formData, token)           => formFetch(`${BASE}/api/menu-items/item/${id}`, token, formData, 'PUT'),
+    delete:             (id, token)                     => apiFetch(`/menu-items/item/${id}`, { method: 'DELETE' }, token),
+    setAvailability:    (id, is_available, token)       => apiFetch(`/menu-items/item/${id}/availability`, { method: 'PATCH', body: JSON.stringify({ is_available }) }, token),
   },
 
   // ── CONTACT
@@ -140,6 +141,12 @@ export const api = {
     updateStaffPermissions: (staffId, permissions, token)  => apiFetch(
       `/admin/staff-permissions/${staffId}`,
       { method: 'PUT', body: JSON.stringify({ permissions }) },
+      token
+    ),
+    staffRestaurants:       (staffId, token)               => apiFetch(`/admin/staff-restaurants/${staffId}`, {}, token),
+    updateStaffRestaurants: (staffId, restaurantIds, token) => apiFetch(
+      `/admin/staff-restaurants/${staffId}`,
+      { method: 'PUT', body: JSON.stringify({ restaurant_ids: restaurantIds }) },
       token
     ),
   },

@@ -212,6 +212,9 @@ export default function AdminPage() {
   const [staffPermsMap,   setStaffPermsMap]   = useState({}) // { staffId: { section: bool } }
   const [staffPermsLoading, setStaffPermsLoading] = useState(false)
   const [staffPermsMsg,   setStaffPermsMsg]   = useState('')
+  const [staffRestaurantsMap,     setStaffRestaurantsMap]     = useState({}) // { staffId: Set(restaurantId) }
+  const [staffRestaurantsLoading, setStaffRestaurantsLoading] = useState(false)
+  const [staffRestaurantsMsg,     setStaffRestaurantsMsg]     = useState('')
 
   // ── Menu upload
   const [selectedRestaurant, setSelectedRestaurant] = useState('')
@@ -1096,6 +1099,15 @@ export default function AdminPage() {
       } catch (err) { console.error(err) }
       finally { setStaffPermsLoading(false) }
     }
+    if (!staffRestaurantsMap[staffId]) {
+      setStaffRestaurantsLoading(true)
+      try {
+        const data = await api.admin.staffRestaurants(staffId, token)
+        const ids = new Set((data.data || []).map(a => a.restaurant_id))
+        setStaffRestaurantsMap(m => ({ ...m, [staffId]: ids }))
+      } catch (err) { console.error(err) }
+      finally { setStaffRestaurantsLoading(false) }
+    }
     loadStaffNotes(staffId)
     loadStaffWarnings(staffId)
   }
@@ -1120,6 +1132,26 @@ export default function AdminPage() {
       setTimeout(() => setStaffPermsMsg(''), 3000)
     } catch (err) { setStaffPermsMsg(`Error: ${err.message}`) }
     finally { setStaffPermsLoading(false) }
+  }
+
+  function toggleStaffRestaurant(staffId, restaurantId) {
+    setStaffRestaurantsMap(m => {
+      const current = new Set(m[staffId] || [])
+      if (current.has(restaurantId)) current.delete(restaurantId)
+      else current.add(restaurantId)
+      return { ...m, [staffId]: current }
+    })
+  }
+
+  async function saveStaffRestaurants(staffId) {
+    setStaffRestaurantsLoading(true); setStaffRestaurantsMsg('')
+    try {
+      const ids = Array.from(staffRestaurantsMap[staffId] || [])
+      await api.admin.updateStaffRestaurants(staffId, ids, token)
+      setStaffRestaurantsMsg('✓ Assignments saved')
+      setTimeout(() => setStaffRestaurantsMsg(''), 3000)
+    } catch (err) { setStaffRestaurantsMsg(`Error: ${err.message}`) }
+    finally { setStaffRestaurantsLoading(false) }
   }
 
   // ── Menu Items handlers ──────────────────────────────────────────────────
@@ -1187,6 +1219,17 @@ export default function AdminPage() {
     if (!confirm('Delete this menu item?')) return
     await api.menuItems.delete(id, token)
     setMenuItems(items => items.filter(i => i.id !== id))
+  }
+
+  async function miToggleAvailability(item) {
+    const next = !(item.is_available ?? true)
+    setMenuItems(items => items.map(i => i.id === item.id ? { ...i, is_available: next } : i))
+    try {
+      await api.menuItems.setAvailability(item.id, next, token)
+    } catch (err) {
+      setMenuItems(items => items.map(i => i.id === item.id ? { ...i, is_available: !next } : i))
+      alert(err.message)
+    }
   }
 
   // ── Theme handlers ───────────────────────────────────────────────────────
@@ -2551,6 +2594,58 @@ export default function AdminPage() {
                                   )}
                                 </div>
 
+                                {/* Restaurant assignments */}
+                                <div className="mt-4 pt-4 border-t border-[var(--c-border)]">
+                                  <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide mb-1">
+                                    Restaurant assignments for {s.name}
+                                  </p>
+                                  <p className="text-xs text-[var(--c-dim)] mb-3">
+                                    Only assigned restaurants can be managed by this staff member (e.g. menu availability toggles).
+                                  </p>
+                                  {staffRestaurantsLoading && !staffRestaurantsMap[s.id] ? (
+                                    <div className="flex justify-center py-4"><Spinner size={20} /></div>
+                                  ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 max-h-64 overflow-y-auto pr-1">
+                                      {restaurantOptions.map(r => {
+                                        const assigned = staffRestaurantsMap[s.id]?.has(r.id)
+                                        return (
+                                          <label key={r.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white border border-[var(--c-border)] cursor-pointer hover:border-[#FF2D55]/30 transition-colors">
+                                            <span className="text-sm font-medium text-[var(--c-text)] truncate">{r.name} — {r.town}</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleStaffRestaurant(s.id, r.id)}
+                                              className={clsx(
+                                                'w-10 h-5 rounded-full transition-all relative shrink-0',
+                                                assigned ? 'bg-green-500' : 'bg-gray-200'
+                                              )}
+                                            >
+                                              <span className={clsx(
+                                                'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
+                                                assigned ? 'right-0.5' : 'left-0.5'
+                                              )} />
+                                            </button>
+                                          </label>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      onClick={() => saveStaffRestaurants(s.id)}
+                                      disabled={staffRestaurantsLoading}
+                                      className={gradientBtn}
+                                      style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                                    >
+                                      {staffRestaurantsLoading ? 'Saving…' : 'Save assignments'}
+                                    </button>
+                                    {staffRestaurantsMsg && (
+                                      <p className={clsx('text-sm font-medium', staffRestaurantsMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600')}>
+                                        {staffRestaurantsMsg}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
                                 {/* Staff Notes */}
                                 <div className="mt-4 pt-4 border-t border-[var(--c-border)]">
                                   <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Internal Notes</p>
@@ -2747,8 +2842,10 @@ export default function AdminPage() {
                         : menuItems.length === 0 ? <p className="text-sm text-[var(--c-muted)] text-center py-8">No items yet</p>
                         : (
                           <div className="divide-y divide-[var(--c-border)]">
-                            {menuItems.map(item => (
-                              <div key={item.id} className="flex items-center gap-4 px-4 py-3">
+                            {menuItems.map(item => {
+                              const isAvailable = item.is_available ?? true
+                              return (
+                              <div key={item.id} className={clsx('flex items-center gap-4 px-4 py-3', !isAvailable && 'opacity-60')}>
                                 {item.photo_url ? (
                                   <img src={item.photo_url} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[var(--c-border)]" />
                                 ) : (
@@ -2757,7 +2854,10 @@ export default function AdminPage() {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-sm text-[var(--c-text)] truncate">{item.name}</p>
+                                  <p className="font-semibold text-sm text-[var(--c-text)] truncate">
+                                    {item.name}
+                                    {!isAvailable && <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Sold out</span>}
+                                  </p>
                                   <p className="text-xs text-[var(--c-muted)]">
                                     {item.portions?.length > 0
                                       ? item.portions.map(p => `${p.size} Rs.${p.price}`).join(' / ')
@@ -2768,12 +2868,29 @@ export default function AdminPage() {
                                     {item.ingredients ? ` · ${item.ingredients}` : ''}
                                   </p>
                                 </div>
+                                <label className="flex items-center gap-2 shrink-0 cursor-pointer" title="Available today">
+                                  <span className="text-xs text-[var(--c-muted)] hidden sm:inline">Available</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => miToggleAvailability(item)}
+                                    className={clsx(
+                                      'w-10 h-5 rounded-full transition-all relative shrink-0',
+                                      isAvailable ? 'bg-green-500' : 'bg-gray-200'
+                                    )}
+                                  >
+                                    <span className={clsx(
+                                      'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
+                                      isAvailable ? 'right-0.5' : 'left-0.5'
+                                    )} />
+                                  </button>
+                                </label>
                                 <div className="flex gap-1 shrink-0">
                                   <button onClick={() => miStartEdit(item)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><Pencil size={14} /></button>
                                   <button onClick={() => miDelete(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={14} /></button>
                                 </div>
                               </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                     </div>

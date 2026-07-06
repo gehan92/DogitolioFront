@@ -104,6 +104,7 @@ function MenuItemModal({ item, color, onClose }) {
   const ingredients = item.ingredients
     ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
     : []
+  const isAvailable = item.is_available ?? true
 
   return createPortal(
     <div
@@ -117,10 +118,17 @@ function MenuItemModal({ item, color, onClose }) {
         {/* Photo or placeholder — always the same shape */}
         <div className="relative h-56 shrink-0 bg-gray-100">
           {item.photo_url ? (
-            <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" />
+            <img src={item.photo_url} alt={item.name} className={clsx('w-full h-full object-cover', !isAvailable && 'grayscale')} />
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}14` }}>
               <UtensilsCrossed size={40} style={{ color }} strokeWidth={1.5} />
+            </div>
+          )}
+          {!isAvailable && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <span className="text-sm font-black uppercase tracking-wide text-white px-4 py-1.5 rounded-full bg-black/60">
+                Sold out today
+              </span>
             </div>
           )}
           <button
@@ -283,12 +291,16 @@ function MenuSection({ items, brandColor }) {
             : null
           const cardBasePrice = hasPortions ? lowestPortionPrice : item.price
           const salePrice = applyDiscount(cardBasePrice, item.discount_type, item.discount_value)
+          const isAvailable = item.is_available ?? true
 
           return (
             <button
               key={item.id}
               onClick={() => setSelectedItem(item)}
-              className="flex flex-col text-left gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group h-full"
+              className={clsx(
+                'flex flex-col text-left gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group h-full',
+                !isAvailable && 'opacity-60'
+              )}
             >
               {/* ── Photo or placeholder — always the same shape, keeps every card uniform */}
               <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-50 shrink-0">
@@ -296,14 +308,21 @@ function MenuSection({ items, brandColor }) {
                   <img
                     src={item.photo_url}
                     alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className={clsx('w-full h-full object-cover group-hover:scale-105 transition-transform duration-300', !isAvailable && 'grayscale')}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}0f` }}>
                     <UtensilsCrossed size={26} style={{ color }} strokeWidth={1.5} />
                   </div>
                 )}
-                {salePrice && (
+                {!isAvailable && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <span className="text-[11px] font-black uppercase tracking-wide text-white px-3 py-1 rounded-full bg-black/60">
+                      Sold out today
+                    </span>
+                  </div>
+                )}
+                {isAvailable && salePrice && (
                   <span className="absolute top-2 right-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-sm"
                     style={{ background: color }}>
                     {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}

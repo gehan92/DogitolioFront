@@ -61,6 +61,11 @@ export default function OwnerPage() {
   // Status filter
   const [statusFilter, setStatusFilter] = useState('')
 
+  // Menu availability
+  const [expandedMenuId, setExpandedMenuId] = useState(null)
+  const [menuItemsMap,   setMenuItemsMap]   = useState({}) // { restaurantId: items[] }
+  const [menuLoading,    setMenuLoading]    = useState(false)
+
   // Auth guard — owner only
   useEffect(() => {
     if (!authLoading && user && profile && !isOwner) router.replace('/')
@@ -122,6 +127,36 @@ export default function OwnerPage() {
     loadRequests(1, f)
   }
 
+  async function toggleMenuExpand(restaurantId) {
+    if (expandedMenuId === restaurantId) { setExpandedMenuId(null); return }
+    setExpandedMenuId(restaurantId)
+    if (!menuItemsMap[restaurantId]) {
+      setMenuLoading(true)
+      try {
+        const data = await api.menuItems.list(restaurantId)
+        setMenuItemsMap(m => ({ ...m, [restaurantId]: data?.data || [] }))
+      } catch (err) { console.error(err) }
+      finally { setMenuLoading(false) }
+    }
+  }
+
+  async function toggleItemAvailability(restaurantId, item) {
+    const next = !(item.is_available ?? true)
+    setMenuItemsMap(m => ({
+      ...m,
+      [restaurantId]: m[restaurantId].map(i => i.id === item.id ? { ...i, is_available: next } : i),
+    }))
+    try {
+      await api.menuItems.setAvailability(item.id, next, token)
+    } catch (err) {
+      setMenuItemsMap(m => ({
+        ...m,
+        [restaurantId]: m[restaurantId].map(i => i.id === item.id ? { ...i, is_available: !next } : i),
+      }))
+      alert(err.message)
+    }
+  }
+
   async function submitRequest(e) {
     e.preventDefault()
     if (!form.restaurant_id || !form.type || !form.title || !form.description) return
@@ -174,23 +209,78 @@ export default function OwnerPage() {
         {myRestaurants.length > 0 ? (
           <div className="space-y-3">
             {myRestaurants.map(r => (
-              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4 shadow-sm">
-                {r.cover_image ? (
-                  <img src={r.cover_image} alt={r.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                    <UtensilsCrossed size={24} className="text-gray-300" />
+              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-4 flex items-center gap-4">
+                  {r.cover_image ? (
+                    <img src={r.cover_image} alt={r.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                      <UtensilsCrossed size={24} className="text-gray-300" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-gray-900 text-sm">{r.name}</p>
+                    <p className="text-xs text-gray-500">{r.town}, {r.district}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleMenuExpand(r.id)}
+                    className={clsx(
+                      'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                      expandedMenuId === r.id ? 'border-[#FF2D55]/40 text-[#FF2D55] bg-red-50/30' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    Today&apos;s availability
+                    <ChevronDown size={12} className={clsx('transition-transform', expandedMenuId === r.id && 'rotate-180')} />
+                  </button>
+                  <Link href={`/restaurants/${r.id}`}>
+                    <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
+                      View
+                    </button>
+                  </Link>
+                </div>
+
+                {expandedMenuId === r.id && (
+                  <div className="border-t border-gray-100 bg-gray-50/40 p-4">
+                    <p className="text-xs text-gray-500 mb-3">
+                      Toggle items off when they&apos;re sold out today — this updates your public menu instantly, no approval needed.
+                    </p>
+                    {menuLoading && !menuItemsMap[r.id] ? (
+                      <div className="flex justify-center py-6"><Spinner size={22} /></div>
+                    ) : (menuItemsMap[r.id] || []).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">No menu items yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {menuItemsMap[r.id].map(item => {
+                          const isAvailable = item.is_available ?? true
+                          return (
+                            <div key={item.id} className={clsx('flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-xl px-3 py-2.5', !isAvailable && 'opacity-60')}>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-gray-800 truncate">
+                                  {item.name}
+                                  {!isAvailable && <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Sold out</span>}
+                                </p>
+                                {item.category && <p className="text-xs text-gray-400">{item.category}</p>}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleItemAvailability(r.id, item)}
+                                className={clsx(
+                                  'w-10 h-5 rounded-full transition-all relative shrink-0',
+                                  isAvailable ? 'bg-green-500' : 'bg-gray-200'
+                                )}
+                              >
+                                <span className={clsx(
+                                  'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
+                                  isAvailable ? 'right-0.5' : 'left-0.5'
+                                )} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-gray-900 text-sm">{r.name}</p>
-                  <p className="text-xs text-gray-500">{r.town}, {r.district}</p>
-                </div>
-                <Link href={`/restaurants/${r.id}`}>
-                  <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
-                    View
-                  </button>
-                </Link>
               </div>
             ))}
           </div>
