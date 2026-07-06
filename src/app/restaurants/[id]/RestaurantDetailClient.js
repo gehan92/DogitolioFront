@@ -354,18 +354,27 @@ function MenuSection({ items, brandColor }) {
                   </div>
                 )}
 
-                {/* Price — condensed; full breakdown shown in the detail popup */}
+                {/* Price — every portion's price (with its own discount) shown directly on the card */}
                 <div className="mt-auto pt-1">
                   {hasPortions ? (
-                    <div className="flex items-end gap-2">
-                      <span className="text-[15px] font-black" style={{ color }}>
-                        From Rs. {Math.round(salePrice ?? lowestPortionPrice).toLocaleString()}
-                      </span>
-                      {salePrice && (
-                        <span className="text-[11px] text-gray-400 line-through leading-none mb-0.5">
-                          Rs. {Number(lowestPortionPrice).toLocaleString()}
-                        </span>
-                      )}
+                    <div className="space-y-0.5">
+                      {item.portions.map((p, i) => {
+                        const portionPrice = Number(p.price) || 0
+                        const portionSale = applyDiscount(portionPrice, item.discount_type, item.discount_value)
+                        return (
+                          <div key={i} className="flex items-baseline gap-1.5">
+                            <span className="text-[12px] text-gray-400 font-medium truncate">{p.size}</span>
+                            <span className="text-[14px] font-black shrink-0" style={{ color }}>
+                              Rs. {Math.round(portionSale ?? portionPrice).toLocaleString()}
+                            </span>
+                            {portionSale && (
+                              <span className="text-[11px] text-gray-400 line-through shrink-0">
+                                Rs. {portionPrice.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   ) : item.price ? (
                     <div className="flex items-end gap-2">
