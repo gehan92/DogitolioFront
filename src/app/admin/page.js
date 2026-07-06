@@ -1431,7 +1431,11 @@ export default function AdminPage() {
         {/* ── Sidebar */}
         <aside className={clsx(
           'fixed top-0 left-0 z-50 h-full w-64 flex flex-col bg-white border-r border-gray-100 transition-transform duration-300 ease-in-out',
-          'lg:sticky lg:top-[66px] lg:h-[calc(100vh-66px)] lg:translate-x-0 lg:z-10',
+          // Fixed (not sticky) on desktop too — a sticky sidebar bound to
+          // viewport height detaches and stops tracking once main content
+          // scrolls taller than one screen. Fixed keeps it viewport-anchored
+          // for the full page, matching main-content offset via lg:ml-64 below.
+          'lg:fixed lg:top-[66px] lg:h-[calc(100vh-66px)] lg:translate-x-0 lg:z-10',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )} style={{ boxShadow: '4px 0 24px rgba(0,0,0,.06)' }}>
 
@@ -1503,8 +1507,8 @@ export default function AdminPage() {
           </div>
         </aside>
 
-        {/* ── Main content */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        {/* ── Main content — lg:ml-64 reserves space for the now-fixed sidebar */}
+        <div className="flex-1 min-w-0 flex flex-col lg:ml-64">
 
           {/* Mobile top bar */}
           <div
