@@ -285,6 +285,8 @@ export default function AdminPage() {
   const [banHistLoading,     setBanHistLoading]     = useState(false)
   const [roleHistory,        setRoleHistory]        = useState([])
   const [roleHistLoading,    setRoleHistLoading]    = useState(false)
+  const [availHistory,       setAvailHistory]       = useState([])
+  const [availHistLoading,   setAvailHistLoading]   = useState(false)
 
   // ── User activity modal
   const [activityUserId,   setActivityUserId]   = useState(null)
@@ -751,6 +753,13 @@ export default function AdminPage() {
     finally { setRoleHistLoading(false) }
   }
 
+  async function loadAvailabilityHistory() {
+    setAvailHistLoading(true)
+    try { const d = await api.history.availability({ limit: 50 }, token); setAvailHistory(d.data || []) }
+    catch (err) { console.error(err) }
+    finally { setAvailHistLoading(false) }
+  }
+
   async function loadUserActivity(uid, uName) {
     setActivityUserId(uid)
     setActivityUser(uName)
@@ -934,7 +943,7 @@ export default function AdminPage() {
       loadRestaurants(1)
     } else if (key === 'Reviews')       { loadReviews(1) }
     else if (key === 'Users')           { loadUsers(1, '', true) }
-    else if (key === 'History')         { loadAuditLogs(1); loadEditHistory(1); loadLoginHistory(1); loadBanHistory(); loadRoleHistory() }
+    else if (key === 'History')         { loadAuditLogs(1); loadEditHistory(1); loadLoginHistory(1); loadBanHistory(); loadRoleHistory(); loadAvailabilityHistory() }
     else if (key === 'Requests')        { loadChangeRequests(1); if (isAdmin) loadAssignableStaff() }
     else if (key === 'Owners')          { loadOwners() }
     else if (key === 'Staff')           { loadStaff(1) }
@@ -3470,6 +3479,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                     { key: 'logins',   label: 'Login History'    },
                     { key: 'bans',     label: 'Bans / Unbans'    },
                     { key: 'roles',    label: 'Role Changes'     },
+                    { key: 'availability', label: 'Availability' },
                   ].map(st => (
                     <button key={st.key} onClick={() => setHistorySubTab(st.key)}
                       className={clsx(
@@ -3509,6 +3519,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                               'restaurant.boost.remove': 'bg-gray-50 text-gray-600', 'restaurant.create': 'bg-green-50 text-green-700',
                               'owner.assign': 'bg-purple-50 text-purple-700', 'change_request.approved': 'bg-blue-50 text-blue-700',
                               'change_request.rejected': 'bg-red-50 text-red-600', 'staff.permissions_update': 'bg-blue-50 text-blue-700',
+                              'menu_item.availability': 'bg-amber-50 text-amber-700', 'staff.restaurants_update': 'bg-blue-50 text-blue-700',
                             }
                             const color = actionColors[log.action] || 'bg-gray-50 text-gray-600'
                             return (
@@ -3670,6 +3681,49 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                               </p>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Availability sub-tab */}
+                {historySubTab === 'availability' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <button onClick={loadAvailabilityHistory} disabled={availHistLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
+                        {availHistLoading ? 'Loading…' : 'Refresh'}
+                      </button>
+                    </div>
+                    {availHistLoading ? <div className="flex justify-center py-16"><Spinner size={28}/></div>
+                    : availHistory.length === 0 ? (
+                      <div className="card p-12 text-center"><Tag size={32} className="mx-auto mb-3 text-[var(--c-dim)]"/><p className="text-[var(--c-muted)] text-sm">No availability changes recorded.</p></div>
+                    ) : (
+                      <div className="card overflow-hidden">
+                        <div className="divide-y divide-[var(--c-border)]">
+                          {availHistory.map(a => {
+                            const madeAvailable = a.meta?.is_available !== false
+                            return (
+                              <div key={a.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-secondary transition-colors">
+                                <span className={clsx(
+                                  'px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0',
+                                  madeAvailable ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                                )}>
+                                  {madeAvailable ? 'AVAILABLE' : 'SOLD OUT'}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-[var(--c-text)] truncate">
+                                    {a.target}{a.restaurant?.name ? ` · ${a.restaurant.name}` : ''}
+                                  </p>
+                                  <p className="text-xs text-[var(--c-muted)]">by {a.profiles?.name || 'Unknown'}</p>
+                                </div>
+                                <p className="text-xs text-[var(--c-dim)] shrink-0">
+                                  {new Date(a.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
