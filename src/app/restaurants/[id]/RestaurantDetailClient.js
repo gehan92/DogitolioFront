@@ -16,6 +16,7 @@ import { PriceBadge, Spinner, Button } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { getCategoryConfig } from '@/lib/venueCategories'
+import { isRestaurantOpenNow, formatHoursRange } from '@/lib/restaurantHours'
 import clsx from 'clsx'
 
 const TABS = [
@@ -518,9 +519,13 @@ export default function RestaurantDetailClient() {
   )
 
   const { name, description, address, town, district, province, phone, website,
-          cuisine_types: cuisine_types_raw, price_range, cover_image, open_hours,
+          cuisine_types: cuisine_types_raw, price_range, cover_image,
+          opening_time, closing_time, is_closed_override,
           menu_items, menu_url, restaurant_ratings, brand_color, google_maps_embed,
           is_boosted, boost_expires_at, category, category_meta } = restaurant
+
+  const openStatus = isRestaurantOpenNow(opening_time, closing_time, is_closed_override)
+  const hoursRange  = formatHoursRange(opening_time, closing_time)
 
   const cuisine_types = Array.isArray(cuisine_types_raw) ? cuisine_types_raw
     : (typeof cuisine_types_raw === 'string' && cuisine_types_raw ? cuisine_types_raw.split(',').map(s => s.trim()) : [])
@@ -586,10 +591,25 @@ export default function RestaurantDetailClient() {
               {categoryConfig.features.cuisineTypes && cuisine_types?.slice(0, 3).map(c => (
                 <span key={c} className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-[11px] font-semibold">{c}</span>
               ))}
+              {openStatus !== null && (
+                <span className={clsx(
+                  'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wide text-white',
+                  openStatus ? 'bg-green-500' : 'bg-gray-700/90'
+                )}>
+                  <span className={clsx('w-1.5 h-1.5 rounded-full', openStatus ? 'bg-white' : 'bg-red-400')} />
+                  {openStatus ? 'Open now' : 'Closed'}
+                </span>
+              )}
             </div>
             <h1 className="text-white font-black text-2xl md:text-3xl leading-tight drop-shadow-md">{name}</h1>
             <div className="flex items-center gap-1.5 text-white/75 text-sm mt-1">
               <MapPin size={13} /> <span>{town}{district && town !== district ? `, ${district}` : ''}</span>
+              {hoursRange && (
+                <>
+                  <span className="text-white/40">·</span>
+                  <Clock size={13} /> <span>{hoursRange}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -725,13 +745,19 @@ export default function RestaurantDetailClient() {
 
             <div className="p-5 rounded-2xl bg-white border border-gray-100 space-y-4">
               <h2 className="font-bold text-gray-900">Contact &amp; Hours</h2>
-              {open_hours && (
+              {hoursRange && (
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--c-brand-lt)' }}>
+                    <Clock size={16} style={{ color }} />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Opening hours</p>
-                    <p className="text-sm text-gray-700 font-semibold">{open_hours}</p>
+                    <p className="text-sm text-gray-700 font-semibold">{hoursRange}</p>
+                    {openStatus !== null && (
+                      <p className={clsx('text-xs font-bold mt-0.5', openStatus ? 'text-green-600' : 'text-red-500')}>
+                        {openStatus ? '● Open now' : '● Closed now'}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

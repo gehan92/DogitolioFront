@@ -4,8 +4,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, UtensilsCrossed, Building2, Coffee, ShoppingBag,
-  ImagePlus, X, Zap, ZapOff, CheckCircle2, Clock, History, Wrench,
-  FileText, Upload, Trash2, QrCode, Download,
+  ImagePlus, X, Zap, ZapOff, CheckCircle2, Check, Clock, History, Wrench,
+  FileText, Upload, Trash2, QrCode, Download, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import Navbar from '@/components/layout/Navbar'
@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { getCategoryConfig } from '@/lib/venueCategories'
+import { isRestaurantOpenNow } from '@/lib/restaurantHours'
+import clsx from 'clsx'
 
 const PROVINCES = [
   'Western', 'Central', 'Southern', 'Northern', 'Eastern',
@@ -79,6 +81,11 @@ export default function EditRestaurantPage() {
   const [historyOpen,    setHistoryOpen]   = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
 
+  // Operating hours state — separate from the main form, saved independently (instant, no approval)
+  const [hours,       setHours]       = useState({ opening_time: '', closing_time: '', is_closed_override: false })
+  const [hoursSaving, setHoursSaving] = useState(false)
+  const [hoursMsg,    setHoursMsg]    = useState('')
+
   const categoryConfig = form ? getCategoryConfig(form.category) : getCategoryConfig('restaurant')
   const accent = categoryConfig.accentColor
 
@@ -124,6 +131,11 @@ export default function EditRestaurantPage() {
         is_boosted:       data.is_boosted || false,
         boost_plan:       data.boost_plan || '30',
         boost_expires_at: data.boost_expires_at || null,
+      })
+      setHours({
+        opening_time:       data.opening_time ? data.opening_time.slice(0, 5) : '',
+        closing_time:       data.closing_time ? data.closing_time.slice(0, 5) : '',
+        is_closed_override: data.is_closed_override || false,
       })
       setFetchLoading(false)
     }).catch(() => { setError('Failed to load restaurant'); setFetchLoading(false) })
@@ -208,6 +220,23 @@ export default function EditRestaurantPage() {
       loadBoostHistory()
     } else {
       setHistoryOpen(false)
+    }
+  }
+
+  async function handleHoursSave() {
+    setHoursSaving(true); setHoursMsg('')
+    try {
+      const updated = await api.restaurants.setHours(id, hours, token)
+      setHours({
+        opening_time:       updated.opening_time ? updated.opening_time.slice(0, 5) : '',
+        closing_time:       updated.closing_time ? updated.closing_time.slice(0, 5) : '',
+        is_closed_override: updated.is_closed_override || false,
+      })
+      setHoursMsg('✓ Hours saved — this updates the public page instantly.')
+    } catch (err) {
+      setHoursMsg(`Error: ${err.message}`)
+    } finally {
+      setHoursSaving(false)
     }
   }
 
@@ -688,6 +717,73 @@ export default function EditRestaurantPage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Operating Hours — own save button, instant (no approval flow) */}
+          <div className="card p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm uppercase tracking-wide flex items-center gap-2" style={{ color: accent }}>
+                <Clock size={14} /> Operating Hours
+              </h2>
+              {(() => {
+                const status = isRestaurantOpenNow(hours.opening_time, hours.closing_time, hours.is_closed_override)
+                if (status === null) return null
+                return (
+                  <span className={clsx('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold', status ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500')}>
+                    <span className={clsx('w-1.5 h-1.5 rounded-full', status ? 'bg-green-500' : 'bg-red-400')} />
+                    {status ? 'Open now' : 'Closed now'}
+                  </span>
+                )
+              })()}
+            </div>
+
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
+              Same hours apply every day. The public page automatically shows Open/Closed based on the current time in Sri Lanka.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">Opening time</label>
+                <input type="time" value={hours.opening_time}
+                  onChange={e => setHours(h => ({ ...h, opening_time: e.target.value }))}
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1.5">Closing time</label>
+                <input type="time" value={hours.closing_time}
+                  onChange={e => setHours(h => ({ ...h, closing_time: e.target.value }))}
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white" />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+              <button
+                type="button"
+                onClick={() => setHours(h => ({ ...h, is_closed_override: !h.is_closed_override }))}
+                className="transition-colors"
+              >
+                {hours.is_closed_override
+                  ? <ToggleRight size={28} className="text-red-500" />
+                  : <ToggleLeft  size={28} className="text-[var(--c-dim)]" />}
+              </button>
+              <span className="text-sm font-semibold text-[var(--c-text)]">
+                Temporarily closed {hours.is_closed_override && <span className="text-red-500">(overrides hours above — always shows Closed)</span>}
+              </span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={handleHoursSave} disabled={hoursSaving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                style={{ background: `linear-gradient(135deg,${categoryConfig.gradientFrom},${categoryConfig.gradientTo})` }}>
+                {hoursSaving ? <Spinner size={14} /> : <Check size={14} />}
+                {hoursSaving ? 'Saving…' : 'Save Hours'}
+              </button>
+              {hoursMsg && (
+                <p className={`text-sm font-semibold ${hoursMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                  {hoursMsg}
+                </p>
               )}
             </div>
           </div>

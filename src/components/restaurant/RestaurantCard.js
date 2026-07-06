@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { MapPin, UtensilsCrossed, Building2, Coffee, ShoppingBag, Zap } from 'lucide-react'
 import { StarRating, PriceBadge, Badge } from '@/components/ui'
 import { getCategoryConfig } from '@/lib/venueCategories'
+import { isRestaurantOpenNow } from '@/lib/restaurantHours'
 import clsx from 'clsx'
 
 const CATEGORY_ICONS = {
@@ -36,6 +37,7 @@ export default function RestaurantCard({ restaurant: venue, className }) {
 
   const rating      = restaurant_ratings?.[0]?.avg_rating || 0
   const reviewCount = restaurant_ratings?.[0]?.review_count || 0
+  const openStatus  = isRestaurantOpenNow(venue.opening_time, venue.closing_time, venue.is_closed_override)
 
   return (
     <Link
@@ -92,6 +94,18 @@ export default function RestaurantCard({ restaurant: venue, className }) {
         {price_range && (
           <div className="absolute top-3 right-3">
             <PriceBadge range={price_range} />
+          </div>
+        )}
+
+        {openStatus !== null && (
+          <div
+            className={clsx(
+              'absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shadow',
+              openStatus ? 'bg-green-500 text-white' : 'bg-gray-800/90 text-white'
+            )}
+          >
+            <span className={clsx('w-1.5 h-1.5 rounded-full', openStatus ? 'bg-white' : 'bg-red-400')} />
+            {openStatus ? 'Open now' : 'Closed'}
           </div>
         )}
       </div>

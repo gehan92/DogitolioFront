@@ -54,6 +54,7 @@ export const api = {
     feature:      (id, data, token)     => apiFetch(`/restaurants/${id}/feature`, { method: 'PATCH', body: JSON.stringify(data) }, token),
     approve:      (id, data, token)     => apiFetch(`/restaurants/${id}/approve`, { method: 'PATCH', body: JSON.stringify(data) }, token),
     bulk:         (data, token)         => apiFetch('/restaurants/bulk', { method: 'POST', body: JSON.stringify(data) }, token),
+    setHours:     (id, data, token)     => apiFetch(`/restaurants/${id}/hours`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   },
 
   // ── MENUS

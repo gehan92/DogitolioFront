@@ -67,6 +67,11 @@ export default function OwnerPage() {
   const [menuLoading,    setMenuLoading]    = useState(false)
   const [availHistoryMap, setAvailHistoryMap] = useState({}) // { restaurantId: { items, page, totalPages, loading } }
 
+  // Operating hours
+  const [expandedHoursId, setExpandedHoursId] = useState(null)
+  const [hoursSavingMap,   setHoursSavingMap] = useState({}) // { restaurantId: bool }
+  const [hoursMsgMap,      setHoursMsgMap]    = useState({}) // { restaurantId: string }
+
   // Auth guard — owner only
   useEffect(() => {
     if (!authLoading && user && profile && !isOwner) router.replace('/')
@@ -92,7 +97,11 @@ export default function OwnerPage() {
         api.owner.me(token),
         api.owner.myRequests({}, token),
       ])
-      setMyRestaurants(meData.restaurants || [])
+      setMyRestaurants((meData.restaurants || []).map(r => ({
+        ...r,
+        opening_time: r.opening_time ? r.opening_time.slice(0, 5) : '',
+        closing_time: r.closing_time ? r.closing_time.slice(0, 5) : '',
+      })))
       setRequests(reqData.data || [])
       setReqTotal(reqData.total ?? 0)
       setReqPage(1)
@@ -182,6 +191,34 @@ export default function OwnerPage() {
     }
   }
 
+  function setHoursField(restaurantId, field, value) {
+    setMyRestaurants(rs => rs.map(r => r.id === restaurantId ? { ...r, [field]: value } : r))
+  }
+
+  async function saveHours(restaurantId) {
+    const r = myRestaurants.find(x => x.id === restaurantId)
+    setHoursSavingMap(m => ({ ...m, [restaurantId]: true }))
+    setHoursMsgMap(m => ({ ...m, [restaurantId]: '' }))
+    try {
+      const updated = await api.restaurants.setHours(restaurantId, {
+        opening_time:       r.opening_time || null,
+        closing_time:       r.closing_time || null,
+        is_closed_override: r.is_closed_override || false,
+      }, token)
+      setMyRestaurants(rs => rs.map(x => x.id === restaurantId ? {
+        ...x,
+        opening_time:       updated.opening_time ? updated.opening_time.slice(0, 5) : '',
+        closing_time:       updated.closing_time ? updated.closing_time.slice(0, 5) : '',
+        is_closed_override: updated.is_closed_override || false,
+      } : x))
+      setHoursMsgMap(m => ({ ...m, [restaurantId]: '✓ Saved — updates the public page instantly.' }))
+    } catch (err) {
+      setHoursMsgMap(m => ({ ...m, [restaurantId]: `Error: ${err.message}` }))
+    } finally {
+      setHoursSavingMap(m => ({ ...m, [restaurantId]: false }))
+    }
+  }
+
   async function submitRequest(e) {
     e.preventDefault()
     if (!form.restaurant_id || !form.type || !form.title || !form.description) return
@@ -256,6 +293,16 @@ export default function OwnerPage() {
                   >
                     Today&apos;s availability
                     <ChevronDown size={12} className={clsx('transition-transform', expandedMenuId === r.id && 'rotate-180')} />
+                  </button>
+                  <button
+                    onClick={() => setExpandedHoursId(id => id === r.id ? null : r.id)}
+                    className={clsx(
+                      'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                      expandedHoursId === r.id ? 'border-[#FF2D55]/40 text-[#FF2D55] bg-red-50/30' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    Hours
+                    <ChevronDown size={12} className={clsx('transition-transform', expandedHoursId === r.id && 'rotate-180')} />
                   </button>
                   <Link href={`/restaurants/${r.id}`}>
                     <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
@@ -338,6 +385,62 @@ export default function OwnerPage() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {expandedHoursId === r.id && (
+                  <div className="border-t border-gray-100 bg-gray-50/40 p-4 space-y-4">
+                    <p className="text-xs text-gray-500">
+                      Same hours apply every day. Updates the public page instantly — no approval needed.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Opening time</label>
+                        <input
+                          type="time"
+                          value={r.opening_time || ''}
+                          onChange={e => setHoursField(r.id, 'opening_time', e.target.value)}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Closing time</label>
+                        <input
+                          type="time"
+                          value={r.closing_time || ''}
+                          onChange={e => setHoursField(r.id, 'closing_time', e.target.value)}
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                      <input
+                        type="checkbox"
+                        checked={!!r.is_closed_override}
+                        onChange={e => setHoursField(r.id, 'is_closed_override', e.target.checked)}
+                        className="accent-[#FF2D55]"
+                      />
+                      <span className="text-sm font-semibold text-gray-800">
+                        Temporarily closed
+                        {r.is_closed_override && <span className="text-red-500"> (overrides hours — always shows Closed)</span>}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => saveHours(r.id)}
+                        disabled={hoursSavingMap[r.id]}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}
+                      >
+                        <Check size={14} /> {hoursSavingMap[r.id] ? 'Saving…' : 'Save Hours'}
+                      </button>
+                      {hoursMsgMap[r.id] && (
+                        <p className={clsx('text-xs font-semibold', hoursMsgMap[r.id].startsWith('✓') ? 'text-green-700' : 'text-red-600')}>
+                          {hoursMsgMap[r.id]}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
