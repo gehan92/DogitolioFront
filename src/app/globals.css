@@ -21,7 +21,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-body { background-color: var(--c-bg); color: var(--c-text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { background-color: var(--c-bg); color: var(--c-text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--c-border2); border-radius: 3px; }
