@@ -2681,14 +2681,14 @@ export default function AdminPage() {
                                     value={p.size}
                                     onChange={e => setMiForm(f => { const pp = [...f.portions]; pp[i] = { ...pp[i], size: e.target.value }; return { ...f, portions: pp } })}
                                     placeholder="e.g. Half / Large"
-                                    className={`${inputCls} flex-1`}
+                                    className="flex-[3] min-w-0 border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
                                   />
                                   <input
                                     type="number"
                                     value={p.price}
                                     onChange={e => setMiForm(f => { const pp = [...f.portions]; pp[i] = { ...pp[i], price: e.target.value }; return { ...f, portions: pp } })}
                                     placeholder="Rs."
-                                    className={`${inputCls} w-28`}
+                                    className="w-24 shrink-0 border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white"
                                   />
                                   <button type="button"
                                     onClick={() => setMiForm(f => ({ ...f, portions: f.portions.filter((_, j) => j !== i) }))}

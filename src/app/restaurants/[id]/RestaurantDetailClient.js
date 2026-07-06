@@ -23,6 +23,17 @@ const TABS = [
   { key: 'reviews', label: 'Reviews', icon: MessageSquare },
 ]
 
+// Applies a menu item's discount to any base price — the flat price or a
+// specific portion's price — so discounts also work on portion-priced items.
+function applyDiscount(basePrice, discountType, discountValue) {
+  if (!discountType || !discountValue || !basePrice) return null
+  let result = null
+  if (discountType === 'percent') result = basePrice * (1 - discountValue / 100)
+  else if (discountType === 'fixed') result = basePrice - discountValue
+  // A discount that would zero out or exceed the price isn't a valid discount to display
+  return result > 0 ? result : null
+}
+
 /* ── Stars component */
 function Stars({ rating, size = 16, interactive = false, onChange }) {
   const [hover, setHover] = useState(0)
@@ -69,12 +80,8 @@ function MenuItemModal({ item, color, onClose }) {
   if (!item) return null
 
   const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
-  const salePrice = (() => {
-    if (!item.discount_type || !item.discount_value || !item.price) return null
-    if (item.discount_type === 'percent') return item.price * (1 - item.discount_value / 100)
-    if (item.discount_type === 'fixed')   return item.price - item.discount_value
-    return null
-  })()
+  const activePrice = hasPortions ? Number(item.portions[activePortion]?.price || 0) : item.price
+  const salePrice = applyDiscount(activePrice, item.discount_type, item.discount_value)
   const ingredients = item.ingredients
     ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
     : []
@@ -141,9 +148,16 @@ function MenuItemModal({ item, color, onClose }) {
                   </button>
                 ))}
               </div>
-              <p className="text-2xl font-black" style={{ color }}>
-                Rs. {Number(item.portions[activePortion]?.price || 0).toLocaleString()}
-              </p>
+              <div className="flex items-end gap-3">
+                <span className="text-2xl font-black" style={{ color }}>
+                  Rs. {Math.round(salePrice ?? activePrice).toLocaleString()}
+                </span>
+                {salePrice && (
+                  <span className="text-sm text-gray-400 line-through mb-1">
+                    Rs. {Number(activePrice).toLocaleString()}
+                  </span>
+                )}
+              </div>
             </div>
           ) : item.price ? (
             <div className="flex items-end gap-3">
@@ -191,12 +205,6 @@ function MenuSection({ items, brandColor }) {
     )
   }
 
-  function discountedPrice(item) {
-    if (!item.discount_type || !item.discount_value || !item.price) return null
-    if (item.discount_type === 'percent') return item.price * (1 - item.discount_value / 100)
-    if (item.discount_type === 'fixed')   return item.price - item.discount_value
-    return null
-  }
 
   return (
     <div>
@@ -244,7 +252,6 @@ function MenuSection({ items, brandColor }) {
       {/* ── Menu grid — 1 col mobile, 2 col tablet, 3 col desktop, uniform cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {groups[shown]?.map(item => {
-          const salePrice = discountedPrice(item)
           const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
           const ingredients = item.ingredients
             ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
@@ -254,6 +261,8 @@ function MenuSection({ items, brandColor }) {
           const lowestPortionPrice = hasPortions
             ? Math.min(...item.portions.map(p => Number(p.price) || 0))
             : null
+          const cardBasePrice = hasPortions ? lowestPortionPrice : item.price
+          const salePrice = applyDiscount(cardBasePrice, item.discount_type, item.discount_value)
 
           return (
             <button
@@ -274,7 +283,7 @@ function MenuSection({ items, brandColor }) {
                     <UtensilsCrossed size={26} style={{ color }} strokeWidth={1.5} />
                   </div>
                 )}
-                {salePrice && !hasPortions && (
+                {salePrice && (
                   <span className="absolute top-2 right-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-sm"
                     style={{ background: color }}>
                     {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
@@ -309,9 +318,16 @@ function MenuSection({ items, brandColor }) {
                 {/* Price — condensed; full breakdown shown in the detail popup */}
                 <div className="mt-auto pt-1">
                   {hasPortions ? (
-                    <span className="text-[15px] font-black" style={{ color }}>
-                      From Rs. {lowestPortionPrice.toLocaleString()}
-                    </span>
+                    <div className="flex items-end gap-2">
+                      <span className="text-[15px] font-black" style={{ color }}>
+                        From Rs. {Math.round(salePrice ?? lowestPortionPrice).toLocaleString()}
+                      </span>
+                      {salePrice && (
+                        <span className="text-[11px] text-gray-400 line-through leading-none mb-0.5">
+                          Rs. {Number(lowestPortionPrice).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   ) : item.price ? (
                     <div className="flex items-end gap-2">
                       <span className="text-[16px] font-black leading-none" style={{ color }}>
