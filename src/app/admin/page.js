@@ -287,6 +287,9 @@ export default function AdminPage() {
   const [roleHistLoading,    setRoleHistLoading]    = useState(false)
   const [availHistory,       setAvailHistory]       = useState([])
   const [availHistLoading,   setAvailHistLoading]   = useState(false)
+  const [availHistTotal,     setAvailHistTotal]     = useState(0)
+  const [availHistPages,     setAvailHistPages]     = useState(1)
+  const [availHistPage,      setAvailHistPage]      = useState(1)
 
   // ── User activity modal
   const [activityUserId,   setActivityUserId]   = useState(null)
@@ -753,10 +756,15 @@ export default function AdminPage() {
     finally { setRoleHistLoading(false) }
   }
 
-  async function loadAvailabilityHistory() {
+  async function loadAvailabilityHistory(page = 1) {
     setAvailHistLoading(true)
-    try { const d = await api.history.availability({ limit: 50 }, token); setAvailHistory(d.data || []) }
-    catch (err) { console.error(err) }
+    try {
+      const d = await api.history.availability({ page, limit: 20 }, token)
+      setAvailHistory(d.data || [])
+      setAvailHistTotal(d.total || 0)
+      setAvailHistPage(page)
+      setAvailHistPages(d.totalPages || 1)
+    } catch (err) { console.error(err) }
     finally { setAvailHistLoading(false) }
   }
 
@@ -3691,7 +3699,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                 {historySubTab === 'availability' && (
                   <div className="space-y-3">
                     <div className="flex justify-end">
-                      <button onClick={loadAvailabilityHistory} disabled={availHistLoading}
+                      <button onClick={() => loadAvailabilityHistory(availHistPage)} disabled={availHistLoading}
                         className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">
                         {availHistLoading ? 'Loading…' : 'Refresh'}
                       </button>
@@ -3725,6 +3733,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                             )
                           })}
                         </div>
+                        <Pagination page={availHistPage} totalPages={availHistPages} total={availHistTotal} onPageChange={loadAvailabilityHistory} loading={availHistLoading}/>
                       </div>
                     )}
                   </div>

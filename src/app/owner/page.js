@@ -65,7 +65,7 @@ export default function OwnerPage() {
   const [expandedMenuId, setExpandedMenuId] = useState(null)
   const [menuItemsMap,   setMenuItemsMap]   = useState({}) // { restaurantId: items[] }
   const [menuLoading,    setMenuLoading]    = useState(false)
-  const [availHistory,   setAvailHistory]   = useState([])
+  const [availHistoryMap, setAvailHistoryMap] = useState({}) // { restaurantId: { items, page, totalPages, loading } }
 
   // Auth guard — owner only
   useEffect(() => {
@@ -98,14 +98,28 @@ export default function OwnerPage() {
       setReqPage(1)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
-    loadAvailHistory()
   }
 
-  async function loadAvailHistory() {
+  async function loadAvailHistory(restaurantId, page = 1) {
+    setAvailHistoryMap(m => ({ ...m, [restaurantId]: { items: [], totalPages: 1, ...m[restaurantId], loading: true } }))
     try {
-      const data = await api.owner.availabilityHistory(token)
-      setAvailHistory(data.data || [])
-    } catch (err) { console.error(err) }
+      const data = await api.owner.availabilityHistory({ restaurant_id: restaurantId, page, limit: 5 }, token)
+      setAvailHistoryMap(m => {
+        const prevItems = page > 1 ? (m[restaurantId]?.items || []) : []
+        return {
+          ...m,
+          [restaurantId]: {
+            items: [...prevItems, ...(data.data || [])],
+            page,
+            totalPages: data.totalPages || 1,
+            loading: false,
+          },
+        }
+      })
+    } catch (err) {
+      console.error(err)
+      setAvailHistoryMap(m => ({ ...m, [restaurantId]: { items: [], totalPages: 1, ...m[restaurantId], loading: false } }))
+    }
   }
 
   async function loadRequests(page = 1, filter = statusFilter) {
@@ -147,6 +161,7 @@ export default function OwnerPage() {
       } catch (err) { console.error(err) }
       finally { setMenuLoading(false) }
     }
+    if (!availHistoryMap[restaurantId]) loadAvailHistory(restaurantId, 1)
   }
 
   async function toggleItemAvailability(restaurantId, item) {
@@ -157,7 +172,7 @@ export default function OwnerPage() {
     }))
     try {
       await api.menuItems.setAvailability(item.id, next, token)
-      loadAvailHistory()
+      loadAvailHistory(restaurantId, 1)
     } catch (err) {
       setMenuItemsMap(m => ({
         ...m,
@@ -291,11 +306,11 @@ export default function OwnerPage() {
                     )}
 
                     {/* Recent activity — who changed availability, and when */}
-                    {availHistory.filter(h => h.meta?.restaurant_id === r.id).length > 0 && (
+                    {availHistoryMap[r.id]?.items?.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent activity</p>
                         <div className="space-y-1.5">
-                          {availHistory.filter(h => h.meta?.restaurant_id === r.id).slice(0, 5).map(h => (
+                          {availHistoryMap[r.id].items.map(h => (
                             <div key={h.id} className="flex items-center gap-2 text-xs text-gray-500">
                               <span className={clsx(
                                 'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0',
@@ -312,6 +327,15 @@ export default function OwnerPage() {
                             </div>
                           ))}
                         </div>
+                        {availHistoryMap[r.id].page < availHistoryMap[r.id].totalPages && (
+                          <button
+                            onClick={() => loadAvailHistory(r.id, availHistoryMap[r.id].page + 1)}
+                            disabled={availHistoryMap[r.id].loading}
+                            className="mt-2 text-xs font-semibold text-[#FF2D55] hover:underline disabled:opacity-50"
+                          >
+                            {availHistoryMap[r.id].loading ? 'Loading…' : 'Load more'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
