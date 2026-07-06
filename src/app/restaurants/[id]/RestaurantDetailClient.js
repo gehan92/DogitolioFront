@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -74,10 +75,28 @@ function RatingBar({ label, count, total }) {
   )
 }
 
-/* ── Menu item detail modal ── */
+/* ── Menu item detail modal ──
+   Rendered through a portal straight to <body> — this component can be
+   triggered from deep inside the menu grid, and a couple of its ancestors
+   (e.g. the tab's opacity-animated wrapper) establish their own CSS
+   stacking context, which can trap a merely-high z-index behind the site's
+   fixed bottom nav / call button instead of actually rendering on top of
+   everything. Portalling to <body> sidesteps that entirely. */
 function MenuItemModal({ item, color, onClose }) {
   const [activePortion, setActivePortion] = useState(0)
-  if (!item) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setActivePortion(0) }, [item?.id])
+
+  useEffect(() => {
+    if (!item) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = original }
+  }, [item])
+
+  if (!item || !mounted) return null
 
   const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
   const activePrice = hasPortions ? Number(item.portions[activePortion]?.price || 0) : item.price
@@ -86,7 +105,7 @@ function MenuItemModal({ item, color, onClose }) {
     ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
     : []
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in"
       onClick={onClose}
@@ -173,7 +192,8 @@ function MenuItemModal({ item, color, onClose }) {
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
