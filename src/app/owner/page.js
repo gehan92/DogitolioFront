@@ -65,6 +65,7 @@ export default function OwnerPage() {
   const [expandedMenuId, setExpandedMenuId] = useState(null)
   const [menuItemsMap,   setMenuItemsMap]   = useState({}) // { restaurantId: items[] }
   const [menuLoading,    setMenuLoading]    = useState(false)
+  const [availHistory,   setAvailHistory]   = useState([])
 
   // Auth guard — owner only
   useEffect(() => {
@@ -97,6 +98,14 @@ export default function OwnerPage() {
       setReqPage(1)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
+    loadAvailHistory()
+  }
+
+  async function loadAvailHistory() {
+    try {
+      const data = await api.owner.availabilityHistory(token)
+      setAvailHistory(data.data || [])
+    } catch (err) { console.error(err) }
   }
 
   async function loadRequests(page = 1, filter = statusFilter) {
@@ -148,6 +157,7 @@ export default function OwnerPage() {
     }))
     try {
       await api.menuItems.setAvailability(item.id, next, token)
+      loadAvailHistory()
     } catch (err) {
       setMenuItemsMap(m => ({
         ...m,
@@ -277,6 +287,31 @@ export default function OwnerPage() {
                             </div>
                           )
                         })}
+                      </div>
+                    )}
+
+                    {/* Recent activity — who changed availability, and when */}
+                    {availHistory.filter(h => h.meta?.restaurant_id === r.id).length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent activity</p>
+                        <div className="space-y-1.5">
+                          {availHistory.filter(h => h.meta?.restaurant_id === r.id).slice(0, 5).map(h => (
+                            <div key={h.id} className="flex items-center gap-2 text-xs text-gray-500">
+                              <span className={clsx(
+                                'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0',
+                                h.meta?.is_available !== false ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                              )}>
+                                {h.meta?.is_available !== false ? 'Available' : 'Sold out'}
+                              </span>
+                              <span className="truncate">{h.target}</span>
+                              <span className="text-gray-300 shrink-0">·</span>
+                              <span className="shrink-0">by {h.profiles?.name || 'Unknown'}</span>
+                              <span className="text-gray-400 shrink-0 ml-auto">
+                                {new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

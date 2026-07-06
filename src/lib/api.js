@@ -102,6 +102,7 @@ export const api = {
     myRequests:    (params, token) => apiFetch('/owner/change-requests?' + new URLSearchParams(params), {}, token),
     getRequest:    (id, token)     => apiFetch(`/owner/change-requests/${id}`, {}, token),
     createRequest: (data, token)   => apiFetch('/owner/change-requests', { method: 'POST', body: JSON.stringify(data) }, token),
+    availabilityHistory: (token)   => apiFetch('/owner/availability-history', {}, token),
   },
 
   // ── ADMIN
