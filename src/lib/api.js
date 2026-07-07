@@ -8,7 +8,11 @@ async function apiFetch(path, options = {}, token = null) {
 
   const res  = await fetch(`${BASE}/api${path}`, { ...options, headers })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Something went wrong')
+  if (!res.ok) {
+    const err = new Error(data.error || 'Something went wrong')
+    err.status = res.status
+    throw err
+  }
   return data
 }
 

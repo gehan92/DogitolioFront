@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Check } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import clsx from 'clsx'
 
 const POLL_MS = 30000
+const BACKOFF_MS = 2 * 60 * 1000 // pause polling for 2min after a 429
 
 function timeAgo(iso) {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime())
@@ -34,14 +35,19 @@ export default function NotificationBell() {
   const [items,       setItems]       = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading,     setLoading]     = useState(false)
+  const blockedUntil = useRef(0)
 
   const fetchNotifications = useCallback(async () => {
     if (!token) return
+    if (Date.now() < blockedUntil.current) return
     try {
       const d = await api.notifications.list({ limit: 8 }, token)
       setItems(d.data || [])
       setUnreadCount(d.unreadCount ?? 0)
-    } catch { /* silent — bell just stays as-is until next poll */ }
+    } catch (err) {
+      if (err?.status === 429) blockedUntil.current = Date.now() + BACKOFF_MS
+      /* silent — bell just stays as-is until next poll */
+    }
   }, [token])
 
   useEffect(() => {
