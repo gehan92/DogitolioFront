@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react'
+import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight, LocateFixed, X } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
@@ -43,6 +43,50 @@ function RestaurantsContent() {
   const [loading,     setLoading]     = useState(true)
   const [page,        setPage]        = useState(1)
 
+  // "Near me" — gated by a superuser-controlled site setting
+  const [nearMeFeatureOn, setNearMeFeatureOn] = useState(false)
+  const [nearMeActive,    setNearMeActive]    = useState(false)
+  const [nearMeLoading,   setNearMeLoading]   = useState(false)
+  const [nearMeError,     setNearMeError]     = useState('')
+  const [coords,          setCoords]          = useState(null)
+
+  useEffect(() => {
+    api.siteContent.get('settings')
+      .then(d => setNearMeFeatureOn(!!d?.content?.near_me_enabled))
+      .catch(() => {})
+  }, [])
+
+  function handleNearMeToggle() {
+    if (nearMeActive) {
+      setNearMeActive(false)
+      setCoords(null)
+      setNearMeError('')
+      return
+    }
+    if (!navigator.geolocation) {
+      setNearMeError('Location is not supported on this device.')
+      return
+    }
+    setNearMeLoading(true)
+    setNearMeError('')
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setNearMeActive(true)
+        setNearMeLoading(false)
+      },
+      err => {
+        setNearMeLoading(false)
+        setNearMeError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location access was denied. Enable it in your browser settings to use this.'
+            : 'Could not get your location. Please try again.'
+        )
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    )
+  }
+
   // All active filters read from the URL — single source of truth
   const filters = {
     town:        params.get('town')        || '',
@@ -62,6 +106,10 @@ function RestaurantsContent() {
       const activeFilters = Object.fromEntries(
         Object.entries(filters).filter(([, value]) => value)
       )
+      if (nearMeActive && coords) {
+        activeFilters.lat = coords.lat
+        activeFilters.lng = coords.lng
+      }
       const result = await api.restaurants.list({ page: pageNumber, limit: 12, ...activeFilters })
       setVenues(result.data || [])
       setTotal(result.total || 0)
@@ -71,12 +119,12 @@ function RestaurantsContent() {
     } finally {
       setLoading(false)
     }
-  }, [params])
+  }, [params, nearMeActive, coords])
 
   useEffect(() => {
     setPage(1)
     fetchVenues(1)
-  }, [params])
+  }, [params, nearMeActive, coords])
 
   function handleSearch(searchParams) {
     const newParams = new URLSearchParams()
@@ -126,6 +174,27 @@ function RestaurantsContent() {
         <div className="mb-6">
           <SearchBar onSearch={handleSearch} initialFilters={filters} compact />
         </div>
+
+        {/* Near me */}
+        {nearMeFeatureOn && (
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <button
+              onClick={handleNearMeToggle}
+              disabled={nearMeLoading}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold border transition-colors disabled:opacity-50 ${
+                nearMeActive
+                  ? 'bg-brand-500 text-white border-transparent'
+                  : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary'
+              }`}
+            >
+              <LocateFixed size={15} className={nearMeLoading ? 'animate-pulse' : ''} />
+              {nearMeLoading ? 'Locating…' : nearMeActive ? 'Near me' : 'Search near me'}
+              {nearMeActive && <X size={13} className="ml-0.5 opacity-80" />}
+            </button>
+            {nearMeActive && <span className="text-xs text-[var(--c-muted)]">Sorted by distance from you</span>}
+            {nearMeError && <span className="text-xs text-red-600">{nearMeError}</span>}
+          </div>
+        )}
 
         {/* Category tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide">

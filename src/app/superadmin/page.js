@@ -994,7 +994,7 @@ export default function SuperAdminPage() {
           )}
 
           {/* ── SYSTEM ───────────────────────────────────────────────────── */}
-          {tab === 'System' && <SystemSection profile={profile} />}
+          {tab === 'System' && <SystemSection profile={profile} token={token} />}
 
           {/* ── REPORTS ──────────────────────────────────────────────────── */}
           {tab === 'Reports' && (
@@ -1454,7 +1454,28 @@ function AuditSection({
 // ════════════════════════════════════════════════════════════════════════════
 // SYSTEM SECTION
 // ════════════════════════════════════════════════════════════════════════════
-function SystemSection({ profile }) {
+function SystemSection({ profile, token }) {
+  const [nearMeEnabled, setNearMeEnabled] = useState(false)
+  const [flagsLoading,  setFlagsLoading]  = useState(true)
+  const [flagSaving,    setFlagSaving]    = useState(false)
+
+  useEffect(() => {
+    api.siteContent.get('settings')
+      .then(d => setNearMeEnabled(!!d?.content?.near_me_enabled))
+      .catch(() => {})
+      .finally(() => setFlagsLoading(false))
+  }, [])
+
+  async function toggleNearMe() {
+    const next = !nearMeEnabled
+    setFlagSaving(true)
+    try {
+      await api.superadmin.updateSettings({ near_me_enabled: next }, token)
+      setNearMeEnabled(next)
+    } catch (err) { console.error(err) }
+    finally { setFlagSaving(false) }
+  }
+
   const items = [
     { label: 'Your Role',    value: 'superuser',                                                    highlight: true  },
     { label: 'Your Name',    value: profile?.name || '—',                                           highlight: false },
@@ -1467,6 +1488,29 @@ function SystemSection({ profile }) {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
+        <div className="px-5 py-4 border-b border-[var(--c-border)]">
+          <h3 className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>Feature Flags</h3>
+        </div>
+        <div className="flex items-center justify-between px-5 py-4 gap-3 flex-wrap">
+          <div>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>&quot;Near me&quot; distance search</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--c-muted)' }}>
+              Lets visitors sort restaurants by distance using their browser location, on the Restaurants page.
+            </p>
+          </div>
+          <button
+            onClick={toggleNearMe}
+            disabled={flagsLoading || flagSaving}
+            className={clsx('flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shrink-0 disabled:opacity-50',
+              nearMeEnabled ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200')}
+          >
+            {nearMeEnabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+            {nearMeEnabled ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-[var(--c-border)] overflow-hidden" style={{ background: 'var(--c-surface)' }}>
         <div className="px-5 py-4 border-b border-[var(--c-border)]">
           <h3 className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>System Information</h3>

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, UtensilsCrossed, Building2, Coffee, ShoppingBag,
   ImagePlus, X, Zap, ZapOff, CheckCircle2, Check, Clock, History, Wrench,
-  FileText, Upload, Trash2, QrCode, Download, ToggleLeft, ToggleRight,
+  FileText, Upload, Trash2, QrCode, Download, ToggleLeft, ToggleRight, LocateFixed,
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import Navbar from '@/components/layout/Navbar'
@@ -53,6 +53,7 @@ export default function EditRestaurantPage() {
   const [fetchLoading, setFetchLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState('')
+  const [locating, setLocating] = useState(false)
   const fileInputRef = useRef()
 
   const [activeMenu,    setActiveMenu]    = useState(null)
@@ -116,6 +117,8 @@ export default function EditRestaurantPage() {
         cuisine_types,
         brand_color:       data.brand_color || '#FF2D55',
         google_maps_embed: data.google_maps_embed || '',
+        latitude:          data.latitude  != null ? String(data.latitude)  : '',
+        longitude:         data.longitude != null ? String(data.longitude) : '',
         cover_image:       data.cover_image || null,
         category:          data.category || 'restaurant',
         category_meta:     data.category_meta || {},
@@ -158,6 +161,20 @@ export default function EditRestaurantPage() {
     if (!file) return
     setCoverFile(file)
     setCoverPreview(URL.createObjectURL(file))
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) { setError('Location is not supported on this device.'); return }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        set('latitude', pos.coords.latitude.toFixed(6))
+        set('longitude', pos.coords.longitude.toFixed(6))
+        setLocating(false)
+      },
+      () => { setLocating(false); setError('Could not get your current location.') },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
   }
 
   function removeCover() {
@@ -293,7 +310,13 @@ export default function EditRestaurantPage() {
           .getPublicUrl(path)
         cover_image = publicUrl
       }
-      await api.restaurants.update(id, { ...form, cover_image }, token)
+      const payload = {
+        ...form,
+        cover_image,
+        latitude:  form.latitude  !== '' ? +form.latitude  : null,
+        longitude: form.longitude !== '' ? +form.longitude : null,
+      }
+      await api.restaurants.update(id, payload, token)
       router.push(`/restaurants/${id}`)
     } catch (err) {
       setError(err.message)
@@ -494,6 +517,29 @@ export default function EditRestaurantPage() {
                 onFocus={e => e.target.style.borderColor = accent + '66'}
                 onBlur={e => e.target.style.borderColor = ''} />
               <p className="text-xs text-[var(--c-dim)] mt-1">Google Maps → Share → Embed a map → copy only the src="…" value</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--c-muted)]">Coordinates (for "near me" search)</label>
+                <button type="button" onClick={useCurrentLocation} disabled={locating}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 disabled:opacity-50">
+                  <LocateFixed size={12} /> {locating ? 'Locating…' : 'Use my current location'}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="number" step="any" value={form.latitude} onChange={e => set('latitude', e.target.value)}
+                  placeholder="Latitude, e.g. 6.9271"
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = accent + '66'}
+                  onBlur={e => e.target.style.borderColor = ''} />
+                <input type="number" step="any" value={form.longitude} onChange={e => set('longitude', e.target.value)}
+                  placeholder="Longitude, e.g. 79.8612"
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+                  onFocus={e => e.target.style.borderColor = accent + '66'}
+                  onBlur={e => e.target.style.borderColor = ''} />
+              </div>
+              <p className="text-xs text-[var(--c-dim)] mt-1">On Google Maps, right-click the exact spot → click the coordinates to copy them.</p>
             </div>
           </div>
 

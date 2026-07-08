@@ -166,6 +166,7 @@ export const api = {
     writeLog:  (data, token)      => apiFetch('/superadmin/audit-logs', { method: 'POST', body: JSON.stringify(data) }, token),
     adminPermissions:       (adminId, token)             => apiFetch(`/superadmin/admin-permissions/${adminId}`, {}, token),
     updateAdminPermissions: (adminId, permissions, token) => apiFetch(`/superadmin/admin-permissions/${adminId}`, { method: 'PUT', body: JSON.stringify({ permissions }) }, token),
+    updateSettings:         (data, token)                 => apiFetch('/superadmin/settings', { method: 'PUT', body: JSON.stringify(data) }, token),
   },
 
   // ── HISTORY

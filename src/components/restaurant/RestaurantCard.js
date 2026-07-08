@@ -19,6 +19,10 @@ function isBoostActive(venue) {
   return new Date(venue.boost_expires_at) > new Date()
 }
 
+function formatDistance(km) {
+  return km < 1 ? `${Math.round(km * 1000)} m away` : `${km.toFixed(1)} km away`
+}
+
 export default function RestaurantCard({ restaurant: venue, className }) {
   const {
     id, name, description, town, district, cover_image,
@@ -119,6 +123,9 @@ export default function RestaurantCard({ restaurant: venue, className }) {
         <div className="flex items-center gap-1 text-[var(--c-muted)] text-sm mb-2 min-w-0">
           <MapPin size={13} className="shrink-0" />
           <span className="truncate">{town}{district ? `, ${district}` : ''}</span>
+          {typeof venue.distance_km === 'number' && (
+            <span className="shrink-0 text-xs font-semibold text-brand-600">· {formatDistance(venue.distance_km)}</span>
+          )}
         </div>
 
         {rating > 0 && (
