@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useRouter }                      from 'next/navigation'
 import Link                               from 'next/link'
 import {
@@ -9,7 +9,7 @@ import {
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
   Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
   Bell, BarChart2, HelpCircle, DollarSign, ClipboardCheck,
-  Ticket, ListTodo, Send, ChevronUp, TrendingUp, Play,
+  Ticket, ListTodo, Send, ChevronUp, TrendingUp, Play, Search,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
@@ -21,6 +21,7 @@ import { api }          from '@/lib/api'
 import clsx             from 'clsx'
 
 const PAGE_SIZE = 12
+const REST_PAGE_SIZE = 24
 
 // Sections staff can have access toggled for (admin-only sections excluded)
 const STAFF_SECTIONS = [
@@ -153,6 +154,8 @@ export default function AdminPage() {
   const [restTotal,      setRestTotal]      = useState(0)
   const [restTotalPages, setRestTotalPages] = useState(1)
   const [restsLoading,   setRestsLoading]   = useState(false)
+  const [restSearch,     setRestSearch]     = useState('')
+  const restSearchTimeout = useRef(null)
 
   // ── Restaurant options (all, for dropdowns)
   const [restaurantOptions, setRestaurantOptions] = useState([])
@@ -590,7 +593,7 @@ export default function AdminPage() {
       if (isAdmin) {
         const requests = [
           api.admin.stats(token),
-          api.restaurants.list({ limit: 200 }),
+          api.restaurants.list({ limit: 5000 }),
         ]
         if (!isSuperuser) requests.push(
           supabase.from('admin_permissions').select('section, can_access').eq('admin_id', profile.id)
@@ -606,7 +609,7 @@ export default function AdminPage() {
       } else {
         // Staff: load restaurant options + own section permissions from Supabase (RLS allows)
         const [optsData, permsData] = await Promise.all([
-          api.restaurants.list({ limit: 200 }),
+          api.restaurants.list({ limit: 5000 }),
           supabase.from('staff_permissions').select('section, can_access').eq('staff_id', profile.id),
         ])
         setRestaurantOptions(optsData.data || [])
@@ -618,16 +621,24 @@ export default function AdminPage() {
     finally { setLoading(false) }
   }
 
-  async function loadRestaurants(page = 1) {
+  async function loadRestaurants(page = 1, search = restSearch) {
     setRestsLoading(true)
     try {
-      const data = await api.restaurants.list({ page, limit: PAGE_SIZE, showAll: 1 })
+      const params = { page, limit: REST_PAGE_SIZE, showAll: 1 }
+      if (search) params.name = search
+      const data = await api.restaurants.list(params)
       setRestaurants(data.data || [])
       setRestTotal(data.total ?? 0)
-      setRestTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE))
+      setRestTotalPages(data.totalPages ?? Math.ceil((data.total ?? 0) / REST_PAGE_SIZE))
       setRestPage(page)
     } catch (err) { console.error(err) }
     finally { setRestsLoading(false) }
+  }
+
+  function handleRestSearchChange(value) {
+    setRestSearch(value)
+    clearTimeout(restSearchTimeout.current)
+    restSearchTimeout.current = setTimeout(() => loadRestaurants(1, value), 400)
   }
 
   async function loadReviews(page = 1) {
@@ -1751,15 +1762,27 @@ export default function AdminPage() {
 
                 {/* Restaurants list */}
                 <div className="card overflow-hidden">
-                  <div className="flex items-center justify-between p-4 border-b border-[var(--c-border)]">
+                  <div className="flex items-center justify-between gap-3 flex-wrap p-4 border-b border-[var(--c-border)]">
                     <h3 className="font-semibold text-[var(--c-text)]">
                       All restaurants {restTotal > 0 && <span className="ml-1 font-normal text-[var(--c-muted)]">({restTotal})</span>}
                     </h3>
-                    {isAdmin && (
-                      <Link href="/admin/restaurants/new">
-                        <Button size="sm" variant="secondary"><Plus size={14} /> Add new</Button>
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--c-dim)] pointer-events-none" />
+                        <input
+                          type="text"
+                          value={restSearch}
+                          onChange={e => handleRestSearchChange(e.target.value)}
+                          placeholder="Search by name…"
+                          className="pl-8 pr-3 py-1.5 text-sm border border-[var(--c-border)] rounded-lg bg-[var(--c-surface)] outline-none focus:ring-2 focus:ring-[#FF2D55]/30 w-44 sm:w-56"
+                        />
+                      </div>
+                      {isAdmin && (
+                        <Link href="/admin/restaurants/new">
+                          <Button size="sm" variant="secondary"><Plus size={14} /> Add new</Button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
 
                   {/* Bulk action bar */}
@@ -1783,7 +1806,9 @@ export default function AdminPage() {
                   )}
 
                   {restsLoading ? <TabSpinner /> : restaurants.length === 0 ? (
-                    <p className="text-sm text-[var(--c-muted)] text-center py-10">No restaurants yet.</p>
+                    <p className="text-sm text-[var(--c-muted)] text-center py-10">
+                      {restSearch ? `No restaurants match "${restSearch}".` : 'No restaurants yet.'}
+                    </p>
                   ) : (
                     <>
                       <div className="divide-y divide-[var(--c-border)]">
