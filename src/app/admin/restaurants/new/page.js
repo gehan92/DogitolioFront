@@ -89,8 +89,15 @@ export default function NewRestaurantPage() {
         set('longitude', pos.coords.longitude.toFixed(6))
         setLocating(false)
       },
-      () => { setLocating(false); setError('Could not get your current location.') },
-      { enableHighAccuracy: true, timeout: 10000 }
+      err => {
+        setLocating(false)
+        setError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location access was denied. Allow it for this site in your browser settings and try again.'
+            : 'Could not get your current location. Make sure location services are turned on for your browser/device, then try again.'
+        )
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     )
   }
 
