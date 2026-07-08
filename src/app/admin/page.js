@@ -357,6 +357,8 @@ export default function AdminPage() {
   const [ticketsPage,     setTicketsPage]     = useState(1)
   const [ticketsTotalPgs, setTicketsTotalPgs] = useState(1)
   const [ticketFilter,    setTicketFilter]    = useState('')
+  const [ticketPriorityFilter, setTicketPriorityFilter] = useState('')
+  const [ticketAssigneeFilter, setTicketAssigneeFilter] = useState('')
   const [expandedTicket,  setExpandedTicket]  = useState(null)
   const [ticketReply,     setTicketReply]     = useState('')
   const [ticketReplying,  setTicketReplying]  = useState(false)
@@ -912,11 +914,13 @@ export default function AdminPage() {
     finally { setAnnouncementsLoading(false) }
   }
 
-  async function loadTickets(page = 1, status = ticketFilter) {
+  async function loadTickets(page = 1, status = ticketFilter, priority = ticketPriorityFilter, assignee = ticketAssigneeFilter) {
     setTicketsLoading(true)
     try {
       const params = { page, limit: 20 }
-      if (status) params.status = status
+      if (status)   params.status = status
+      if (priority) params.priority = priority
+      if (assignee) params.assigned_to = assignee
       const d = await api.tickets.list(params, token)
       setTickets(d.data || [])
       setTicketsTotal(d.total || 0)
@@ -984,7 +988,7 @@ export default function AdminPage() {
     else if (key === 'FAQs')           { loadFaqs() }
     else if (key === 'Tasks')           { loadTasks(1); loadAssignableStaff() }
     else if (key === 'Announcements')   { loadAnnouncements() }
-    else if (key === 'Tickets')         { loadTickets(1) }
+    else if (key === 'Tickets')         { loadTickets(1); if (isAdmin) loadAssignableStaff() }
     else if (key === 'Revenue')         { loadPayments(1) }
     else if (key === 'Reports')         { loadReports(); loadAssignableStaff() }
     else if (key === 'Gallery')         { /* user picks restaurant first */ }
@@ -4238,12 +4242,25 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
               <div className="space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-semibold text-[var(--c-text)] flex items-center gap-2"><Ticket size={17}/> Support Tickets {ticketsTotal > 0 && <span className="text-[var(--c-muted)] font-normal text-base">({ticketsTotal})</span>}</h3>
-                  <div className="flex gap-2">
-                    <select value={ticketFilter} onChange={e => { setTicketFilter(e.target.value); loadTickets(1, e.target.value) }}
+                  <div className="flex gap-2 flex-wrap">
+                    <select value={ticketFilter} onChange={e => { setTicketFilter(e.target.value); loadTickets(1, e.target.value, ticketPriorityFilter, ticketAssigneeFilter) }}
                       className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
                       <option value="">All Statuses</option>
                       {['open','in_progress','resolved','closed'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
+                    <select value={ticketPriorityFilter} onChange={e => { setTicketPriorityFilter(e.target.value); loadTickets(1, ticketFilter, e.target.value, ticketAssigneeFilter) }}
+                      className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                      <option value="">All Priorities</option>
+                      {['low','medium','high','urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    {isAdmin && (
+                      <select value={ticketAssigneeFilter} onChange={e => { setTicketAssigneeFilter(e.target.value); loadTickets(1, ticketFilter, ticketPriorityFilter, e.target.value) }}
+                        className="px-3 py-2 rounded-xl border border-[var(--c-border)] text-sm bg-[var(--c-bg)] text-[var(--c-text)]">
+                        <option value="">All Assignees</option>
+                        <option value="unassigned">Unassigned</option>
+                        {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
+                    )}
                     <button onClick={() => loadTickets(1)} disabled={ticketsLoading} className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--c-border)] hover:bg-surface-secondary transition-all disabled:opacity-50">Refresh</button>
                   </div>
                 </div>
@@ -4253,6 +4270,7 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                   <div className="card overflow-hidden divide-y divide-[var(--c-border)]">
                     {tickets.map(t => {
                       const sc = { open: 'bg-red-50 text-red-600', in_progress: 'bg-blue-50 text-blue-700', resolved: 'bg-green-50 text-green-700', closed: 'bg-gray-50 text-gray-500' }
+                      const pc = { low: 'bg-gray-50 text-gray-500', medium: 'bg-blue-50 text-blue-700', high: 'bg-amber-50 text-amber-700', urgent: 'bg-red-50 text-red-600' }
                       const isExp = expandedTicket?.id === t.id
                       return (
                         <div key={t.id}>
@@ -4265,7 +4283,10 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-semibold text-sm text-[var(--c-text)]">{t.subject}</p>
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sc[t.status] || 'bg-gray-50 text-gray-600'}`}>{t.status}</span>
-                                <span className="text-[10px] text-[var(--c-muted)]">{t.priority}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${pc[t.priority] || 'bg-gray-50 text-gray-600'}`}>{t.priority}</span>
+                                {t.assignee?.name && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-600">→ {t.assignee.name}</span>
+                                )}
                               </div>
                               <p className="text-xs text-[var(--c-muted)] mt-0.5">by {t.profiles?.name || 'Unknown'} · {new Date(t.created_at).toLocaleDateString()}</p>
                             </div>
@@ -4282,6 +4303,34 @@ CREATE POLICY "admin_manage" ON banners FOR ALL   USING (auth.role() = 'authenti
                                   }} className={`px-3 py-1 rounded-lg text-xs font-semibold border ${expandedTicket.status === s ? 'bg-[var(--c-primary)] text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}>{s}</button>
                                 ))}
                               </div>
+                              <div className="flex gap-2 flex-wrap">
+                                {['low','medium','high','urgent'].map(p => (
+                                  <button key={p} onClick={async () => {
+                                    await api.tickets.update(t.id, { priority: p }, token)
+                                    setExpandedTicket(prev => ({...prev, priority: p}))
+                                    loadTickets(ticketsPage)
+                                  }} className={`px-3 py-1 rounded-lg text-xs font-semibold border ${expandedTicket.priority === p ? 'bg-[var(--c-primary)] text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}>{p}</button>
+                                ))}
+                              </div>
+                              {isAdmin && (
+                                <div>
+                                  <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Assign to staff</label>
+                                  <select
+                                    value={expandedTicket.assigned_to || ''}
+                                    onChange={async e => {
+                                      const assigned_to = e.target.value || null
+                                      await api.tickets.update(t.id, { assigned_to }, token)
+                                      const assignee = assignableStaff.find(u => u.id === assigned_to) || null
+                                      setExpandedTicket(prev => ({...prev, assigned_to, assignee}))
+                                      loadTickets(ticketsPage)
+                                    }}
+                                    className={inputCls}
+                                  >
+                                    <option value="">— Unassigned —</option>
+                                    {assignableStaff.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                                  </select>
+                                </div>
+                              )}
                               <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {(expandedTicket.messages || []).map(m => (
                                   <div key={m.id} className={`p-3 rounded-xl text-sm ${m.is_staff ? 'bg-blue-50 text-blue-900 ml-8' : 'bg-white border border-[var(--c-border)] mr-8'}`}>
