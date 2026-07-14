@@ -412,7 +412,8 @@ function RestaurantsContent() {
 
             <div className={clsx(
               mobileView !== 'map' && 'hidden', 'lg:block',
-              'h-[280px] sm:h-[360px] lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden'
+              'h-[280px] sm:h-[360px] lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden',
+              'border border-[var(--c-border)] shadow-[0_1px_3px_rgba(0,0,0,.04),0_4px_12px_rgba(0,0,0,.06)]'
             )}>
               {mapMounted && (
                 <RestaurantMap venues={venues} center={coords} radiusKm={radiusKm} className="h-full" />

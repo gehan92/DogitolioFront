@@ -102,3 +102,51 @@ section.bg-white, section[class*="bg-white"] { background-color: var(--c-bg) ; }
 /* ── Star rating empty state */
 .fill-gray-200 { fill: var(--c-border2) ; }
 .text-gray-200 { color: var(--c-border2) ; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEAR-ME MAP (Leaflet) — themed popups, floating controls, marker polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.leaflet-container { font-family: var(--font-body); background: var(--c-surface2); }
+
+.leaflet-popup-content-wrapper {
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+}
+.leaflet-popup-content { margin: 0; width: auto !important; }
+.leaflet-popup-tip { background: var(--c-surface); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+.leaflet-popup-close-button { color: var(--c-muted) !important; top: 8px !important; right: 8px !important; z-index: 2; }
+.leaflet-popup-close-button:hover { color: var(--c-text) !important; }
+
+.venue-popup-image { height: 96px; background-size: cover; background-position: center; }
+.venue-popup-body { padding: 10px 12px 12px; }
+.venue-popup-cat { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+.venue-popup-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.venue-popup-name { display: block; font-size: 14px; font-weight: 700; color: var(--c-text); line-height: 1.25; margin-bottom: 6px; }
+.venue-popup-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.venue-popup-rating { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-muted); font-weight: 600; }
+.venue-popup-distance { font-size: 12px; color: var(--c-muted); margin-bottom: 8px; }
+.venue-popup-link { display: inline-block; font-size: 12.5px; font-weight: 700; color: var(--c-brand); }
+.venue-popup-link:hover { text-decoration: underline; }
+
+.leaflet-control-zoom { border: none !important; box-shadow: 0 2px 10px rgba(0,0,0,.15) !important; border-radius: 10px !important; overflow: hidden; margin: 0 12px 20px 0 !important; }
+.leaflet-control-zoom a { background: var(--c-surface) !important; color: var(--c-text) !important; border: none !important; width: 32px !important; height: 32px !important; line-height: 32px !important; }
+.leaflet-control-zoom a:hover { background: var(--c-surface2) !important; }
+.leaflet-control-attribution { background: rgba(255,255,255,.75) !important; backdrop-filter: blur(4px); font-size: 10px !important; border-radius: 6px 0 0 0; }
+:root.dark .leaflet-control-attribution { background: rgba(20,20,26,.75) !important; color: var(--c-dim); }
+:root.dark .leaflet-control-attribution a { color: var(--c-muted); }
+
+.venue-pin { filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .15s ease; }
+.venue-pin:hover { transform: translateY(-2px) scale(1.06); }
+
+.user-pin-ring { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; animation: user-pulse 2.2s ease-out infinite; }
+.user-pin-dot { width: 12px; height: 12px; border-radius: 50%; background: #2563eb; border: 2.5px solid white; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+@keyframes user-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(37,99,235,.35); }
+  70%  { box-shadow: 0 0 0 12px rgba(37,99,235,0); }
+  100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+}
