@@ -72,7 +72,12 @@ export default function NotificationBell() {
     if (!n.is_read) {
       setItems(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
       setUnreadCount(c => Math.max(0, c - 1))
-      api.notifications.read(n.id, token).catch(() => {})
+      api.notifications.read(n.id, token).catch(() => {
+        // Revert immediately instead of leaving it stuck as "read" until the
+        // next poll silently flips it back with no explanation.
+        setItems(prev => prev.map(x => x.id === n.id ? { ...x, is_read: false } : x))
+        setUnreadCount(c => c + 1)
+      })
     }
     if (n.link) router.push(n.link)
   }
