@@ -37,11 +37,11 @@ export const api = {
       catch { return filterRestaurants(params) }
     },
     get:    async (id) => {
-      try { return await apiFetch(`/restaurants/${id}`) }
+      try { return await apiFetch(`/restaurants/${encodeURIComponent(id)}`) }
       catch { return DUMMY_RESTAURANTS.find(r => r.id === String(id)) || null }
     },
     getBySlug: async (slug) => {
-      try { return await apiFetch(`/restaurants/by-slug/${slug}`) }
+      try { return await apiFetch(`/restaurants/by-slug/${encodeURIComponent(slug)}`) }
       catch { return null }
     },
     search: async (params = {}) => {

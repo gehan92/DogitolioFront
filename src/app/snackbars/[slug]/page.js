@@ -1,6 +1,6 @@
 import { permanentRedirect, notFound } from 'next/navigation'
 import RestaurantDetailClient from '@/components/restaurant/RestaurantDetailClient'
-import { fetchVenueByParam, canonicalVenuePath, buildVenueMetadata, buildVenueJsonLd } from '@/lib/venuePageHelpers'
+import { fetchVenueByParam, canonicalVenuePath, buildVenueMetadata, buildVenueJsonLd, safeJsonLd } from '@/lib/venuePageHelpers'
 
 export async function generateMetadata({ params }) {
   const venue = await fetchVenueByParam(params.slug)
@@ -24,7 +24,7 @@ export default async function SnackBarPage({ params }) {
       {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
       )}
       <RestaurantDetailClient />

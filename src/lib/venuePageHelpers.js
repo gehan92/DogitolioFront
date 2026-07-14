@@ -13,9 +13,10 @@ const SCHEMA_TYPE = {
 // legacy raw UUID (old shared link) or the current readable slug.
 export async function fetchVenueByParam(param) {
   try {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-    const path = isUuid(param) ? `/api/restaurants/${param}` : `/api/restaurants/by-slug/${param}`
-    const res  = await fetch(`${base}${path}`, { next: { revalidate: 300 } })
+    const base   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    const safe   = encodeURIComponent(param)
+    const path   = isUuid(param) ? `/api/restaurants/${safe}` : `/api/restaurants/by-slug/${safe}`
+    const res    = await fetch(`${base}${path}`, { next: { revalidate: 300 } })
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -25,6 +26,14 @@ export async function fetchVenueByParam(param) {
 
 export function canonicalVenuePath(restaurant) {
   return `/${categoryUrlSegment(restaurant.category)}/${restaurant.slug}`
+}
+
+// JSON.stringify doesn't escape "</", so a venue name/description containing
+// e.g. "</script><script>..." would otherwise break out of the JSON-LD
+// <script> tag it's injected into via dangerouslySetInnerHTML. Escaping "<"
+// to its unicode form neutralizes that without changing the parsed JSON.
+export function safeJsonLd(jsonLd) {
+  return JSON.stringify(jsonLd).replace(/</g, '\\u003c')
 }
 
 export function buildVenueMetadata(restaurant, canonicalPath) {
