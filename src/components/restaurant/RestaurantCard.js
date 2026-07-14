@@ -5,6 +5,7 @@ import { StarRating, PriceBadge, Badge } from '@/components/ui'
 import { getCategoryConfig } from '@/lib/venueCategories'
 import { isRestaurantOpenNow } from '@/lib/restaurantHours'
 import { buildVenueUrl } from '@/lib/venueUrl'
+import { formatDistance } from '@/lib/distance'
 import clsx from 'clsx'
 
 const CATEGORY_ICONS = {
@@ -18,10 +19,6 @@ function isBoostActive(venue) {
   if (!venue.is_boosted) return false
   if (!venue.boost_expires_at) return true
   return new Date(venue.boost_expires_at) > new Date()
-}
-
-function formatDistance(km) {
-  return km < 1 ? `${Math.round(km * 1000)} m away` : `${km.toFixed(1)} km away`
 }
 
 export default function RestaurantCard({ restaurant: venue, className }) {
