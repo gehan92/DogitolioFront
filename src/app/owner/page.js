@@ -10,6 +10,7 @@ import Navbar        from '@/components/layout/Navbar'
 import { Spinner }   from '@/components/ui'
 import { useAuth }   from '@/hooks/useAuth'
 import { api }       from '@/lib/api'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import clsx          from 'clsx'
 
 const REQUEST_TYPES = [
@@ -304,7 +305,7 @@ export default function OwnerPage() {
                     Hours
                     <ChevronDown size={12} className={clsx('transition-transform', expandedHoursId === r.id && 'rotate-180')} />
                   </button>
-                  <Link href={`/restaurants/${r.id}`}>
+                  <Link href={buildVenueUrl(r)}>
                     <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
                       View
                     </button>

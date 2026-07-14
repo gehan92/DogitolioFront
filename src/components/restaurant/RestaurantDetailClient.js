@@ -17,6 +17,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { getCategoryConfig } from '@/lib/venueCategories'
 import { isRestaurantOpenNow, formatHoursRange } from '@/lib/restaurantHours'
+import { isUuid } from '@/lib/venueUrl'
 import clsx from 'clsx'
 
 const TABS = [
@@ -441,7 +442,8 @@ function FloatingCallButton({ phone, color }) {
 }
 
 export default function RestaurantDetailClient() {
-  const { id }          = useParams()
+  const params      = useParams()
+  const routeParam  = params.slug || params.id
   const { user, token } = useAuth()
 
   const [restaurant, setRestaurant] = useState(null)
@@ -459,18 +461,20 @@ export default function RestaurantDetailClient() {
   useEffect(() => {
     async function load() {
       try {
-        const [rest, revs] = await Promise.all([
-          api.restaurants.get(id),
-          api.restaurants.reviews(id, { limit: 20 }),
-        ])
+        const rest = isUuid(routeParam)
+          ? await api.restaurants.get(routeParam)
+          : await api.restaurants.getBySlug(routeParam)
+        if (!rest) return
         setRestaurant(rest)
+
+        const revs = await api.restaurants.reviews(rest.id, { limit: 20 })
         setReviews(revs.data || [])
-        api.gallery.list(id).then(gal => setGallery(gal?.data || [])).catch(() => {})
+        api.gallery.list(rest.id).then(gal => setGallery(gal?.data || [])).catch(() => {})
       } catch (err) { console.error(err) }
       finally { setLoading(false) }
     }
     load()
-  }, [id])
+  }, [routeParam])
 
   useEffect(() => {
     if (lightboxIndex === null) return
@@ -489,7 +493,7 @@ export default function RestaurantDetailClient() {
     setSubmitting(true)
     try {
       const newReview = await api.reviews.create(
-        { restaurant_id: id, rating: myRating, comment: myComment },
+        { restaurant_id: restaurant.id, rating: myRating, comment: myComment },
         token
       )
       setReviews(r => [newReview, ...r])

@@ -12,6 +12,7 @@ import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import { supabase } from '@/lib/supabase'
 import { getCategoryConfig } from '@/lib/venueCategories'
 import { isRestaurantOpenNow } from '@/lib/restaurantHours'
@@ -48,6 +49,7 @@ export default function EditRestaurantPage() {
   const { id } = useParams()
 
   const [form, setForm] = useState(null)
+  const [publicPath, setPublicPath] = useState('')
   const [coverFile,    setCoverFile]    = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
   const [fetchLoading, setFetchLoading] = useState(true)
@@ -98,6 +100,7 @@ export default function EditRestaurantPage() {
     if (!id) return
     api.restaurants.get(id).then(data => {
       if (!data) { setError('Restaurant not found'); setFetchLoading(false); return }
+      setPublicPath(buildVenueUrl(data))
       const cuisine_types = Array.isArray(data.cuisine_types)
         ? data.cuisine_types
         : (typeof data.cuisine_types === 'string' && data.cuisine_types
@@ -323,8 +326,8 @@ export default function EditRestaurantPage() {
         latitude:  form.latitude  !== '' ? +form.latitude  : null,
         longitude: form.longitude !== '' ? +form.longitude : null,
       }
-      await api.restaurants.update(id, payload, token)
-      router.push(`/restaurants/${id}`)
+      const updated = await api.restaurants.update(id, payload, token)
+      router.push(buildVenueUrl(updated))
     } catch (err) {
       setError(err.message)
       setSaving(false)
@@ -1037,7 +1040,7 @@ export default function EditRestaurantPage() {
                   <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400">Scan to View Menu</p>
                   <div className="p-1 rounded-xl" style={{ background: accent + '12' }}>
                     <QRCodeCanvas
-                      value={`${typeof window !== 'undefined' ? window.location.origin : 'https://mealhear.lk'}/restaurants/${id}`}
+                      value={`${typeof window !== 'undefined' ? window.location.origin : 'https://www.mealhere.com'}${publicPath}`}
                       size={152}
                       level="H"
                       fgColor={accent}
@@ -1060,12 +1063,12 @@ export default function EditRestaurantPage() {
                   <p className="text-xs font-bold text-[var(--c-muted)] mb-2 uppercase tracking-wide">Page URL</p>
                   <div className="flex items-center gap-2 bg-gray-50 border border-[var(--c-border)] rounded-xl px-3 py-2.5">
                     <code className="flex-1 text-xs text-[var(--c-text)] break-all leading-relaxed">
-                      {typeof window !== 'undefined' ? window.location.origin : 'https://mealhear.lk'}/restaurants/{id}
+                      {typeof window !== 'undefined' ? window.location.origin : 'https://www.mealhere.com'}{publicPath}
                     </code>
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/restaurants/${id}`)
+                        navigator.clipboard.writeText(`${window.location.origin}${publicPath}`)
                         setCopiedUrl(true)
                         setTimeout(() => setCopiedUrl(false), 2000)
                       }}

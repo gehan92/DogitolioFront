@@ -18,6 +18,7 @@ import { Button, Badge, Avatar, Spinner } from '@/components/ui'
 import { useAuth }      from '@/hooks/useAuth'
 import { supabase }     from '@/lib/supabase'
 import { api }          from '@/lib/api'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import clsx             from 'clsx'
 
 const PAGE_SIZE = 12
@@ -1870,7 +1871,7 @@ export default function AdminPage() {
                                 <Button size="sm" variant="secondary" className="text-xs"><Pencil size={12} /> Edit</Button>
                               </Link>
                               {r.is_active && (
-                                <Link href={`/restaurants/${r.id}`}>
+                                <Link href={buildVenueUrl(r)}>
                                   <Button size="sm" variant="ghost" className="text-xs">View</Button>
                                 </Link>
                               )}

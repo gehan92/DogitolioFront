@@ -7,6 +7,7 @@ import Navbar from '@/components/layout/Navbar'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import { supabase } from '@/lib/supabase'
 import { getCategoryConfig } from '@/lib/venueCategories'
 
@@ -152,7 +153,7 @@ export default function NewRestaurantPage() {
         longitude: form.longitude !== '' ? +form.longitude : null,
       }
       const data = await api.restaurants.create(payload, token)
-      router.push(`/restaurants/${data.id}`)
+      router.push(buildVenueUrl(data))
     } catch (err) {
       setError(err.message)
       setSaving(false)

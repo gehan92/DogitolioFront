@@ -4,6 +4,7 @@ import { MapPin, UtensilsCrossed, Building2, Coffee, ShoppingBag, Zap } from 'lu
 import { StarRating, PriceBadge, Badge } from '@/components/ui'
 import { getCategoryConfig } from '@/lib/venueCategories'
 import { isRestaurantOpenNow } from '@/lib/restaurantHours'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import clsx from 'clsx'
 
 const CATEGORY_ICONS = {
@@ -25,7 +26,7 @@ function formatDistance(km) {
 
 export default function RestaurantCard({ restaurant: venue, className }) {
   const {
-    id, name, description, town, district, cover_image,
+    name, description, town, district, cover_image,
     cuisine_types: cuisine_types_raw, price_range, restaurant_ratings, category,
   } = venue
 
@@ -45,7 +46,7 @@ export default function RestaurantCard({ restaurant: venue, className }) {
 
   return (
     <Link
-      href={`/restaurants/${id}`}
+      href={buildVenueUrl(venue)}
       className={clsx('card block overflow-hidden group relative', boosted && 'ring-2 ring-amber-400 ring-offset-1', className)}
     >
       {/* Cover image */}

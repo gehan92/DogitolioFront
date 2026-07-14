@@ -40,6 +40,10 @@ export const api = {
       try { return await apiFetch(`/restaurants/${id}`) }
       catch { return DUMMY_RESTAURANTS.find(r => r.id === String(id)) || null }
     },
+    getBySlug: async (slug) => {
+      try { return await apiFetch(`/restaurants/by-slug/${slug}`) }
+      catch { return null }
+    },
     search: async (params = {}) => {
       try { return await apiFetch('/restaurants/search?' + new URLSearchParams(params)) }
       catch { return filterRestaurants(params) }

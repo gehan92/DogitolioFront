@@ -8,6 +8,7 @@ import { Avatar, Button, Spinner } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
+import { buildVenueUrl } from '@/lib/venueUrl'
 import clsx from 'clsx'
 
 const EDIT_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
@@ -66,7 +67,7 @@ export default function ProfilePage() {
       setRevLoading(true)
       const { data } = await supabase
         .from('reviews')
-        .select('id, rating, comment, created_at, restaurant_id, restaurants(name, town)')
+        .select('id, rating, comment, created_at, restaurant_id, restaurants(name, town, slug, category)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
       setReviews(data || [])
@@ -463,7 +464,7 @@ export default function ProfilePage() {
                     {/* Restaurant name + date */}
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <Link href={`/restaurants/${review.restaurant_id}`}
+                        <Link href={buildVenueUrl({ id: review.restaurant_id, slug: review.restaurants?.slug, category: review.restaurants?.category })}
                           className="font-semibold text-sm text-[var(--c-text)] hover:text-brand-600 transition-colors">
                           {review.restaurants?.name || 'Restaurant'}
                         </Link>
