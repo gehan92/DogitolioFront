@@ -111,6 +111,7 @@ export const api = {
     myRequests:    (params, token) => apiFetch('/owner/change-requests?' + new URLSearchParams(params), {}, token),
     getRequest:    (id, token)     => apiFetch(`/owner/change-requests/${id}`, {}, token),
     createRequest: (data, token)   => apiFetch('/owner/change-requests', { method: 'POST', body: JSON.stringify(data) }, token),
+    uploadPaymentSlip: (id, formData, token) => formFetch(`${BASE}/api/owner/change-requests/${id}/payment-slip`, token, formData),
     availabilityHistory: (params, token) => apiFetch('/owner/availability-history?' + new URLSearchParams(params), {}, token),
   },
 

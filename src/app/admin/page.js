@@ -9,7 +9,7 @@ import {
   Inbox, Building2, UserCheck, ChevronDown, AlertCircle, Eye, EyeOff, ExternalLink,
   Palette, Moon, Sun, Megaphone, ToggleLeft, ToggleRight,
   Bell, BarChart2, HelpCircle, DollarSign, ClipboardCheck,
-  Ticket, ListTodo, Send, ChevronUp, TrendingUp, Play, Search,
+  Ticket, ListTodo, Send, ChevronUp, TrendingUp, Play, Search, Paperclip,
 } from 'lucide-react'
 import { THEMES } from '@/lib/themes'
 import { adminListBanners, adminSaveBanner, adminToggleBanner, adminDeleteBanner } from '@/lib/banners'
@@ -2137,6 +2137,11 @@ export default function AdminPage() {
                                     )}>
                                       {cr.assignee?.name ? `→ ${cr.assignee.name}` : 'Unassigned'}
                                     </span>
+                                    {cr.payment_slip_path && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 inline-flex items-center gap-1">
+                                        <Paperclip size={10} /> Slip
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="font-medium text-sm text-[var(--c-text)] mt-1">{cr.title}</p>
                                   <p className="text-xs text-[var(--c-muted)] mt-0.5">
@@ -2175,6 +2180,24 @@ export default function AdminPage() {
                                   <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
                                     <p className="text-xs font-semibold text-blue-700 mb-0.5">Admin note</p>
                                     <p className="text-sm text-blue-800">{cr.admin_note}</p>
+                                  </div>
+                                )}
+
+                                {/* Payment slip — proof of payment uploaded by the owner */}
+                                {['approved', 'paid', 'applied'].includes(cr.status) && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide mb-1">Payment slip</p>
+                                    {crExpandedData[cr.id]?.payment_slip_url ? (
+                                      <a
+                                        href={crExpandedData[cr.id].payment_slip_url}
+                                        target="_blank" rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
+                                      >
+                                        <FileText size={12} /> View payment slip
+                                      </a>
+                                    ) : (
+                                      <p className="text-xs text-[var(--c-dim)]">Owner hasn&apos;t uploaded a payment slip yet.</p>
+                                    )}
                                   </div>
                                 )}
 

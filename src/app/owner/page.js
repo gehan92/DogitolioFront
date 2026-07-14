@@ -4,7 +4,7 @@ import { useRouter }            from 'next/navigation'
 import Link                     from 'next/link'
 import {
   Building2, Plus, ChevronDown, ChevronLeft, Clock,
-  UtensilsCrossed, AlertCircle, Check, X, Send,
+  UtensilsCrossed, AlertCircle, Check, X, Send, FileText, UploadCloud,
 } from 'lucide-react'
 import Navbar        from '@/components/layout/Navbar'
 import { Spinner }   from '@/components/ui'
@@ -40,6 +40,8 @@ function StatusPill({ status }) {
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#FF2D55]/40 bg-white transition-colors'
 
+const isImageSlipUrl = url => /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url || '')
+
 export default function OwnerPage() {
   const { user, profile, isOwner, loading: authLoading, token } = useAuth()
   const router = useRouter()
@@ -52,6 +54,7 @@ export default function OwnerPage() {
   const [reqLoading,   setReqLoading]   = useState(false)
   const [expandedId,   setExpandedId]   = useState(null)
   const [expandedData, setExpandedData] = useState({})
+  const [slipUploadingMap, setSlipUploadingMap] = useState({})
 
   // New request form
   const [showForm, setShowForm]     = useState(false)
@@ -158,6 +161,24 @@ export default function OwnerPage() {
   function changeFilter(f) {
     setStatusFilter(f)
     loadRequests(1, f)
+  }
+
+  async function uploadSlip(requestId, file) {
+    if (!file) return
+    setSlipUploadingMap(m => ({ ...m, [requestId]: true }))
+    try {
+      const fd = new FormData()
+      fd.append('slip', file)
+      const data = await api.owner.uploadPaymentSlip(requestId, fd, token)
+      setExpandedData(m => ({
+        ...m,
+        [requestId]: { ...m[requestId], payment_slip_url: data.payment_slip_url, payment_slip_uploaded_at: data.payment_slip_uploaded_at },
+      }))
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSlipUploadingMap(m => ({ ...m, [requestId]: false }))
+    }
   }
 
   async function toggleMenuExpand(restaurantId) {
@@ -662,6 +683,59 @@ export default function OwnerPage() {
                         <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
                           <p className="text-xs font-semibold text-blue-700 mb-0.5">Admin response</p>
                           <p className="text-sm text-blue-800">{req.admin_note}</p>
+                        </div>
+                      )}
+
+                      {/* Payment slip — owner uploads proof of payment once approved */}
+                      {['approved', 'paid'].includes(req.status) && (
+                        <div className="p-3 rounded-xl bg-white border border-gray-100">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment slip</p>
+                          {expandedData[req.id]?.payment_slip_url ? (
+                            <div className="flex items-center gap-3">
+                              {isImageSlipUrl(expandedData[req.id].payment_slip_url) ? (
+                                <img
+                                  src={expandedData[req.id].payment_slip_url}
+                                  alt="Payment slip"
+                                  className="w-14 h-14 rounded-lg object-cover border border-gray-100 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100 shrink-0">
+                                  <FileText size={18} className="text-gray-400" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <a
+                                  href={expandedData[req.id].payment_slip_url}
+                                  target="_blank" rel="noreferrer"
+                                  className="text-xs font-semibold text-[#FF2D55] hover:underline"
+                                >
+                                  View uploaded slip →
+                                </a>
+                                <label className="block mt-1 w-fit cursor-pointer">
+                                  <span className="text-xs text-gray-400 hover:text-gray-600 hover:underline">
+                                    {slipUploadingMap[req.id] ? 'Uploading…' : 'Replace'}
+                                  </span>
+                                  <input
+                                    type="file" accept="image/*,application/pdf" className="hidden"
+                                    disabled={slipUploadingMap[req.id]}
+                                    onChange={e => uploadSlip(req.id, e.target.files?.[0])}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-4 cursor-pointer hover:border-[#FF2D55]/40 hover:bg-red-50/20 transition-colors">
+                              <UploadCloud size={16} className="text-gray-400 shrink-0" />
+                              <span className="text-xs font-semibold text-gray-500">
+                                {slipUploadingMap[req.id] ? 'Uploading…' : 'Upload payment slip (image or PDF)'}
+                              </span>
+                              <input
+                                type="file" accept="image/*,application/pdf" className="hidden"
+                                disabled={slipUploadingMap[req.id]}
+                                onChange={e => uploadSlip(req.id, e.target.files?.[0])}
+                              />
+                            </label>
+                          )}
                         </div>
                       )}
 
