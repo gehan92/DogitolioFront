@@ -96,8 +96,12 @@ export function AuthProvider({ children }) {
     setSession(null)
   }
 
+  function updateProfile(patch) {
+    setProfile(p => ({ ...p, ...patch }))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, isStaff, isOwner, isSuperuser, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, token, loading, isAdmin, isStaff, isOwner, isSuperuser, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

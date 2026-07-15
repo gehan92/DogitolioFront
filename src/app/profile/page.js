@@ -37,7 +37,7 @@ function StarRow({ rating }) {
 }
 
 export default function ProfilePage() {
-  const { user, profile, token, loading } = useAuth()
+  const { user, profile, token, loading, updateProfile } = useAuth()
   const router = useRouter()
 
   const [reviews,    setReviews]    = useState([])
@@ -47,10 +47,14 @@ export default function ProfilePage() {
   const [editRating, setEditRating] = useState(0)
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [reviewMsg,  setReviewMsg]  = useState(null) // { id, text }
 
   // Profile editing
   const [editingProfile, setEditingProfile] = useState(false)
-  const [profileForm,    setProfileForm]    = useState({ name: '', avatar_url: '' })
+  const [profileForm,    setProfileForm]    = useState({
+    name: '', avatar_url: '', phone: '', whatsapp: '', address: '', city: '', bio: '',
+  })
   const [profileSaving,  setProfileSaving]  = useState(false)
   const [profileMsg,     setProfileMsg]     = useState('')
   const [avatarPreview,  setAvatarPreview]  = useState(null)
@@ -127,7 +131,7 @@ export default function ProfilePage() {
     setProfileSaving(true)
     setProfileMsg('')
     try {
-      await api.profile.update({
+      const updated = await api.profile.update({
         name:       profileForm.name,
         avatar_url: profileForm.avatar_url || null,
         phone:      profileForm.phone      || null,
@@ -136,9 +140,9 @@ export default function ProfilePage() {
         city:       profileForm.city       || null,
         bio:        profileForm.bio        || null,
       }, token)
+      updateProfile(updated)
       setProfileMsg('✓ Profile updated')
       setEditingProfile(false)
-      setTimeout(() => window.location.reload(), 800)
     } catch (err) {
       setProfileMsg('Error: ' + err.message)
     } finally {
@@ -160,6 +164,7 @@ export default function ProfilePage() {
 
   async function saveEdit(id) {
     setSaving(true)
+    setReviewMsg(null)
     try {
       await api.reviews.update(id, { rating: editRating, comment: editText }, token)
       setReviews(rs => rs.map(r => r.id === id
@@ -168,19 +173,19 @@ export default function ProfilePage() {
       ))
       cancelEdit()
     } catch (err) {
-      alert(err.message)
+      setReviewMsg({ id, text: err.message })
     } finally { setSaving(false) }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this review?')) return
     setDeleting(id)
+    setReviewMsg(null)
     try {
       await api.reviews.delete(id, token)
       setReviews(rs => rs.filter(r => r.id !== id))
     } catch (err) {
-      alert(err.message)
-    } finally { setDeleting(null) }
+      setReviewMsg({ id, text: err.message })
+    } finally { setDeleting(null); setConfirmDeleteId(null) }
   }
 
   if (loading || !user) return (
@@ -205,7 +210,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Avatar picker */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="relative shrink-0">
                   <Avatar
                     src={avatarPreview || profileForm.avatar_url}
@@ -216,11 +221,12 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={avatarUploading}
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
+                    aria-label="Upload photo"
+                    className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-gray-50 transition-colors"
                   >
                     {avatarUploading
-                      ? <Spinner size={12} />
-                      : <Camera size={12} className="text-gray-500" />}
+                      ? <Spinner size={14} />
+                      : <Camera size={14} className="text-gray-500" />}
                   </button>
                   <input
                     ref={fileInputRef}
@@ -230,9 +236,10 @@ export default function ProfilePage() {
                     onChange={handleAvatarFile}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Avatar URL</label>
+                <div className="w-full flex-1 min-w-0">
+                  <label htmlFor="profile-avatar-url" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Avatar URL</label>
                   <input
+                    id="profile-avatar-url"
                     type="url"
                     value={profileForm.avatar_url}
                     onChange={e => { setProfileForm(f => ({ ...f, avatar_url: e.target.value })); setAvatarPreview(null) }}
@@ -245,8 +252,9 @@ export default function ProfilePage() {
 
               {/* Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Display name *</label>
+                <label htmlFor="profile-name" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Display name *</label>
                 <input
+                  id="profile-name"
                   type="text"
                   required
                   value={profileForm.name}
@@ -258,8 +266,9 @@ export default function ProfilePage() {
 
               {/* Email (read-only) */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Email</label>
+                <label htmlFor="profile-email" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Email</label>
                 <input
+                  id="profile-email"
                   type="text"
                   value={user.email}
                   readOnly
@@ -272,8 +281,9 @@ export default function ProfilePage() {
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Contact Details</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Phone</label>
+                    <label htmlFor="profile-phone" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Phone</label>
                     <input
+                      id="profile-phone"
                       type="tel"
                       value={profileForm.phone}
                       onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
@@ -282,8 +292,9 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">WhatsApp</label>
+                    <label htmlFor="profile-whatsapp" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">WhatsApp</label>
                     <input
+                      id="profile-whatsapp"
                       type="tel"
                       value={profileForm.whatsapp}
                       onChange={e => setProfileForm(f => ({ ...f, whatsapp: e.target.value }))}
@@ -292,8 +303,9 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">City</label>
+                    <label htmlFor="profile-city" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">City</label>
                     <input
+                      id="profile-city"
                       type="text"
                       value={profileForm.city}
                       onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))}
@@ -302,8 +314,9 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Address</label>
+                    <label htmlFor="profile-address" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Address</label>
                     <input
+                      id="profile-address"
                       type="text"
                       value={profileForm.address}
                       onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))}
@@ -313,8 +326,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className="mt-3">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Bio</label>
+                  <label htmlFor="profile-bio" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Bio</label>
                   <textarea
+                    id="profile-bio"
                     value={profileForm.bio}
                     onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
                     rows={3}
@@ -480,9 +494,11 @@ export default function ProfilePage() {
 
                     {/* Rating */}
                     {isEditing ? (
-                      <div className="flex items-center gap-1 mb-2">
+                      <div className="flex items-center -ml-2 mb-2">
                         {[1,2,3,4,5].map(n => (
-                          <button key={n} onClick={() => setEditRating(n)}>
+                          <button key={n} type="button" onClick={() => setEditRating(n)}
+                            aria-label={`Rate ${n} stars`}
+                            className="p-2 flex items-center justify-center">
                             <Star size={18} strokeWidth={1.5}
                               className={clsx('transition-colors', n <= editRating
                                 ? 'text-amber-400 fill-amber-400'
@@ -509,7 +525,7 @@ export default function ProfilePage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="flex items-center flex-wrap gap-2 mt-3">
                       {isEditing ? (
                         <>
                           <button onClick={() => saveEdit(review.id)} disabled={saving}
@@ -517,6 +533,18 @@ export default function ProfilePage() {
                             <Check size={12} /> Save
                           </button>
                           <button onClick={cancelEdit}
+                            className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors">
+                            <X size={12} /> Cancel
+                          </button>
+                        </>
+                      ) : confirmDeleteId === review.id ? (
+                        <>
+                          <span className="text-xs text-gray-500">Delete this review?</span>
+                          <button onClick={() => handleDelete(review.id)} disabled={deleting === review.id}
+                            className="flex items-center gap-1 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ml-auto">
+                            <Trash2 size={12} /> {deleting === review.id ? 'Deleting…' : 'Confirm'}
+                          </button>
+                          <button onClick={() => setConfirmDeleteId(null)} disabled={deleting === review.id}
                             className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors">
                             <X size={12} /> Cancel
                           </button>
@@ -534,13 +562,17 @@ export default function ProfilePage() {
                               <Clock size={11} /> Edit window closed
                             </span>
                           )}
-                          <button onClick={() => handleDelete(review.id)} disabled={deleting === review.id}
-                            className="flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-600 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-50 transition-colors ml-auto disabled:opacity-50">
-                            <Trash2 size={12} /> {deleting === review.id ? 'Deleting…' : 'Delete'}
+                          <button onClick={() => { setConfirmDeleteId(review.id); setReviewMsg(null) }}
+                            className="flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-600 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-50 transition-colors ml-auto">
+                            <Trash2 size={12} /> Delete
                           </button>
                         </>
                       )}
                     </div>
+
+                    {reviewMsg?.id === review.id && (
+                      <p className="text-xs font-medium text-red-600 mt-2">{reviewMsg.text}</p>
+                    )}
                   </div>
                 )
               })}

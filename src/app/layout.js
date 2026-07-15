@@ -18,6 +18,12 @@ const inter = Inter({
   display: 'swap',
 })
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover', // lets env(safe-area-inset-*) resolve on notched/home-indicator iPhones
+}
+
 export const metadata = {
   metadataBase: new URL('https://www.mealhere.com'),
   title:       { default: 'MealHere — Find Food Menus Near You', template: '%s | MealHere' },
