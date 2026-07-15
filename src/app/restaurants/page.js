@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight, LocateFixed, X } from 'lucide-react'
+import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight, LocateFixed, X, LayoutGrid } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
@@ -31,6 +31,10 @@ const CATEGORY_TABS = [
 
 const RADIUS_OPTIONS = [1, 3, 5, 10, 20]
 const DEFAULT_RADIUS_KM = 5
+const RADIUS_STORAGE_KEY = 'mealhere_near_me_radius_km'
+
+// Category tabs + their map-overlay chip equivalents (icon-enabled) share one source of truth
+const MAP_CATEGORY_TABS = CATEGORY_TABS.map(tab => ({ ...tab, Icon: tab.slug ? CATEGORY_ICONS[tab.slug] : LayoutGrid }))
 
 function buildPageTitle({ category, province, town }) {
   const categoryLabel = category ? getCategoryConfig(category).label : 'All Places'
@@ -58,12 +62,22 @@ function RestaurantsContent() {
   const [radiusKm,        setRadiusKm]        = useState(DEFAULT_RADIUS_KM)
   const [mobileView,      setMobileView]      = useState('list') // 'list' | 'map' — only used below the lg breakpoint
   const [isLgScreen,      setIsLgScreen]      = useState(false)
+  const [recentering,     setRecentering]     = useState(false)
 
   useEffect(() => {
     api.siteContent.get('settings')
       .then(d => setNearMeFeatureOn(!!d?.content?.near_me_enabled))
       .catch(() => {})
   }, [])
+
+  // Remember the user's last-picked search radius across visits
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(RADIUS_STORAGE_KEY))
+    if (RADIUS_OPTIONS.includes(saved)) setRadiusKm(saved)
+  }, [])
+  useEffect(() => {
+    localStorage.setItem(RADIUS_STORAGE_KEY, String(radiusKm))
+  }, [radiusKm])
 
   // Tracks the lg breakpoint explicitly (rather than relying on CSS visibility)
   // so the map's mount/unmount decision below is a single clear boolean.
@@ -75,35 +89,60 @@ function RestaurantsContent() {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  function handleNearMeToggle() {
+  function getCurrentCoords() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Location is not supported on this device.'))
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        err => reject(new Error(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location access was denied. Enable it in your browser settings to use this.'
+            : 'Could not get your location. Please try again.'
+        )),
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+      )
+    })
+  }
+
+  async function handleNearMeToggle() {
     if (nearMeActive) {
       setNearMeActive(false)
       setCoords(null)
       setNearMeError('')
       return
     }
-    if (!navigator.geolocation) {
-      setNearMeError('Location is not supported on this device.')
-      return
-    }
     setNearMeLoading(true)
     setNearMeError('')
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setNearMeActive(true)
-        setNearMeLoading(false)
-      },
-      err => {
-        setNearMeLoading(false)
-        setNearMeError(
-          err.code === err.PERMISSION_DENIED
-            ? 'Location access was denied. Enable it in your browser settings to use this.'
-            : 'Could not get your location. Please try again.'
-        )
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
-    )
+    try {
+      const c = await getCurrentCoords()
+      setCoords(c)
+      setNearMeActive(true)
+    } catch (err) {
+      setNearMeError(err.message)
+    } finally {
+      setNearMeLoading(false)
+    }
+  }
+
+  // Re-locate without leaving near-me mode — used by the map's recenter button
+  async function handleRecenter() {
+    setRecentering(true)
+    setNearMeError('')
+    try {
+      setCoords(await getCurrentCoords())
+    } catch (err) {
+      setNearMeError(err.message)
+    } finally {
+      setRecentering(false)
+    }
+  }
+
+  // "Search this area" — re-center the search on wherever the user panned the map to
+  function handleSearchArea(newCenter) {
+    setCoords(newCenter)
   }
 
   // All active filters read from the URL — single source of truth
@@ -383,6 +422,7 @@ function RestaurantsContent() {
           {!loading && total > 0 && (
             <p className="text-sm text-[var(--c-muted)]">
               Showing {(page - 1) * 12 + 1}–{Math.min(page * 12, total)} of {total}
+              {nearMeActive && <span> · Sorted by distance</span>}
             </p>
           )}
         </div>
@@ -412,11 +452,22 @@ function RestaurantsContent() {
 
             <div className={clsx(
               mobileView !== 'map' && 'hidden', 'lg:block',
-              'h-[280px] sm:h-[360px] lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden',
+              'h-[65dvh] min-h-[360px] max-h-[640px] lg:max-h-none lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden',
               'border border-[var(--c-border)] shadow-[0_1px_3px_rgba(0,0,0,.04),0_4px_12px_rgba(0,0,0,.06)]'
             )}>
               {mapMounted && (
-                <RestaurantMap venues={venues} center={coords} radiusKm={radiusKm} className="h-full" />
+                <RestaurantMap
+                  venues={venues}
+                  center={coords}
+                  radiusKm={radiusKm}
+                  className="h-full"
+                  onSearchArea={handleSearchArea}
+                  onRecenter={handleRecenter}
+                  recentering={recentering}
+                  categoryTabs={MAP_CATEGORY_TABS}
+                  activeCategory={filters.category}
+                  onCategoryChange={handleCategoryTab}
+                />
               )}
             </div>
           </div>

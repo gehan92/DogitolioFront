@@ -1,12 +1,16 @@
 'use client'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useMemo } from 'react'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
-import { MapContainer, TileLayer, Marker, Popup, Circle, ZoomControl, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, ZoomControl, useMap, useMapEvents } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
+import { RefreshCw, LocateFixed } from 'lucide-react'
 import { getCategoryConfig } from '@/lib/venueCategories'
 import { buildVenueUrl } from '@/lib/venueUrl'
-import { formatDistance } from '@/lib/distance'
-import { StarRating, PriceBadge } from '@/components/ui'
+import { formatDistance, haversineKm } from '@/lib/distance'
+import { StarRating, PriceBadge, Spinner } from '@/components/ui'
 import { useTheme } from '@/hooks/useTheme'
 
 function pinDivIcon(color) {
@@ -30,6 +34,89 @@ const USER_ICON = L.divIcon({
   iconSize: [20, 20],
   iconAnchor: [10, 10],
 })
+
+function clusterIcon(cluster) {
+  const count = cluster.getChildCount()
+  const size = count < 10 ? 34 : count < 50 ? 40 : 46
+  return L.divIcon({
+    html: `<div class="venue-cluster" style="width:${size}px;height:${size}px;">${count}</div>`,
+    className: 'venue-cluster-wrap',
+    iconSize: L.point(size, size),
+  })
+}
+
+// How far (km) the map center must drift from the last searched point before
+// offering to re-search — scales with radius so a 1km search isn't oversensitive.
+function searchAgainThresholdKm(radiusKm) {
+  return Math.max(radiusKm * 0.25, 0.3)
+}
+
+/** Floating overlay controls rendered inside the map: category filter chips,
+ *  "search this area" (appears once the user pans/zooms away from center),
+ *  and a recenter-on-me button. */
+function MapControls({ center, radiusKm, onSearchArea, onRecenter, recentering, categoryTabs, activeCategory, onCategoryChange }) {
+  const map = useMap()
+  const [pending, setPending] = useState(null)
+
+  useMapEvents({
+    moveend() {
+      const c = map.getCenter()
+      const movedKm = haversineKm(center.lat, center.lng, c.lat, c.lng)
+      setPending(movedKm > searchAgainThresholdKm(radiusKm) ? { lat: c.lat, lng: c.lng } : null)
+    },
+  })
+
+  // Once the parent re-centers (search-this-area, recenter, or radius change), drop the prompt
+  useEffect(() => { setPending(null) }, [center.lat, center.lng])
+
+  return (
+    <>
+      {categoryTabs && (
+        <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-1.5 overflow-x-auto scrollbar-hide">
+          {categoryTabs.map(tab => {
+            const Icon = tab.Icon
+            const active = activeCategory === tab.slug
+            return (
+              <button
+                key={tab.slug || 'all'}
+                type="button"
+                onClick={() => onCategoryChange(tab.slug)}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold shadow-sm border border-transparent transition-colors"
+                style={active
+                  ? { background: 'linear-gradient(135deg,var(--c-brand),var(--c-brand-dk))', color: '#fff' }
+                  : { background: 'color-mix(in srgb, var(--c-surface) 92%, transparent)', color: 'var(--c-muted)' }}
+              >
+                <Icon size={13} /> {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {pending && (
+        <button
+          type="button"
+          onClick={() => { onSearchArea(pending); setPending(null) }}
+          className="absolute top-14 left-1/2 -translate-x-1/2 z-[1000] inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold shadow-lg animate-fade-in text-white"
+          style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-brand-dk))' }}
+        >
+          <RefreshCw size={13} /> Search this area
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={onRecenter}
+        disabled={recentering}
+        aria-label="Recenter on my location"
+        className="absolute bottom-5 left-3 z-[1000] w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-colors disabled:opacity-60"
+        style={{ background: 'var(--c-surface)' }}
+      >
+        {recentering ? <Spinner size={16} /> : <LocateFixed size={17} style={{ color: 'var(--c-muted)' }} />}
+      </button>
+    </>
+  )
+}
 
 /** Frames the map to the user + every venue on mount/update instead of a fixed zoom guess. */
 function FitBounds({ center, venues }) {
@@ -89,7 +176,11 @@ function VenueMarkers({ venues, icons }) {
     })
 }
 
-export default function RestaurantMap({ venues, center, radiusKm, className }) {
+export default function RestaurantMap({
+  venues, center, radiusKm, className,
+  onSearchArea, onRecenter, recentering,
+  categoryTabs, activeCategory, onCategoryChange,
+}) {
   const { activeTheme } = useTheme()
   const dark = !!activeTheme?.dark
 
@@ -130,7 +221,26 @@ export default function RestaurantMap({ venues, center, radiusKm, className }) {
           />
         )}
         <Marker position={[center.lat, center.lng]} icon={USER_ICON} zIndexOffset={1000} />
-        <VenueMarkers venues={venues} icons={icons} />
+        <MarkerClusterGroup
+          iconCreateFunction={clusterIcon}
+          maxClusterRadius={50}
+          showCoverageOnHover={false}
+          spiderfyOnMaxZoom
+        >
+          <VenueMarkers venues={venues} icons={icons} />
+        </MarkerClusterGroup>
+        {onSearchArea && (
+          <MapControls
+            center={center}
+            radiusKm={radiusKm}
+            onSearchArea={onSearchArea}
+            onRecenter={onRecenter}
+            recentering={recentering}
+            categoryTabs={categoryTabs}
+            activeCategory={activeCategory}
+            onCategoryChange={onCategoryChange}
+          />
+        )}
       </MapContainer>
     </div>
   )

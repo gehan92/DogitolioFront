@@ -143,6 +143,21 @@ section.bg-white, section[class*="bg-white"] { background-color: var(--c-bg) ; }
 .venue-pin { filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .15s ease; }
 .venue-pin:hover { transform: translateY(-2px) scale(1.06); }
 
+.venue-cluster-wrap { background: transparent !important; border: none !important; }
+.venue-cluster {
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--c-brand);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  border: 3px solid color-mix(in srgb, var(--c-brand) 25%, white);
+  box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  transition: transform .15s ease;
+}
+.venue-cluster:hover { transform: scale(1.08); }
+:root.dark .venue-cluster { border-color: color-mix(in srgb, var(--c-brand) 35%, black); }
+
 .user-pin-ring { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; animation: user-pulse 2.2s ease-out infinite; }
 .user-pin-dot { width: 12px; height: 12px; border-radius: 50%; background: #2563eb; border: 2.5px solid white; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 @keyframes user-pulse {
