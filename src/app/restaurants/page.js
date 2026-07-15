@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight, LocateFixed, X, LayoutGrid } from 'lucide-react'
+import { UtensilsCrossed, Building2, Coffee, ShoppingBag, ChevronLeft, ChevronRight, LocateFixed, X } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import SearchBar from '@/components/restaurant/SearchBar'
 import RestaurantCard from '@/components/restaurant/RestaurantCard'
@@ -30,11 +30,14 @@ const CATEGORY_TABS = [
 ]
 
 const RADIUS_OPTIONS = [1, 3, 5, 10, 20]
+const ISLAND_WIDE = 'all' // radiusKm value meaning "no distance cap, still sorted by distance"
+const RADIUS_CHIPS = [...RADIUS_OPTIONS, ISLAND_WIDE]
 const DEFAULT_RADIUS_KM = 5
 const RADIUS_STORAGE_KEY = 'mealhere_near_me_radius_km'
 
-// Category tabs + their map-overlay chip equivalents (icon-enabled) share one source of truth
-const MAP_CATEGORY_TABS = CATEGORY_TABS.map(tab => ({ ...tab, Icon: tab.slug ? CATEGORY_ICONS[tab.slug] : LayoutGrid }))
+function radiusLabel(km) {
+  return km === ISLAND_WIDE ? 'All Island' : `${km} km`
+}
 
 function buildPageTitle({ category, province, town }) {
   const categoryLabel = category ? getCategoryConfig(category).label : 'All Places'
@@ -72,8 +75,9 @@ function RestaurantsContent() {
 
   // Remember the user's last-picked search radius across visits
   useEffect(() => {
-    const saved = Number(localStorage.getItem(RADIUS_STORAGE_KEY))
-    if (RADIUS_OPTIONS.includes(saved)) setRadiusKm(saved)
+    const saved = localStorage.getItem(RADIUS_STORAGE_KEY)
+    if (saved === ISLAND_WIDE) setRadiusKm(ISLAND_WIDE)
+    else if (RADIUS_OPTIONS.includes(Number(saved))) setRadiusKm(Number(saved))
   }, [])
   useEffect(() => {
     localStorage.setItem(RADIUS_STORAGE_KEY, String(radiusKm))
@@ -355,7 +359,7 @@ function RestaurantsContent() {
             {nearMeActive && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs text-[var(--c-muted)]">Within</span>
-                {RADIUS_OPTIONS.map(km => (
+                {RADIUS_CHIPS.map(km => (
                   <button
                     key={km}
                     onClick={() => setRadiusKm(km)}
@@ -366,7 +370,7 @@ function RestaurantsContent() {
                         : 'border-[var(--c-border)] text-[var(--c-muted)] hover:bg-surface-secondary'
                     )}
                   >
-                    {km} km
+                    {radiusLabel(km)}
                   </button>
                 ))}
               </div>
@@ -452,8 +456,9 @@ function RestaurantsContent() {
 
             <div className={clsx(
               mobileView !== 'map' && 'hidden', 'lg:block',
-              'h-[65dvh] min-h-[360px] max-h-[640px] lg:max-h-none lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden',
-              'border border-[var(--c-border)] shadow-[0_1px_3px_rgba(0,0,0,.04),0_4px_12px_rgba(0,0,0,.06)]'
+              'h-[65svh] min-h-[360px] max-h-[640px] lg:max-h-none lg:h-[calc(100vh-220px)] lg:sticky lg:top-20 rounded-2xl overflow-hidden',
+              'border border-[var(--c-border)] shadow-[0_1px_3px_rgba(0,0,0,.04),0_4px_12px_rgba(0,0,0,.06)]',
+              '[overscroll-behavior:contain]'
             )}>
               {mapMounted && (
                 <RestaurantMap
@@ -464,9 +469,6 @@ function RestaurantsContent() {
                   onSearchArea={handleSearchArea}
                   onRecenter={handleRecenter}
                   recentering={recentering}
-                  categoryTabs={MAP_CATEGORY_TABS}
-                  activeCategory={filters.category}
-                  onCategoryChange={handleCategoryTab}
                 />
               )}
             </div>

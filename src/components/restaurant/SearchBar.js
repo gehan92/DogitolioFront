@@ -16,6 +16,13 @@ const PROVINCES = [
   { value: 'Uva',           label: 'Uva' },
   { value: 'Sabaragamuwa',  label: 'Sabaraga...' },
 ]
+
+const DISTRICTS = [
+  'Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara',
+  'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa',
+  'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla',
+  'Moneragala', 'Ratnapura', 'Kegalle',
+].map(d => ({ value: d, label: d }))
 const PRICE_RANGES = [
   { value: 'budget',  label: '৳ Budget' },
   { value: 'mid',     label: '৳৳ Mid-range' },
@@ -30,6 +37,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     town:       initialFilters.town || '',
+    district:   initialFilters.district || '',
     province:   initialFilters.province || '',
     price_range:initialFilters.price_range || '',
     min_price:  initialFilters.min_price || '',
@@ -52,7 +60,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
 
   function clearAll() {
     setQuery('')
-    setFilters({ town:'', province:'', price_range:'', min_price:'', max_price:'' })
+    setFilters({ town:'', district:'', province:'', price_range:'', min_price:'', max_price:'' })
     inputRef.current?.focus()
   }
 
@@ -125,6 +133,15 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">District</label>
+                <select value={filters.district} onChange={e => setFilters(f => ({...f, district: e.target.value}))}
+                  className="w-full border border-[var(--c-border)] rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-400 bg-white transition-colors">
+                  <option value="">All districts</option>
+                  {DISTRICTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-wide">Price range</label>
                 <div className="flex gap-1">
                   {PRICE_RANGES.map(({ value, label }) => (
@@ -159,7 +176,7 @@ export default function SearchBar({ initialQuery = '', initialFilters = {}, onSe
             </div>
 
             <div className="flex justify-between items-center mt-4 pt-3 border-t border-[var(--c-border)]">
-              <button type="button" onClick={() => setFilters({ town:'', province:'', price_range:'', min_price:'', max_price:'' })}
+              <button type="button" onClick={() => setFilters({ town:'', district:'', province:'', price_range:'', min_price:'', max_price:'' })}
                 className="text-sm text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors">
                 Clear filters
               </button>

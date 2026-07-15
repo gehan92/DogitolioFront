@@ -51,15 +51,16 @@ function searchAgainThresholdKm(radiusKm) {
   return Math.max(radiusKm * 0.25, 0.3)
 }
 
-/** Floating overlay controls rendered inside the map: category filter chips,
- *  "search this area" (appears once the user pans/zooms away from center),
- *  and a recenter-on-me button. */
-function MapControls({ center, radiusKm, onSearchArea, onRecenter, recentering, categoryTabs, activeCategory, onCategoryChange }) {
+/** Floating overlay controls rendered inside the map: "search this area"
+ *  (appears once the user pans/zooms away from center) and a recenter-on-me button. */
+function MapControls({ center, radiusKm, onSearchArea, onRecenter, recentering }) {
   const map = useMap()
   const [pending, setPending] = useState(null)
 
   useMapEvents({
     moveend() {
+      // "All Island" already returns everything — re-searching wouldn't change results
+      if (radiusKm === 'all') { setPending(null); return }
       const c = map.getCenter()
       const movedKm = haversineKm(center.lat, center.lng, c.lat, c.lng)
       setPending(movedKm > searchAgainThresholdKm(radiusKm) ? { lat: c.lat, lng: c.lng } : null)
@@ -71,33 +72,11 @@ function MapControls({ center, radiusKm, onSearchArea, onRecenter, recentering, 
 
   return (
     <>
-      {categoryTabs && (
-        <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-1.5 overflow-x-auto scrollbar-hide">
-          {categoryTabs.map(tab => {
-            const Icon = tab.Icon
-            const active = activeCategory === tab.slug
-            return (
-              <button
-                key={tab.slug || 'all'}
-                type="button"
-                onClick={() => onCategoryChange(tab.slug)}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold shadow-sm border border-transparent transition-colors"
-                style={active
-                  ? { background: 'linear-gradient(135deg,var(--c-brand),var(--c-brand-dk))', color: '#fff' }
-                  : { background: 'color-mix(in srgb, var(--c-surface) 92%, transparent)', color: 'var(--c-muted)' }}
-              >
-                <Icon size={13} /> {tab.label}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
       {pending && (
         <button
           type="button"
           onClick={() => { onSearchArea(pending); setPending(null) }}
-          className="absolute top-14 left-1/2 -translate-x-1/2 z-[1000] inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold shadow-lg animate-fade-in text-white"
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold shadow-lg animate-fade-in text-white"
           style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-brand-dk))' }}
         >
           <RefreshCw size={13} /> Search this area
@@ -118,8 +97,14 @@ function MapControls({ center, radiusKm, onSearchArea, onRecenter, recentering, 
   )
 }
 
-/** Frames the map to the user + every venue on mount/update instead of a fixed zoom guess. */
-function FitBounds({ center, venues }) {
+// Below this zoom the map reads as "the whole island" rather than a local area —
+// a floor keeps a lone far-away result from forcing the view out that wide.
+const MIN_FIT_ZOOM = 11
+
+/** Frames the map to the user + every venue on mount/update instead of a fixed zoom guess.
+ *  In "All Island" mode (radiusKm === 'all') the zoom floor is skipped since seeing
+ *  the full spread is the point. */
+function FitBounds({ center, venues, radiusKm }) {
   const map = useMap()
   useEffect(() => {
     const points = [[center.lat, center.lng]]
@@ -129,9 +114,13 @@ function FitBounds({ center, venues }) {
     if (points.length === 1) {
       map.setView(points[0], 14)
     } else {
-      map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15 })
+      const bounds = L.latLngBounds(points)
+      const padding = [48, 48]
+      let zoom = Math.min(map.getBoundsZoom(bounds, false, padding), 15)
+      if (radiusKm !== 'all') zoom = Math.max(zoom, MIN_FIT_ZOOM)
+      map.setView(bounds.getCenter(), zoom)
     }
-  }, [map, center.lat, center.lng, venues])
+  }, [map, center.lat, center.lng, venues, radiusKm])
   return null
 }
 
@@ -179,7 +168,6 @@ function VenueMarkers({ venues, icons }) {
 export default function RestaurantMap({
   venues, center, radiusKm, className,
   onSearchArea, onRecenter, recentering,
-  categoryTabs, activeCategory, onCategoryChange,
 }) {
   const { activeTheme } = useTheme()
   const dark = !!activeTheme?.dark
@@ -212,8 +200,8 @@ export default function RestaurantMap({
           maxZoom={19}
         />
         <ZoomControl position="bottomright" />
-        <FitBounds center={center} venues={venues} />
-        {radiusKm && (
+        <FitBounds center={center} venues={venues} radiusKm={radiusKm} />
+        {typeof radiusKm === 'number' && (
           <Circle
             center={[center.lat, center.lng]}
             radius={radiusKm * 1000}
@@ -236,9 +224,6 @@ export default function RestaurantMap({
             onSearchArea={onSearchArea}
             onRecenter={onRecenter}
             recentering={recentering}
-            categoryTabs={categoryTabs}
-            activeCategory={activeCategory}
-            onCategoryChange={onCategoryChange}
           />
         )}
       </MapContainer>

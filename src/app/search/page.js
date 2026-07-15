@@ -19,6 +19,7 @@ function SearchContent() {
 
   const filters = {
     town:        params.get('town')        || '',
+    district:    params.get('district')    || '',
     province:    params.get('province')    || '',
     price_range: params.get('price_range') || '',
     min_price:   params.get('min_price')   || '',
