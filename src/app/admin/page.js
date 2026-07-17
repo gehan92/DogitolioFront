@@ -232,12 +232,20 @@ export default function AdminPage() {
   const [miLoading,    setMiLoading]    = useState(false)
   const [miForm, setMiForm] = useState({
     name: '', description: '', price: '', category: '',
-    discount_type: '', discount_value: '', photo: null,
+    discount_type: '', discount_value: '', photo: null, photo_url: '',
     ingredients: '', portions: [],
   })
   const [miEditId, setMiEditId] = useState(null)
   const [miSaving, setMiSaving] = useState(false)
   const [miMsg,    setMiMsg]    = useState('')
+  const [miPhotoPreview, setMiPhotoPreview] = useState('')
+
+  useEffect(() => {
+    if (!miForm.photo) { setMiPhotoPreview(''); return }
+    const url = URL.createObjectURL(miForm.photo)
+    setMiPhotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [miForm.photo])
 
   // ── Site Content
   const [scPage,           setScPage]           = useState('home')
@@ -1232,13 +1240,14 @@ export default function AdminPage() {
       photo: null,
       ingredients: item.ingredients || '',
       portions: Array.isArray(item.portions) ? item.portions.map(p => ({ size: p.size, price: String(p.price) })) : [],
+      photo_url: item.photo_url || '',
     })
     document.getElementById('mi-item-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   function miReset() {
     setMiEditId(null)
-    setMiForm({ name: '', description: '', price: '', category: '', discount_type: '', discount_value: '', photo: null, ingredients: '', portions: [] })
+    setMiForm({ name: '', description: '', price: '', category: '', discount_type: '', discount_value: '', photo: null, photo_url: '', ingredients: '', portions: [] })
     setMiMsg('')
   }
 
@@ -2917,7 +2926,16 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-[var(--c-muted)] mb-1">Photo (optional)</label>
-                          <input type="file" accept="image/*" onChange={e => setMiForm(f => ({ ...f, photo: e.target.files[0] }))} className="w-full text-sm text-[var(--c-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF2D55]/10 file:text-[#FF2D55] hover:file:bg-[#FF2D55]/20" />
+                          <div className="flex items-center gap-3">
+                            {(miPhotoPreview || miForm.photo_url) && (
+                              <img
+                                src={miPhotoPreview || miForm.photo_url}
+                                alt="Preview"
+                                className="w-14 h-14 rounded-xl object-cover shrink-0 border border-[var(--c-border)]"
+                              />
+                            )}
+                            <input type="file" accept="image/*" onChange={e => setMiForm(f => ({ ...f, photo: e.target.files[0] || null }))} className="w-full text-sm text-[var(--c-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF2D55]/10 file:text-[#FF2D55] hover:file:bg-[#FF2D55]/20" />
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 pt-1">
                           <button type="submit" disabled={miSaving} className={gradientBtn} style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6035)' }}>
