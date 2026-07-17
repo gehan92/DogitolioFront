@@ -1233,6 +1233,7 @@ export default function AdminPage() {
       ingredients: item.ingredients || '',
       portions: Array.isArray(item.portions) ? item.portions.map(p => ({ size: p.size, price: String(p.price) })) : [],
     })
+    document.getElementById('mi-item-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   function miReset() {
@@ -2834,7 +2835,7 @@ export default function AdminPage() {
 
                 {miRestaurant && (
                   <>
-                    <div className="card p-5">
+                    <div id="mi-item-form" className="card p-5">
                       <h4 className="font-semibold text-[var(--c-text)] mb-4">{miEditId ? 'Edit item' : 'Add new item'}</h4>
                       <form onSubmit={miSave} className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
