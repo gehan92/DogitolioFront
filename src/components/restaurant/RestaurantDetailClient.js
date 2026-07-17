@@ -279,15 +279,10 @@ function MenuSection({ items, brandColor }) {
         <div className="h-px flex-1 bg-gray-100" />
       </div>
 
-      {/* ── Menu grid — 1 col mobile, 2 col tablet, 3 col desktop, uniform cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* ── Menu grid — 1 col mobile, 2 col tablet+, horizontal cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {groups[shown]?.map(item => {
           const hasPortions = Array.isArray(item.portions) && item.portions.length > 0
-          const ingredients = item.ingredients
-            ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
-            : []
-          const shownIngredients = ingredients.slice(0, 3)
-          const extraIngredients = ingredients.length - shownIngredients.length
           const lowestPortionPrice = hasPortions
             ? Math.min(...item.portions.map(p => Number(p.price) || 0))
             : null
@@ -300,98 +295,85 @@ function MenuSection({ items, brandColor }) {
               key={item.id}
               onClick={() => setSelectedItem(item)}
               className={clsx(
-                'flex flex-col text-left gap-3 p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group h-full',
+                'flex items-center gap-4 text-left p-4 rounded-2xl bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 group',
                 !isAvailable && 'opacity-60'
               )}
             >
-              {/* ── Photo or placeholder — always the same shape, keeps every card uniform */}
-              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-50 shrink-0">
-                {item.photo_url ? (
+              {/* ── Details (left) */}
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <p className="font-bold text-gray-900 text-[15px] leading-snug line-clamp-1">{item.name}</p>
+
+                {hasPortions ? (
+                  <div className="space-y-0.5">
+                    {item.portions.map((p, i) => {
+                      const portionPrice = Number(p.price) || 0
+                      const portionSale = applyDiscount(portionPrice, item.discount_type, item.discount_value)
+                      return (
+                        <div key={i} className="flex items-baseline gap-1.5">
+                          <span className="text-[12px] text-gray-400 font-medium truncate">{p.size}</span>
+                          <span className="text-[14px] font-black shrink-0" style={{ color }}>
+                            Rs. {Math.round(portionSale ?? portionPrice).toLocaleString()}
+                          </span>
+                          {portionSale && (
+                            <span className="text-[11px] text-gray-400 line-through shrink-0">
+                              Rs. {portionPrice.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : item.price ? (
+                  <div className="flex items-end gap-2">
+                    <span className="text-[15px] font-black leading-none" style={{ color }}>
+                      Rs. {Math.round(salePrice ?? item.price).toLocaleString()}
+                    </span>
+                    {salePrice && (
+                      <span className="text-[11px] text-gray-400 line-through leading-none">
+                        Rs. {Number(item.price).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+
+                {item.description && (
+                  <p className="text-[13px] text-gray-400 leading-relaxed line-clamp-2 mt-0.5">{item.description}</p>
+                )}
+
+                {item.ingredients && (
+                  <p className="text-[12px] text-gray-400 line-clamp-1">
+                    <span className="font-medium text-gray-500">Ingredients:</span> {item.ingredients}
+                  </p>
+                )}
+              </div>
+
+              {/* ── Photo (right) — only rendered when a photo exists, no placeholder box */}
+              {item.photo_url && (
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                   <img
                     src={item.photo_url}
                     alt={item.name}
                     className={clsx('w-full h-full object-cover group-hover:scale-105 transition-transform duration-300', !isAvailable && 'grayscale')}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}0f` }}>
-                    <UtensilsCrossed size={26} style={{ color }} strokeWidth={1.5} />
-                  </div>
-                )}
-                {!isAvailable && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <span className="text-[11px] font-black uppercase tracking-wide text-white px-3 py-1 rounded-full bg-black/60">
-                      Sold out today
-                    </span>
-                  </div>
-                )}
-                {isAvailable && salePrice && (
-                  <span className="absolute top-2 right-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-sm"
-                    style={{ background: color }}>
-                    {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
-                  </span>
-                )}
-              </div>
-
-              {/* ── Details */}
-              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                <p className="font-bold text-gray-900 text-[15px] leading-snug line-clamp-1">{item.name}</p>
-
-                {item.description && (
-                  <p className="text-[13px] text-gray-400 leading-relaxed line-clamp-2">{item.description}</p>
-                )}
-
-                {shownIngredients.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {shownIngredients.map((ing, i) => (
-                      <span key={i}
-                        className="text-[11px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 font-medium">
-                        {ing}
+                  {!isAvailable && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-[8px] font-black uppercase tracking-wide text-white text-center leading-tight px-1">
+                        Sold out
                       </span>
-                    ))}
-                    {extraIngredients > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-100 font-medium">
-                        +{extraIngredients} more
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Price — every portion's price (with its own discount) shown directly on the card */}
-                <div className="mt-auto pt-1">
-                  {hasPortions ? (
-                    <div className="space-y-0.5">
-                      {item.portions.map((p, i) => {
-                        const portionPrice = Number(p.price) || 0
-                        const portionSale = applyDiscount(portionPrice, item.discount_type, item.discount_value)
-                        return (
-                          <div key={i} className="flex items-baseline gap-1.5">
-                            <span className="text-[12px] text-gray-400 font-medium truncate">{p.size}</span>
-                            <span className="text-[14px] font-black shrink-0" style={{ color }}>
-                              Rs. {Math.round(portionSale ?? portionPrice).toLocaleString()}
-                            </span>
-                            {portionSale && (
-                              <span className="text-[11px] text-gray-400 line-through shrink-0">
-                                Rs. {portionPrice.toLocaleString()}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })}
                     </div>
-                  ) : item.price ? (
-                    <div className="flex items-end gap-2">
-                      <span className="text-[16px] font-black leading-none" style={{ color }}>
-                        Rs. {Math.round(salePrice ?? item.price).toLocaleString()}
+                  )}
+                  {isAvailable && salePrice && (
+                    <div className="absolute -top-1 -right-1 w-16 h-16 overflow-hidden pointer-events-none">
+                      <span
+                        className="absolute top-[10px] -right-[26px] w-[90px] text-center rotate-45 text-white text-[9px] font-black py-0.5 shadow-sm"
+                        style={{ background: color }}
+                      >
+                        {item.discount_type === 'percent' ? `${item.discount_value}% OFF` : `Rs.${item.discount_value} OFF`}
                       </span>
-                      {salePrice && (
-                        <span className="text-[11px] text-gray-400 line-through leading-none mb-0.5">
-                          Rs. {Number(item.price).toLocaleString()}
-                        </span>
-                      )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
-              </div>
+              )}
             </button>
           )
         })}
