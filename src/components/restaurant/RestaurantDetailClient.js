@@ -7,7 +7,8 @@ import {
   MapPin, Phone, Globe, Clock, ArrowLeft, Star, X,
   UtensilsCrossed, MessageSquare, Info as InfoIcon,
   ChevronRight, ChevronLeft, ThumbsUp, Navigation, Zap, Wrench,
-  Images,
+  Images, Plus, Camera,
+  Soup, Coffee, Cake, Fish, Salad, Pizza, IceCream, Wine, Sandwich, Beef,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Navbar from '@/components/layout/Navbar'
@@ -35,6 +36,29 @@ function applyDiscount(basePrice, discountType, discountValue) {
   else if (discountType === 'fixed') result = basePrice - discountValue
   // A discount that would zero out or exceed the price isn't a valid discount to display
   return result > 0 ? result : null
+}
+
+// Menu categories are free text set by each restaurant, so this matches on
+// keywords rather than exact values — picks a placeholder icon that reads
+// as "this dish's category," not just a generic fork-and-knife, when a
+// menu item has no photo yet.
+const CATEGORY_ICON_RULES = [
+  { icon: Pizza,    keywords: ['pizza'] },
+  { icon: Fish,     keywords: ['seafood', 'fish', 'prawn', 'crab', 'lobster'] },
+  { icon: Beef,     keywords: ['bbq', 'grill', 'kottu', 'meat', 'chicken', 'devil'] },
+  { icon: Soup,     keywords: ['soup', 'curry', 'rice', 'dhal', 'lentil'] },
+  { icon: Salad,    keywords: ['salad', 'starter', 'appetizer'] },
+  { icon: Sandwich, keywords: ['short eats', 'sandwich', 'snack', 'bread', 'bun', 'roti'] },
+  { icon: Cake,     keywords: ['dessert', 'sweet', 'bakery', 'cake'] },
+  { icon: IceCream, keywords: ['ice cream', 'ice-cream'] },
+  { icon: Coffee,   keywords: ['beverage', 'drink', 'coffee', 'tea', 'juice'] },
+  { icon: Wine,     keywords: ['wine', 'cocktail', 'bar'] },
+]
+
+function getCategoryIcon(category) {
+  const c = (category || '').toLowerCase()
+  const match = CATEGORY_ICON_RULES.find(rule => rule.keywords.some(k => c.includes(k)))
+  return match ? match.icon : UtensilsCrossed
 }
 
 /* ── Stars component */
@@ -84,7 +108,7 @@ function RatingBar({ label, count, total }) {
    stacking context, which can trap a merely-high z-index behind the site's
    fixed bottom nav / call button instead of actually rendering on top of
    everything. Portalling to <body> sidesteps that entirely. */
-function MenuItemModal({ item, color, onClose }) {
+function MenuItemModal({ item, color, onClose, canManagePhoto, restaurantId }) {
   const [activePortion, setActivePortion] = useState(0)
   const [mounted, setMounted] = useState(false)
 
@@ -107,6 +131,7 @@ function MenuItemModal({ item, color, onClose }) {
     ? item.ingredients.split(',').map(s => s.trim()).filter(Boolean)
     : []
   const isAvailable = item.is_available ?? true
+  const CategoryIcon = getCategoryIcon(item.category)
 
   return createPortal(
     <div
@@ -121,9 +146,14 @@ function MenuItemModal({ item, color, onClose }) {
         <div className="relative h-56 shrink-0 bg-gray-100">
           {item.photo_url ? (
             <img src={item.photo_url} alt={item.name} className={clsx('w-full h-full object-cover', !isAvailable && 'grayscale')} />
+          ) : canManagePhoto ? (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 border-2 border-dashed" style={{ borderColor: `${color}55`, background: `${color}0a` }}>
+              <Plus size={22} style={{ color }} strokeWidth={2.5} />
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>No photo yet</span>
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}14` }}>
-              <UtensilsCrossed size={40} style={{ color }} strokeWidth={1.5} />
+            <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${color}20, ${color}05)` }}>
+              <CategoryIcon size={40} style={{ color }} strokeWidth={1.5} />
             </div>
           )}
           {!isAvailable && (
@@ -145,6 +175,17 @@ function MenuItemModal({ item, color, onClose }) {
         {/* Content — scrollable if long */}
         <div className="p-5 overflow-y-auto min-h-0">
           <h3 className="font-black text-gray-900 text-xl leading-snug mb-2">{item.name}</h3>
+
+          {canManagePhoto && !item.photo_url && (
+            <a
+              href={`/admin?tab=${encodeURIComponent('Menu Items')}&restaurant=${restaurantId}`}
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-dashed mb-3 w-fit transition-colors hover:bg-gray-50"
+              style={{ borderColor: `${color}55`, color }}
+            >
+              <Camera size={13} strokeWidth={2.5} />
+              Add a photo in Menu Items
+            </a>
+          )}
 
           {item.description && (
             <p className="text-sm text-gray-500 leading-relaxed mb-4">{item.description}</p>
@@ -208,7 +249,7 @@ function MenuItemModal({ item, color, onClose }) {
 }
 
 /* ── Visual menu grouped by category */
-function MenuSection({ items, brandColor }) {
+function MenuSection({ items, brandColor, canManagePhoto, restaurantId }) {
   const color = brandColor || '#FF2D55'
   const available = items || []
   const [activeCategory, setActiveCategory] = useState(null)
@@ -279,6 +320,18 @@ function MenuSection({ items, brandColor }) {
         <div className="h-px flex-1 bg-gray-100" />
       </div>
 
+      {canManagePhoto && (() => {
+        const missing = groups[shown]?.filter(i => !i.photo_url).length || 0
+        if (!missing) return null
+        return (
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full mb-4 -mt-2 w-fit"
+            style={{ background: `${color}12`, color }}>
+            <Camera size={12} strokeWidth={2.5} />
+            {missing} of {groups[shown].length} {missing === 1 ? 'dish needs' : 'dishes need'} a photo
+          </div>
+        )
+      })()}
+
       {/* ── Menu grid — 1 col mobile, 2 col tablet, 3 col desktop, uniform cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {groups[shown]?.map(item => {
@@ -294,6 +347,7 @@ function MenuSection({ items, brandColor }) {
           const cardBasePrice = hasPortions ? lowestPortionPrice : item.price
           const salePrice = applyDiscount(cardBasePrice, item.discount_type, item.discount_value)
           const isAvailable = item.is_available ?? true
+          const CategoryIcon = getCategoryIcon(item.category)
 
           return (
             <button
@@ -312,9 +366,14 @@ function MenuSection({ items, brandColor }) {
                     alt={item.name}
                     className={clsx('w-full h-full object-cover group-hover:scale-105 transition-transform duration-300', !isAvailable && 'grayscale')}
                   />
+                ) : canManagePhoto ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 border-2 border-dashed" style={{ borderColor: `${color}55`, background: `${color}0a` }}>
+                    <Plus size={18} style={{ color }} strokeWidth={2.5} />
+                    <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color }}>Add photo</span>
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ background: `${color}0f` }}>
-                    <UtensilsCrossed size={26} style={{ color }} strokeWidth={1.5} />
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${color}1c, ${color}05)` }}>
+                    <CategoryIcon size={26} style={{ color }} strokeWidth={1.5} />
                   </div>
                 )}
                 {!isAvailable && (
@@ -401,7 +460,13 @@ function MenuSection({ items, brandColor }) {
         Prices may vary. Contact the restaurant to confirm.
       </p>
 
-      <MenuItemModal item={selectedItem} color={color} onClose={() => setSelectedItem(null)} />
+      <MenuItemModal
+        item={selectedItem}
+        color={color}
+        onClose={() => setSelectedItem(null)}
+        canManagePhoto={canManagePhoto}
+        restaurantId={restaurantId}
+      />
     </div>
   )
 }
@@ -444,7 +509,10 @@ function FloatingCallButton({ phone, color }) {
 export default function RestaurantDetailClient() {
   const params      = useParams()
   const routeParam  = params.slug || params.id
-  const { user, token } = useAuth()
+  const { user, token, isAdmin, isStaff } = useAuth()
+  // Owners intentionally excluded — menu photo uploads are managed in the
+  // admin dashboard, and owners don't have access to that section.
+  const canManagePhoto = isAdmin || isStaff
 
   const [restaurant, setRestaurant] = useState(null)
   const [reviews,    setReviews]    = useState([])
@@ -732,7 +800,7 @@ export default function RestaurantDetailClient() {
           <div className="animate-fade-in">
             {restaurant.active_menu?.pdf_url
               ? <MenuViewer pdfUrl={restaurant.active_menu.pdf_url} restaurantName={name} />
-              : <MenuSection items={menu_items} brandColor={color} />
+              : <MenuSection items={menu_items} brandColor={color} canManagePhoto={canManagePhoto} restaurantId={restaurant.id} />
             }
           </div>
         )}
